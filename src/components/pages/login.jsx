@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Container, Row, Col, Form, Button, Card, Alert } from 'react-bootstrap';
+import { Container, Row, Col, Form, Button, Alert, Card } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const HulkGymLogin = () => {
@@ -24,83 +24,75 @@ const HulkGymLogin = () => {
   };
 
   return (
-    <Container fluid className="min-vh-100 d-flex align-items-center justify-content-center">
-      <Row className="justify-content-center">
-        <Col xs={12}>
-          <Card className="shadow border-0 mx-5" style={{ maxWidth: 900, width: '100%', borderRadius: '18px' }}>
-            <Card.Body className="p-4">
-              <div className="text-center mb-4">
-                <h1 className="fw-bold mb-3" style={{ color: '#228B22', fontSize: '2rem', letterSpacing: '1px' }}>
-                  HULK GYM
-                </h1>
-                <p className="text-muted mb-0">Bienvenido a Hulk Gym</p>
-              </div>
-              {showAlert && (
-                <Alert
-                  variant={alertMessage.includes('éxito') ? 'success' : 'danger'}
-                  dismissible
-                  onClose={() => setShowAlert(false)}
-                  className="mb-3"
+    <Container fluid className="d-flex align-items-center justify-content-center vh-100 bg-light p-3 overflow-hidden">
+      <Card className="shadow border-0 rounded-3" style={{ maxWidth: '600px', width: '100%' }}>
+        <Card.Body className="p-4">
+          <div className="text-center mb-4">
+            <h1 className="fw-bold text-success" style={{ letterSpacing: '1px' }}>HULK GYM</h1>
+            <p className="text-muted fs-5">Bienvenido a Hulk Gym</p>
+          </div>
+          
+          {showAlert && (
+            <Alert
+              variant={alertMessage.includes('éxito') ? 'success' : 'danger'}
+              dismissible
+              onClose={() => setShowAlert(false)}
+              className="mb-3"
+            >
+              {alertMessage}
+            </Alert>
+          )}
+          
+          <Form onSubmit={handleSubmit}>
+            <Form.Group className="mb-3">
+              <Form.Label className="fw-medium mb-2 fs-5">Usuario</Form.Label>
+              <Form.Control
+                type="email"
+                placeholder="hulkgym@gmail.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="py-2 rounded-2 fs-6"
+                size="lg"
+              />
+            </Form.Group>
+            
+            <Form.Group className="mb-4">
+              <Form.Label className="fw-medium mb-2 fs-5">Contraseña</Form.Label>
+              <Form.Control
+                type="password"
+                placeholder="Ingresa tu contraseña"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="py-2 rounded-2 fs-6"
+                size="lg"
+              />
+            </Form.Group>
+            
+            <Row className="g-3">
+              <Col xs={12} md={6}>
+                <Button
+                  variant="success"
+                  type="submit"
+                  className="w-100 fw-bold py-2 text-nowrap fs-6 rounded-2 d-flex justify-content-center align-items-center"
                 >
-                  {alertMessage}
-                </Alert>
-              )}
-              <Form onSubmit={handleSubmit}>
-                <Form.Group className="mb-3">
-                  <Form.Label className="fw-medium mb-2">Usuario</Form.Label>
-                  <Form.Control
-                    type="email"
-                    placeholder="hulkgym@gmail.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    style={{ padding: '12px', borderRadius: '8px' }}
-                  />
-                </Form.Group>
-                <Form.Group className="mb-4">
-                  <Form.Label className="fw-medium mb-2">Contraseña</Form.Label>
-                  <Form.Control
-                    type="password"
-                    placeholder="Ingresa tu contraseña"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    style={{ padding: '12px', borderRadius: '8px' }}
-                  />
-                </Form.Group>
-                <div className="d-flex justify-content-around gap-3">
-                  <Button
-                    variant="success"
-                    type="submit"
-                    className="fw-bold py-2"
-                    style={{
-                      backgroundColor: '#228B22',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontSize: '1rem'
-                    }}
-                  >
-                    INGRESAR
-                  </Button>
-                  <Button
-                    variant="success"
-                    type="button"
-                    className="fw-bold py-2"
-                    style={{
-                      backgroundColor: '#228B22',
-                      border: 'none',
-                      borderRadius: '8px',
-                      fontSize: '1rem'
-                    }}
-                  >
-                    REGISTRARSE
-                  </Button>
-                </div>
-              </Form>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+                  INGRESAR
+                </Button>
+              </Col>
+              <Col xs={12} md={6}>
+                <Button
+                  variant="success"
+                  type="button"
+                  className="w-100 fw-bold py-2 text-nowrap fs-6 rounded-2 px-4 d-flex justify-content-center align-items-center"
+                >
+                  REGISTRARSE
+                </Button>
+              </Col>
+            </Row>
+          </Form>
+        </Card.Body>
+      </Card>
     </Container>
   );
 };
