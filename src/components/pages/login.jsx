@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { Container, Row, Col, Form, Button, Alert, Card } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { useNavigate } from 'react-router-dom';
+
 
 const HulkGymLogin = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
+  const navigate = useNavigate();
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -21,6 +24,10 @@ const HulkGymLogin = () => {
     setShowAlert(true);
     setEmail('');
     setPassword('');
+  };
+
+  const handleRegistroClick = () => {
+    navigate('/registro');
   };
 
   return (
@@ -85,6 +92,7 @@ const HulkGymLogin = () => {
                   variant="success"
                   type="button"
                   className="w-100 fw-bold py-2 text-nowrap fs-6 rounded-2 px-4 d-flex justify-content-center align-items-center"
+                  onClick={handleRegistroClick}
                 >
                   REGISTRARSE
                 </Button>
