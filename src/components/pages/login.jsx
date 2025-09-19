@@ -70,8 +70,8 @@ const HulkGymLogin = () => {
               />
             </Form.Group>
             
-            <Row>
-              <Col xs={12}>
+            <Row className="justify-content-center">
+              <Col xs={12} md={6}>
                 <Button
                   variant="success"
                   type="submit"
