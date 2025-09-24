@@ -5,13 +5,14 @@ import PagePrincipal from './components/pages/pagePrincipal.jsx'
 
 function App() {
   return (
-    // <BrowserRouter>
-    //   <Routes>
-    //     <Route path="/" element={<Navigate to="/login" />} />
-    //     <Route path="/login" element={<Login />} />
-    //   </Routes>
-    // </BrowserRouter>
-    <PagePrincipal />
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Navigate to="/login" />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/principal" element={<PagePrincipal />} />
+      </Routes>
+    </BrowserRouter>
+    // <PagePrincipal />
   )
 }
 

@@ -20,25 +20,6 @@ const PagePrincipal = () => {
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [mostrarResultados, setMostrarResultados] = useState(false);
 
-  // Datos de ejemplo - en una aplicación real vendrían de una API o base de datos
-  const clientes = [
-    {
-      nombre: "Juan Pérez",
-      dni: "35498765",
-      membresia: "Mensual",
-      vencimiento: "25/09/2025",
-      estado: "Activo",
-      fechaInicio: "25/09/2024",
-    },
-    {
-      nombre: "Ana Gómez",
-      dni: "40123456",
-      membresia: "Trimestral",
-      vencimiento: "15/08/2025",
-      estado: "Vencida",
-    },
-  ];
-
   const handleSearch = (e) => {
     e.preventDefault();
     const clienteEncontrado = clientes.find(
@@ -51,13 +32,8 @@ const PagePrincipal = () => {
   return (
     <Container fluid className="vh-100 d-flex flex-column">
       <Row className="flex-grow-1">
-        {/* Sidebar */}
         <Col xs={2} className="h-100 p-0 ">
-          <Navbar
-            bg="dark"
-            variant="dark"
-            className="d-flex flex-column h-100"
-          >
+          <Navbar bg="dark" variant="dark" className="d-flex flex-column h-100">
             <Container fluid className="d-flex flex-column h-100">
               <Navbar.Brand className="p-3 w-100">
                 <h3 className="fw-bold text-success">HULK GYM</h3>
@@ -72,7 +48,6 @@ const PagePrincipal = () => {
           </Navbar>
         </Col>
 
-        {/* Contenido principal */}
         <Col className="h-100 text-center">
           <Container fluid className="w- p-4">
             <Row>
@@ -80,7 +55,6 @@ const PagePrincipal = () => {
                 <h2 className="mb-4">Gestión de Clientes</h2>
               </Col>
 
-              {/* Formulario de búsqueda */}
               <Col xs={12} lg={6} className="mb-3">
                 <Form onSubmit={handleSearch}>
                   <InputGroup>
@@ -107,7 +81,6 @@ const PagePrincipal = () => {
                 </Form.Select>
               </Col>
 
-              {/* Tabla de resultados */}
               <Col xs={12} className="mb-4">
                 <Table hover responsive className="mb-0">
                   <thead>
@@ -165,7 +138,6 @@ const PagePrincipal = () => {
                 </Table>
               </Col>
 
-              {/* Detalles del cliente seleccionado */}
               {clienteSeleccionado && (
                 <Col xs={12}>
                   <Card border="0" className="shadow-sm">
