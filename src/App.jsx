@@ -12,7 +12,6 @@ function App() {
         <Route path="/principal" element={<PagePrincipal />} />
       </Routes>
     </BrowserRouter>
-    // <PagePrincipal />
   )
 }
 
