@@ -258,7 +258,7 @@ const AdminClientes = () => {
               <Col sm={12} lg={6} xl={4} className="text-lg-end">
                 <Button 
                   variant="success" 
-                  className="w-100 w-lg-auto"
+                  className="w-50 w-lg-auto"
                   onClick={abrirModalNuevo}
                 >
                   <FaPlus className="me-2" /> Nuevo Cliente
