@@ -28,7 +28,7 @@ const HulkGymLogin = () => {
     }
 
     // Credenciales fijas
-    if (usuarioSinEspacios === 'admin' && passwordSinEspacios === 'admin123') {
+    if (usuarioSinEspacios === 'HulkgymAdmin' && passwordSinEspacios === 'HulkGym2024') {
       // Es un administrador
       localStorage.setItem('userType', 'admin');
       setAlertVariant('success');
@@ -36,7 +36,7 @@ const HulkGymLogin = () => {
       setShowAlert(true);
       navigate('/admin');
     } 
-    else if (usuarioSinEspacios === 'cliente' && passwordSinEspacios === 'cliente123') {
+    else if (usuarioSinEspacios === 'HulkgymCliente' && passwordSinEspacios === 'HulkGym2024') {
       // Es un cliente
       localStorage.setItem('userType', 'cliente');
       setAlertVariant('success');
