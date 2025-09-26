@@ -14,39 +14,44 @@ import {
   Badge,
   Offcanvas,
   Pagination,
-  Modal
+  Modal,
+  ProgressBar,
+  ButtonGroup,
+  Stack,
 } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
-import { 
-  FaUser, 
-  FaSearch, 
-  FaCheckCircle, 
-  FaTimesCircle, 
-  FaBars, 
-  FaEdit, 
+import {
+  FaUser,
+  FaSearch,
+  FaCheckCircle,
+  FaTimesCircle,
+  FaBars,
+  FaEdit,
   FaTrash,
   FaPlus,
   FaUsers,
-  FaTimes
+  FaTimes,
+  FaDollarSign,
+  FaCalendarAlt,
 } from "react-icons/fa";
 
 const AdminClientes = () => {
   const navigate = useNavigate();
-  
+
   // Verificación básica de usuario administrador
   useEffect(() => {
-    const userType = localStorage.getItem('userType');
-    if (userType !== 'admin') {
-      navigate('/login');
+    const userType = localStorage.getItem("userType");
+    if (userType !== "admin") {
+      navigate("/login");
     }
   }, [navigate]);
-  
+
   const [searchTerm, setSearchTerm] = useState("");
   const [filtroActivo, setFiltroActivo] = useState("todos");
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [showSidebar, setShowSidebar] = useState(false);
   const [paginaActual, setPaginaActual] = useState(1);
-  
+
   // Estados para modales
   const [showModalNuevo, setShowModalNuevo] = useState(false);
   const [showModalEditar, setShowModalEditar] = useState(false);
@@ -55,11 +60,51 @@ const AdminClientes = () => {
 
   // Datos de ejemplo
   const [clientes, setClientes] = useState([
-    { id: 1, nombre: "Juan Pérez", dni: "12345678", vencimiento: "15/12/2023", estado: "Activo", fechaInicio: "15/01/2023" },
-    { id: 2, nombre: "María López", dni: "87654321", vencimiento: "02/11/2023", estado: "Vencida", fechaInicio: "02/05/2023" },
-    { id: 3, nombre: "Carlos Rodríguez", dni: "45678912", vencimiento: "30/01/2024", estado: "Activo", fechaInicio: "30/07/2023" },
-    { id: 4, nombre: "Ana García", dni: "78912345", vencimiento: "10/12/2023", estado: "Activo", fechaInicio: "10/08/2023" },
-    { id: 5, nombre: "Roberto Sánchez", dni: "32165498", vencimiento: "05/10/2023", estado: "Vencida", fechaInicio: "05/04/2023" },
+    {
+      id: 1,
+      nombre: "Juan Pérez",
+      dni: "12345678",
+      vencimiento: "15/12/2023",
+      estado: "Activo",
+      fechaInicio: "15/01/2023",
+      precio: 15000,
+    },
+    {
+      id: 2,
+      nombre: "María López",
+      dni: "87654321",
+      vencimiento: "02/11/2023",
+      estado: "Vencida",
+      fechaInicio: "02/05/2023",
+      precio: 12000,
+    },
+    {
+      id: 3,
+      nombre: "Carlos Rodríguez",
+      dni: "45678912",
+      vencimiento: "30/01/2024",
+      estado: "Activo",
+      fechaInicio: "30/07/2023",
+      precio: 15000,
+    },
+    {
+      id: 4,
+      nombre: "Ana García",
+      dni: "78912345",
+      vencimiento: "10/12/2023",
+      estado: "Activo",
+      fechaInicio: "10/08/2023",
+      precio: 10000,
+    },
+    {
+      id: 5,
+      nombre: "Roberto Sánchez",
+      dni: "32165498",
+      vencimiento: "05/10/2023",
+      estado: "Vencida",
+      fechaInicio: "05/04/2023",
+      precio: 15000,
+    },
   ]);
 
   // Form para nuevo/editar cliente
@@ -68,61 +113,161 @@ const AdminClientes = () => {
     dni: "",
     fechaInicio: "",
     vencimiento: "",
-    estado: "Activo"
+    estado: "Activo",
+    precio: 10000,
   });
+
+  // Calcular datos del dashboard basados en la lista de clientes actual
+  const clientesActivos = clientes.filter(
+    (cliente) => cliente.estado === "Activo"
+  ).length;
+  const membresiasVencidas = clientes.filter(
+    (cliente) => cliente.estado === "Vencida"
+  ).length;
+
+  // Simular ingresos basados en clientes (usando el precio real de cada cliente)
+  const ingresosMes = `$${clientes
+    .filter((cliente) => cliente.estado === "Activo")
+    .reduce((total, cliente) => total + (cliente.precio || 0), 0)
+    .toLocaleString()}`;
+
+  // Número de clases hoy (simulado - en un caso real podrías tener una lista de clases)
+  const clasesHoy = 5;
+
+  // Generar datos de ingresos basados en los clientes registrados
+  const calcularIngresosAnuales = (clientesParam = clientes) => {
+    const currentYear = new Date().getFullYear();
+    const meses = [
+      "Ene",
+      "Feb",
+      "Mar",
+      "Abr",
+      "May",
+      "Jun",
+      "Jul",
+      "Ago",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dic",
+    ];
+
+    // Inicializar array de ingresos mensuales
+    const ingresosMensuales = Array(12).fill(0);
+
+    // Calcular ingresos por cliente según su fecha de inicio
+    clientesParam.forEach((cliente) => {
+      try {
+        // Convertir la fecha de formato DD/MM/YYYY a un objeto Date
+        if (!cliente.fechaInicio) return;
+
+        const partes = cliente.fechaInicio.split("/");
+        if (partes.length !== 3) return;
+
+        const dia = parseInt(partes[0], 10);
+        const mes = parseInt(partes[1], 10) - 1; // Los meses en JS son 0-11
+        const año = parseInt(partes[2], 10);
+
+        // Verificación más segura para fechas
+        if (isNaN(dia) || isNaN(mes) || isNaN(año)) return;
+
+        // Solo considerar clientes activos
+        if (cliente.estado !== "Activo") return;
+
+        // Considerar todos los clientes, no solo los del año actual
+        // Esto es para que el gráfico muestre datos históricos también
+        const precio = Number(cliente.precio) || 0;
+
+        // Agregar ingreso al mes correspondiente
+        if (año === currentYear) {
+          ingresosMensuales[mes] += precio;
+        }
+      } catch (error) {
+        console.error("Error al procesar fecha:", cliente.fechaInicio, error);
+      }
+    });
+
+    // Añadir logs para depuración
+    console.log("Ingresos mensuales calculados:", ingresosMensuales);
+
+    // Crear el array de objetos para el gráfico
+    return meses.map((mes, index) => ({
+      mes,
+      valor: ingresosMensuales[index],
+    }));
+  };
+
+  // Cuando se monta el componente, calcular los datos del gráfico
+  useEffect(() => {
+    const datos = calcularIngresosAnuales();
+    console.log("Datos iniciales del gráfico:", datos);
+    setDatosIngresos(datos);
+  }, []); // Solo se ejecuta al montar el componente
+
+  // Cambiar de useState con valor inicial a useState mutable:
+  const [datosIngresos, setDatosIngresos] = useState([]);
+
+  const valorMaximo =
+    Math.max(...(datosIngresos.length > 0 ? datosIngresos.map((item) => item.valor) : [0])) || 10000;
 
   // Manejo del formulario
   const handleFormChange = (e) => {
     const { name, value } = e.target;
-    
+
     // Si la fecha de inicio cambia, calcular automáticamente la fecha de vencimiento (30 días después)
     if (name === "fechaInicio" && value) {
+      // Convertir la fecha YYYY-MM-DD del selector a un objeto Date
       const fechaInicio = new Date(value);
       const fechaVencimiento = new Date(fechaInicio);
       fechaVencimiento.setDate(fechaVencimiento.getDate() + 30);
       
-      // Formatear la fecha de vencimiento como YYYY-MM-DD para el campo date
-      const vencimientoFormateado = fechaVencimiento.toISOString().split('T')[0];
+      // Formatear la fecha para guardar en estado como DD/MM/YYYY
+      const inicioFormateado = `${fechaInicio.getDate().toString().padStart(2, '0')}/${(fechaInicio.getMonth() + 1).toString().padStart(2, '0')}/${fechaInicio.getFullYear()}`;
+      const vencimientoFormateado = `${fechaVencimiento.getDate().toString().padStart(2, '0')}/${(fechaVencimiento.getMonth() + 1).toString().padStart(2, '0')}/${fechaVencimiento.getFullYear()}`;
       
       setFormData({
         ...formData,
-        fechaInicio: value,
-        vencimiento: vencimientoFormateado
+        fechaInicio: inicioFormateado,
+        vencimiento: vencimientoFormateado,
       });
     } else {
       setFormData({
         ...formData,
-        [name]: value
+        [name]: value,
       });
     }
   };
-  
+
   // Filtrar y buscar clientes
-  const clientesFiltrados = clientes.filter(cliente => {
+  const clientesFiltrados = clientes.filter((cliente) => {
     // Filtro por búsqueda
-    const coincideTermino = cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          cliente.dni.includes(searchTerm);
-    
+    const coincideTermino =
+      cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cliente.dni.includes(searchTerm);
+
     // Filtro por estado
     if (filtroActivo === "activos") {
       return coincideTermino && cliente.estado === "Activo";
     } else if (filtroActivo === "vencidos") {
       return coincideTermino && cliente.estado === "Vencida";
     }
-    
+
     return coincideTermino;
   });
-  
+
   // Paginación
   const clientesPorPagina = 10;
   const totalPaginas = Math.ceil(clientesFiltrados.length / clientesPorPagina);
   const indiceInicial = (paginaActual - 1) * clientesPorPagina;
-  const clientesPaginados = clientesFiltrados.slice(indiceInicial, indiceInicial + clientesPorPagina);
-  
+  const clientesPaginados = clientesFiltrados.slice(
+    indiceInicial,
+    indiceInicial + clientesPorPagina
+  );
+
   const seleccionarCliente = (cliente) => {
     setClienteSeleccionado(cliente);
   };
-  
+
   const handleSearch = (e) => {
     e.preventDefault();
     setPaginaActual(1); // Volver a la primera página al buscar
@@ -135,27 +280,49 @@ const AdminClientes = () => {
 
   // Funciones para manejar modal nuevo cliente
   const abrirModalNuevo = () => {
-    const fechaHoy = new Date().toISOString().split('T')[0];
-    const fechaVencimiento = new Date();
+    const fechaHoy = new Date();
+    const fechaHoyFormateada = `${fechaHoy.getDate()
+      .toString()
+      .padStart(2, "0")}/${(fechaHoy.getMonth() + 1)
+      .toString()
+      .padStart(2, "0")}/${fechaHoy.getFullYear()}`;
+
+    const fechaVencimiento = new Date(fechaHoy);
     fechaVencimiento.setDate(fechaVencimiento.getDate() + 30);
-    const vencimientoFormateado = fechaVencimiento.toISOString().split('T')[0];
-    
+    const vencimientoFormateado = `${fechaVencimiento.getDate()
+      .toString()
+      .padStart(2, "0")}/${(fechaVencimiento.getMonth() + 1)
+      .toString()
+      .padStart(2, "0")}/${fechaVencimiento.getFullYear()}`;
+
     setFormData({
       nombre: "",
       dni: "",
-      fechaInicio: fechaHoy,
+      fechaInicio: fechaHoyFormateada,
       vencimiento: vencimientoFormateado,
-      estado: "Activo"
+      estado: "Activo",
+      precio: 10000,
     });
     setShowModalNuevo(true);
   };
 
   const guardarNuevoCliente = () => {
+    // Asegurarse de que precio sea un número
     const nuevoCliente = {
-      id: clientes.length > 0 ? Math.max(...clientes.map(c => c.id)) + 1 : 1,
-      ...formData
+      id: clientes.length > 0 ? Math.max(...clientes.map((c) => c.id)) + 1 : 1,
+      ...formData,
+      precio: Number(formData.precio)
     };
-    setClientes([...clientes, nuevoCliente]);
+
+    // Actualizar la lista de clientes
+    const nuevosClientes = [...clientes, nuevoCliente];
+    setClientes(nuevosClientes);
+
+    // Recalcular los datos del gráfico con el nuevo cliente
+    console.log("Guardando nuevo cliente:", nuevoCliente);
+    const nuevosIngresos = calcularIngresosAnuales(nuevosClientes);
+    setDatosIngresos(nuevosIngresos);
+
     setShowModalNuevo(false);
   };
 
@@ -168,21 +335,34 @@ const AdminClientes = () => {
       dni: cliente.dni,
       fechaInicio: cliente.fechaInicio,
       vencimiento: cliente.vencimiento,
-      estado: cliente.estado
+      estado: cliente.estado,
+      precio: cliente.precio,
     });
     setShowModalEditar(true);
   };
 
   const guardarClienteEditado = () => {
-    const clientesActualizados = clientes.map(c => 
-      c.id === formData.id ? formData : c
+    // Asegurarse de que precio sea un número
+    const formDataActualizado = {
+      ...formData,
+      precio: Number(formData.precio)
+    };
+    
+    const clientesActualizados = clientes.map((c) =>
+      c.id === formData.id ? formDataActualizado : c
     );
+
     setClientes(clientesActualizados);
-    
+
+    // Actualizar datos del gráfico
+    console.log("Cliente editado:", formDataActualizado);
+    const nuevosIngresos = calcularIngresosAnuales(clientesActualizados);
+    setDatosIngresos(nuevosIngresos);
+
     if (clienteSeleccionado && clienteSeleccionado.id === formData.id) {
-      setClienteSeleccionado(formData);
+      setClienteSeleccionado(formDataActualizado);
     }
-    
+
     setShowModalEditar(false);
   };
 
@@ -194,36 +374,99 @@ const AdminClientes = () => {
   };
 
   const confirmarEliminarCliente = () => {
-    const clientesActualizados = clientes.filter(c => c.id !== clienteAEliminar.id);
+    const clientesActualizados = clientes.filter(
+      (c) => c.id !== clienteAEliminar.id
+    );
+
     setClientes(clientesActualizados);
-    
+
+    // Actualizar datos del gráfico
+    setDatosIngresos(calcularIngresosAnuales(clientesActualizados));
+
     if (clienteSeleccionado && clienteSeleccionado.id === clienteAEliminar.id) {
       setClienteSeleccionado(null);
     }
-    
+
     setShowModalEliminar(false);
   };
 
   // Función para cerrar sesión
   const handleLogout = () => {
-    localStorage.removeItem('userType');
-    navigate('/login');
+    localStorage.removeItem("userType");
+    navigate("/login");
   };
-  
+
+  // Gráfico de barras usando componentes de React Bootstrap
+  const renderBarChart = () => {
+    // Verificar si hay datos para mostrar
+    const hayDatos = datosIngresos.some(item => item.valor > 0);
+    
+    if (!hayDatos) {
+      return (
+        <Card className="shadow-sm">
+          <Card.Body className="text-center py-5">
+            <Card.Title as="h5" className="mb-3">
+              Ingresos por mes basados en clientes registrados
+            </Card.Title>
+            <p className="text-muted">No hay datos de ingresos para mostrar en el gráfico.</p>
+            <p className="small">Agregue clientes activos con precios para ver los ingresos mensuales.</p>
+          </Card.Body>
+        </Card>
+      );
+    }
+    
+    return (
+      <Card className="shadow-sm">
+        <Card.Body>
+          <Card.Title as="h5" className="mb-3">
+            Ingresos por mes basados en clientes registrados
+          </Card.Title>
+          <Container fluid className="p-0">
+            <Row className="align-items-end g-0" style={{ height: "300px" }}>
+              {datosIngresos.map((item, index) => (
+                <Col key={index}>
+                  <Stack className="align-items-center">
+                    <div
+                      className="bg-primary rounded-top"
+                      style={{
+                        width: "80%",
+                        height:
+                          valorMaximo > 0
+                            ? `${(item.valor / valorMaximo) * 200}px`
+                            : "0",
+                        minHeight: item.valor > 0 ? "20px" : "0",
+                      }}
+                    />
+                    <small className="mt-1">{item.mes}</small>
+                    <small className="text-muted">
+                      ${item.valor.toLocaleString()}
+                    </small>
+                  </Stack>
+                </Col>
+              ))}
+            </Row>
+          </Container>
+        </Card.Body>
+      </Card>
+    );
+  };
+
   // Sidebar para dispositivos móviles
   const renderSidebar = () => (
     <Navbar bg="dark" variant="dark" className="d-flex flex-column h-100">
       <Container fluid className="d-flex flex-column h-100">
         <Navbar.Brand className="p-3 w-100">
-          <h3 className="fw-bold text-success">HULK GYM</h3>
+          <Card.Title as="h3" className="fw-bold text-success">
+            HULK GYM
+          </Card.Title>
           <Nav className="flex-column w-100 mt-4">
             <Nav.Link className="d-flex align-items-center px-0 text-primary">
               <FaUsers className="me-2" />
               <span>Todos los Clientes</span>
             </Nav.Link>
-            
+
             {/* Botón cerrar sesión en el sidebar */}
-            <Nav.Link 
+            <Nav.Link
               className="d-flex align-items-center px-0 text-danger mt-3"
               onClick={handleLogout}
             >
@@ -236,11 +479,27 @@ const AdminClientes = () => {
     </Navbar>
   );
 
+  // Helper para convertir formato de fecha DD/MM/YYYY a YYYY-MM-DD para inputs de tipo date
+  const formatearFechaParaInput = (fechaString) => {
+    if (!fechaString) return '';
+    
+    const partes = fechaString.split('/');
+    if (partes.length !== 3) return '';
+    
+    return `${partes[2]}-${partes[1]}-${partes[0]}`;
+  };
+
   return (
     <Container fluid className="vh-100 d-flex flex-column p-0">
       <Row className="flex-grow-1 m-0">
         {/* Sidebar para pantallas medianas y grandes */}
-        <Col xs={2} md={3} lg={2} xl={2} className="d-none d-md-block p-0 h-100">
+        <Col
+          xs={2}
+          md={3}
+          lg={2}
+          xl={2}
+          className="d-none d-md-block p-0 h-100"
+        >
           {renderSidebar()}
         </Col>
 
@@ -254,9 +513,7 @@ const AdminClientes = () => {
           <Offcanvas.Header closeButton className="bg-dark text-white">
             <Offcanvas.Title>Menú</Offcanvas.Title>
           </Offcanvas.Header>
-          <Offcanvas.Body className="p-0">
-            {renderSidebar()}
-          </Offcanvas.Body>
+          <Offcanvas.Body className="p-0">{renderSidebar()}</Offcanvas.Body>
         </Offcanvas>
 
         {/* Contenedor principal */}
@@ -271,14 +528,12 @@ const AdminClientes = () => {
               >
                 <FaBars />
               </Button>
-              <Navbar.Brand className="fw-bold text-success">HULK GYM</Navbar.Brand>
-              
+              <Navbar.Brand className="fw-bold text-success">
+                HULK GYM
+              </Navbar.Brand>
+
               {/* Botón cerrar sesión en navbar móvil */}
-              <Button
-                variant="outline-danger"
-                onClick={handleLogout}
-                size="sm"
-              >
+              <Button variant="outline-danger" onClick={handleLogout} size="sm">
                 <FaTimes /> Salir
               </Button>
             </Container>
@@ -286,18 +541,71 @@ const AdminClientes = () => {
 
           {/* Contenido de la página */}
           <Container fluid className="p-3">
-            <Row className="mb-3">
-              <Col sm={12} lg={6} xl={8} className="mb-2 mb-lg-0">
-                <h2>Administración de Clientes</h2>
+            {/* Tarjetas de resumen */}
+            <Row className="mb-4 d-flex justify-content-center">
+              <Col xs={6} md={3} className="mb-3 mb-md-0">
+                <Card className="h-100 shadow-sm">
+                  <Card.Body className="d-flex flex-column">
+                    <Card.Title as="h2" className="mb-0">
+                      {clientesActivos}
+                    </Card.Title>
+                    <Card.Text className="text-muted mb-0 small">
+                      Clientes activos
+                    </Card.Text>
+                  </Card.Body>
+                </Card>
               </Col>
-              <Col sm={12} lg={6} xl={4} className="text-lg-end">
-                <Button 
-                  variant="success" 
-                  className="w-50 w-lg-auto"
+              <Col xs={6} md={3} className="mb-3 mb-md-0">
+                <Card className="h-100 shadow-sm">
+                  <Card.Body className="d-flex flex-column">
+                    <Card.Title as="h2" className="mb-0">
+                      {membresiasVencidas}
+                    </Card.Title>
+                    <Card.Text className="text-muted mb-0 small">
+                      Membresías vencidas
+                    </Card.Text>
+                  </Card.Body>
+                </Card>
+              </Col>
+              <Col xs={6} md={3}>
+                <Card className="h-100 shadow-sm">
+                  <Card.Body className="d-flex flex-column">
+                    <Card.Title as="h2" className="mb-0">
+                      {ingresosMes}
+                    </Card.Title>
+                    <Card.Text className="text-muted mb-0 small">
+                      Ingresos del mes
+                    </Card.Text>
+                  </Card.Body>
+                </Card>
+              </Col>
+            </Row>
+
+            {/* Gráfico de ingresos usando componentes de React Bootstrap */}
+            <Row className="mb-4">
+              <Col xs={12}>{renderBarChart()}</Col>
+            </Row>
+
+            {/* Botones de acción */}
+            <Row className="mb-4">
+              <Col>
+                <Button
+                  variant="primary"
                   onClick={abrirModalNuevo}
+                  className="me-2"
                 >
-                  <FaPlus className="me-2" /> Nuevo Cliente
+                  <FaPlus className="me-2" /> Agregar Cliente
                 </Button>
+                <Button variant="outline-primary">
+                  <FaDollarSign className="me-2" /> Registrar Pago
+                </Button>
+              </Col>
+            </Row>
+
+            {/* Título sección de administración de clientes */}
+            <Row className="mb-3">
+              <Col>
+                <h2>Administración de Clientes</h2>
               </Col>
             </Row>
 
@@ -320,27 +628,33 @@ const AdminClientes = () => {
               </Col>
               <Col sm={12} lg={6}>
                 <div className="d-flex">
-                  <Button 
-                    variant={filtroActivo === "todos" ? "primary" : "outline-primary"} 
+                  <Button
+                    variant={
+                      filtroActivo === "todos" ? "primary" : "outline-primary"
+                    }
                     onClick={() => setFiltroActivo("todos")}
-                    className="flex-grow-1"
                     size="sm"
+                    className="flex-grow-1 me-2"
                   >
                     Todos
                   </Button>
-                  <Button 
-                    variant={filtroActivo === "activos" ? "success" : "outline-success"}
+                  <Button
+                    variant={
+                      filtroActivo === "activos" ? "success" : "outline-success"
+                    }
                     onClick={() => setFiltroActivo("activos")}
-                    className="flex-grow-1 mx-2"
                     size="sm"
+                    className="flex-grow-1 me-2"
                   >
                     Activos
                   </Button>
-                  <Button 
-                    variant={filtroActivo === "vencidos" ? "danger" : "outline-danger"}
+                  <Button
+                    variant={
+                      filtroActivo === "vencidos" ? "danger" : "outline-danger"
+                    }
                     onClick={() => setFiltroActivo("vencidos")}
-                    className="flex-grow-1"
                     size="sm"
+                    className="flex-grow-1"
                   >
                     Vencidos
                   </Button>
@@ -349,117 +663,130 @@ const AdminClientes = () => {
             </Row>
 
             {/* Tabla de clientes */}
-            <div className="table-responsive mb-3">
-              <Table hover size="sm" className="align-middle">
-                <thead>
-                  <tr>
-                    <th>Nombre</th>
-                    <th>DNI</th>
-                    <th className="d-none d-xl-table-cell">Vencimiento</th>
-                    <th>Estado</th>
-                    <th style={{width: "100px"}}>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {clientesPaginados.length > 0 ? (
-                    clientesPaginados.map((cliente) => (
-                      <tr key={cliente.id} onClick={() => seleccionarCliente(cliente)}>
-                        <td>{cliente.nombre}</td>
-                        <td>{cliente.dni}</td>
-                        <td className="d-none d-xl-table-cell">{cliente.vencimiento}</td>
-                        <td>
-                          {cliente.estado === "Activo" ? (
-                            <Badge bg="success">Activo</Badge>
-                          ) : (
-                            <Badge bg="danger">Vencida</Badge>
-                          )}
-                        </td>
-                        <td>
-                          <div className="d-flex gap-2 justify-content-center">
-                            <Button 
-                              variant="primary" 
-                              size="sm"
-                              onClick={(e) => abrirModalEditar(cliente, e)}
-                            >
-                              <FaEdit />
-                            </Button>
-                            <Button 
-                              variant="danger" 
-                              size="sm"
-                              onClick={(e) => abrirModalEliminar(cliente, e)}
-                            >
-                              <FaTrash />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="5" className="text-center py-3">
-                        No se encontraron clientes con los criterios de búsqueda.
+            <Table responsive hover size="sm" className="mb-3">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>DNI</th>
+                  <th className="d-none d-xl-table-cell">Vencimiento</th>
+                  <th>Estado</th>
+                  <th>Precio</th>
+                  <th style={{ width: "100px" }}>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {clientesPaginados.length > 0 ? (
+                  clientesPaginados.map((cliente) => (
+                    <tr
+                      key={cliente.id}
+                      onClick={() => seleccionarCliente(cliente)}
+                    >
+                      <td>{cliente.nombre}</td>
+                      <td>{cliente.dni}</td>
+                      <td className="d-none d-xl-table-cell">
+                        {cliente.vencimiento}
+                      </td>
+                      <td>
+                        <Badge
+                          bg={
+                            cliente.estado === "Activo" ? "success" : "danger"
+                          }
+                        >
+                          {cliente.estado}
+                        </Badge>
+                      </td>
+                      <td>${cliente.precio?.toLocaleString() || "0"}</td>
+                      <td>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={(e) => abrirModalEditar(cliente, e)}
+                          className="me-1"
+                        >
+                          <FaEdit />
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={(e) => abrirModalEliminar(cliente, e)}
+                        >
+                          <FaTrash />
+                        </Button>
                       </td>
                     </tr>
-                  )}
-                </tbody>
-              </Table>
-            </div>
-              
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="5" className="text-center py-3">
+                      No se encontraron clientes con los criterios de búsqueda.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </Table>
+
             {/* Paginación */}
             {clientesFiltrados.length > clientesPorPagina && (
-              <div className="d-flex justify-content-center mb-3">
-                <Pagination>
-                  <Pagination.Prev 
-                    onClick={() => setPaginaActual(paginaActual - 1)} 
-                    disabled={paginaActual === 1} 
-                  />
-                  
-                  {[...Array(totalPaginas).keys()].map((numero) => (
-                    <Pagination.Item 
-                      key={numero + 1} 
-                      active={numero + 1 === paginaActual}
-                      onClick={() => setPaginaActual(numero + 1)}
-                    >
-                      {numero + 1}
-                    </Pagination.Item>
-                  ))}
-                  
-                  <Pagination.Next 
-                    onClick={() => setPaginaActual(paginaActual + 1)} 
-                    disabled={paginaActual === totalPaginas} 
-                  />
-                </Pagination>
-              </div>
+              <Row className="mb-3">
+                <Col className="d-flex justify-content-center">
+                  <Pagination>
+                    <Pagination.Prev
+                      onClick={() => setPaginaActual(paginaActual - 1)}
+                      disabled={paginaActual === 1}
+                    />
+
+                    {[...Array(totalPaginas).keys()].map((numero) => (
+                      <Pagination.Item
+                        key={numero + 1}
+                        active={numero + 1 === paginaActual}
+                        onClick={() => setPaginaActual(numero + 1)}
+                      >
+                        {numero + 1}
+                      </Pagination.Item>
+                    ))}
+
+                    <Pagination.Next
+                      onClick={() => setPaginaActual(paginaActual + 1)}
+                      disabled={paginaActual === totalPaginas}
+                    />
+                  </Pagination>
+                </Col>
+              </Row>
             )}
 
             {/* Información detallada del cliente seleccionado */}
             {clienteSeleccionado && (
               <Card className="mb-3">
                 <Card.Header className="bg-light">
-                  <div className="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2">
-                    <h4 className="mb-0">Detalles del Cliente</h4>
-                    <div className="d-flex gap-2">
-                      <Button 
-                        variant="primary" 
-                        size="sm" 
+                  <Row>
+                    <Col xs={12} sm={6}>
+                      <Card.Title as="h4" className="mb-0">
+                        Detalles del Cliente
+                      </Card.Title>
+                    </Col>
+                    <Col xs={12} sm={6} className="text-sm-end mt-2 mt-sm-0">
+                      <Button
+                        variant="primary"
+                        size="sm"
                         onClick={() => abrirModalEditar(clienteSeleccionado)}
+                        className="me-2"
                       >
                         <FaEdit className="me-1 d-none d-sm-inline" /> Editar
                       </Button>
-                      <Button 
-                        variant="secondary" 
-                        size="sm" 
+                      <Button
+                        variant="secondary"
+                        size="sm"
                         onClick={cancelarSeleccion}
                       >
                         <FaTimes className="me-1 d-none d-sm-inline" /> Cerrar
                       </Button>
-                    </div>
-                  </div>
+                    </Col>
+                  </Row>
                 </Card.Header>
                 <Card.Body>
                   <Row>
                     <Col xs={12} xl={6} className="mb-4 mb-xl-0">
-                      <h5>Información Personal</h5>
+                      <Card.Subtitle as="h5">Información Personal</Card.Subtitle>
                       <Form.Group className="mb-3">
                         <Form.Label>Nombre Completo</Form.Label>
                         <Form.Control
@@ -478,7 +805,7 @@ const AdminClientes = () => {
                       </Form.Group>
                     </Col>
                     <Col xs={12} xl={6}>
-                      <h5>Información de Cuenta</h5>
+                      <Card.Subtitle as="h5">Información de Cuenta</Card.Subtitle>
                       <Form.Group className="mb-3">
                         <Form.Label>Fecha de Inicio</Form.Label>
                         <Form.Control
@@ -495,14 +822,26 @@ const AdminClientes = () => {
                           defaultValue={clienteSeleccionado.vencimiento}
                         />
                       </Form.Group>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Precio</Form.Label>
+                        <Form.Control
+                          plaintext
+                          readOnly
+                          defaultValue={`$${clienteSeleccionado.precio?.toLocaleString()}`}
+                        />
+                      </Form.Group>
                       <Form.Group>
                         <Form.Label>Estado</Form.Label>
                         <div>
-                          {clienteSeleccionado.estado === "Activo" ? (
-                            <Badge bg="success">Activo</Badge>
-                          ) : (
-                            <Badge bg="danger">Vencida</Badge>
-                          )}
+                          <Badge
+                            bg={
+                              clienteSeleccionado.estado === "Activo"
+                                ? "success"
+                                : "danger"
+                            }
+                          >
+                            {clienteSeleccionado.estado}
+                          </Badge>
                         </div>
                       </Form.Group>
                     </Col>
@@ -515,8 +854,8 @@ const AdminClientes = () => {
       </Row>
 
       {/* Modal para Nuevo Cliente */}
-      <Modal 
-        show={showModalNuevo} 
+      <Modal
+        show={showModalNuevo}
         onHide={() => setShowModalNuevo(false)}
         size="md"
       >
@@ -548,7 +887,8 @@ const AdminClientes = () => {
               <Form.Control
                 type="date"
                 name="fechaInicio"
-                value={formData.fechaInicio}
+                // Convertir DD/MM/YYYY a YYYY-MM-DD para el input date
+                value={formatearFechaParaInput(formData.fechaInicio)}
                 onChange={handleFormChange}
               />
             </Form.Group>
@@ -557,8 +897,8 @@ const AdminClientes = () => {
               <Form.Control
                 type="date"
                 name="vencimiento"
-                value={formData.vencimiento}
-                onChange={handleFormChange}
+                // Convertir DD/MM/YYYY a YYYY-MM-DD para el input date
+                value={formatearFechaParaInput(formData.vencimiento)}
                 readOnly
               />
               <Form.Text>
@@ -566,9 +906,21 @@ const AdminClientes = () => {
               </Form.Text>
             </Form.Group>
             <Form.Group className="mb-3">
+              <Form.Label>Precio</Form.Label>
+              <InputGroup>
+                <InputGroup.Text>$</InputGroup.Text>
+                <Form.Control
+                  type="number"
+                  name="precio"
+                  value={formData.precio}
+                  onChange={handleFormChange}
+                />
+              </InputGroup>
+            </Form.Group>
+            <Form.Group className="mb-3">
               <Form.Label>Estado</Form.Label>
-              <Form.Select 
-                name="estado" 
+              <Form.Select
+                name="estado"
                 value={formData.estado}
                 onChange={handleFormChange}
               >
@@ -589,8 +941,8 @@ const AdminClientes = () => {
       </Modal>
 
       {/* Modal para Editar Cliente */}
-      <Modal 
-        show={showModalEditar} 
+      <Modal
+        show={showModalEditar}
         onHide={() => setShowModalEditar(false)}
         size="md"
       >
@@ -622,7 +974,8 @@ const AdminClientes = () => {
               <Form.Control
                 type="date"
                 name="fechaInicio"
-                value={formData.fechaInicio}
+                // Convertir DD/MM/YYYY a YYYY-MM-DD para el input date
+                value={formatearFechaParaInput(formData.fechaInicio)}
                 onChange={handleFormChange}
               />
             </Form.Group>
@@ -631,8 +984,8 @@ const AdminClientes = () => {
               <Form.Control
                 type="date"
                 name="vencimiento"
-                value={formData.vencimiento}
-                onChange={handleFormChange}
+                // Convertir DD/MM/YYYY a YYYY-MM-DD para el input date
+                value={formatearFechaParaInput(formData.vencimiento)}
                 readOnly
               />
               <Form.Text>
@@ -640,9 +993,21 @@ const AdminClientes = () => {
               </Form.Text>
             </Form.Group>
             <Form.Group className="mb-3">
+              <Form.Label>Precio</Form.Label>
+              <InputGroup>
+                <InputGroup.Text>$</InputGroup.Text>
+                <Form.Control
+                  type="number"
+                  name="precio"
+                  value={formData.precio}
+                  onChange={handleFormChange}
+                />
+              </InputGroup>
+            </Form.Group>
+            <Form.Group className="mb-3">
               <Form.Label>Estado</Form.Label>
-              <Form.Select 
-                name="estado" 
+              <Form.Select
+                name="estado"
                 value={formData.estado}
                 onChange={handleFormChange}
               >
@@ -661,9 +1026,11 @@ const AdminClientes = () => {
           </Button>
         </Modal.Footer>
       </Modal>
-
       {/* Modal para confirmar eliminación */}
-      <Modal show={showModalEliminar} onHide={() => setShowModalEliminar(false)}>
+      <Modal
+        show={showModalEliminar}
+        onHide={() => setShowModalEliminar(false)}
+      >
         <Modal.Header closeButton>
           <Modal.Title>Confirmar Eliminación</Modal.Title>
         </Modal.Header>
@@ -672,7 +1039,10 @@ const AdminClientes = () => {
           Esta acción no se puede deshacer.
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModalEliminar(false)}>
+          <Button
+            variant="secondary"
+            onClick={() => setShowModalEliminar(false)}
+          >
             Cancelar
           </Button>
           <Button variant="danger" onClick={confirmarEliminarCliente}>
@@ -685,3 +1055,4 @@ const AdminClientes = () => {
 };
 
 export default AdminClientes;
+
