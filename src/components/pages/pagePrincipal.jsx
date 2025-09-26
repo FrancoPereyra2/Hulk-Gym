@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Container,
   Row,
@@ -17,6 +18,16 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import { FaUser, FaSearch, FaCheckCircle, FaTimesCircle, FaBars } from "react-icons/fa";
 
 const PagePrincipal = () => {
+  const navigate = useNavigate();
+
+  // Verificación básica de usuario
+  useEffect(() => {
+    const userType = localStorage.getItem('userType');
+    if (!userType) {
+      navigate('/login');
+    }
+  }, [navigate]);
+
   const [searchDNI, setSearchDNI] = useState("");
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [mostrarResultados, setMostrarResultados] = useState(false);

@@ -6,15 +6,14 @@ import Administrador from './components/pages/admin.jsx'
 
 function App() {
   return (
-    // <BrowserRouter>
-    //   <Routes>
-    //     <Route path="/" element={<Navigate to="/login" />} />
-    //     <Route path="/login" element={<Login />} />
-    //     <Route path="/principal" element={<PagePrincipal />} />
-    //     <Route path="/admin" element={<Administrador />} />
-    //   </Routes>
-    // </BrowserRouter>
-    <Administrador />
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Navigate to="/login" />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/principal" element={<PagePrincipal />} />
+        <Route path="/admin" element={<Administrador />} />
+      </Routes>
+    </BrowserRouter>
   )
 }
 

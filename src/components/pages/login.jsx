@@ -1,92 +1,97 @@
 import React, { useState } from 'react';
 import { Container, Row, Col, Form, Button, Alert, Card } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { useNavigate } from 'react-router-dom';
 
 const HulkGymLogin = () => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
+  
+  const navigate = useNavigate();
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (!email || !password) {
+    // Validación simple
+    if (!username || !password) {
       setAlertMessage('Por favor, completa todos los campos');
       setShowAlert(true);
       return;
     }
 
-    setAlertMessage('¡Inicio de sesión exitoso! Redirigiendo...');
-    setShowAlert(true);
-    setEmail('');
-    setPassword('');
+    // Credenciales fijas
+    if (username === 'admin' && password === 'admin123') {
+      // Es un administrador
+      localStorage.setItem('userType', 'admin');
+      setAlertMessage('¡Bienvenido Administrador!');
+      setShowAlert(true);
+      setTimeout(() => navigate('/admin'), 1000);
+    } 
+    else if (username === 'cliente' && password === 'cliente123') {
+      // Es un cliente
+      localStorage.setItem('userType', 'cliente');
+      setAlertMessage('¡Bienvenido Cliente!');
+      setShowAlert(true);
+      setTimeout(() => navigate('/principal'), 1000);
+    }
+    else {
+      // Credenciales incorrectas
+      setAlertMessage('Usuario o contraseña incorrectos');
+      setShowAlert(true);
+    }
   };
 
   return (
-    <Container fluid className="d-flex justify-content-center align-items-center vh-100 px-3 px-sm-4">
-      <Row className="justify-content-center w-100">
-        <Col xs={12} sm={10} md={8} lg={6} xl={5} xxl={4}>
-          <Card className="shadow border-0 rounded-3 w-100 bg-white">
-            <Card.Body className="p-3 p-sm-4 p-md-5 d-flex flex-column justify-content-center">
-              <div className="text-center mb-4">
-                <h1 className="fw-bold text-success lh-1">HULK GYM</h1>
-                <p className="text-muted fs-5">Bienvenido a Hulk Gym</p>
-              </div>
-              
-              {showAlert && (
-                <Alert
-                  variant={alertMessage.includes('éxito') ? 'success' : 'danger'}
-                  dismissible
-                  onClose={() => setShowAlert(false)}
-                  className="mb-3"
-                >
-                  {alertMessage}
-                </Alert>
-              )}
-              
-              <Form onSubmit={handleSubmit}>
-                <Form.Group className="mb-3">
-                  <Form.Label className="fw-medium mb-2 fs-5">Usuario</Form.Label>
-                  <Form.Control
-                    type="email"
-                    placeholder="hulkgym@gmail.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    size="lg"
-                  />
-                </Form.Group>
-                
-                <Form.Group className="mb-4">
-                  <Form.Label className="fw-medium mb-2 fs-5">Contraseña</Form.Label>
-                  <Form.Control
-                    type="password"
-                    placeholder="Ingresa tu contraseña"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    size="lg"
-                  />
-                </Form.Group>
-                
-                <Row className="justify-content-center">
-                  <Col xs={12} sm={10} md={8}>
-                    <Button
-                      variant="success"
-                      type="submit"
-                      className="w-100 fw-bold py-2 text-nowrap d-flex justify-content-center align-items-center"
-                      size="lg"
-                    >
-                      INGRESAR
-                    </Button>
-                  </Col>
-                </Row>
-              </Form>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+    <Container fluid className="d-flex justify-content-center align-items-center vh-100 ">
+      <Card className='w-25 border-0 shadow p-3'>
+        <Card.Body>
+          <div className="text-center mb-4">
+            <h1 className="text-success">HULK GYM</h1>
+            <p>Inicia sesión para continuar</p>
+          </div>
+          
+          {showAlert && (
+            <Alert variant={alertMessage.includes('Bienvenido') ? 'success' : 'danger'}>
+              {alertMessage}
+            </Alert>
+          )}
+          
+          <Form onSubmit={handleSubmit}>
+            <Form.Group className="mb-3">
+              <Form.Label>Usuario</Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="Ingresa tu usuario"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
+            </Form.Group>
+            
+            <Form.Group className="mb-3">
+              <Form.Label>Contraseña</Form.Label>
+              <Form.Control
+                type="password"
+                placeholder="Ingresa tu contraseña"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </Form.Group>
+            
+            <Button variant="success" type="submit" className="w-100">
+              INGRESAR
+            </Button>
+            
+            <div className="mt-3 text-center">
+              <small className="text-muted">
+                Admin: admin / admin123<br/>
+                Cliente: cliente / cliente123
+              </small>
+            </div>
+          </Form>
+        </Card.Body>
+      </Card>
     </Container>
   );
 };

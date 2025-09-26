@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Container,
   Row,
@@ -30,6 +31,16 @@ import {
 } from "react-icons/fa";
 
 const AdminClientes = () => {
+  const navigate = useNavigate();
+  
+  // Verificación básica de usuario administrador
+  useEffect(() => {
+    const userType = localStorage.getItem('userType');
+    if (userType !== 'admin') {
+      navigate('/login');
+    }
+  }, [navigate]);
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [filtroActivo, setFiltroActivo] = useState("todos");
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
