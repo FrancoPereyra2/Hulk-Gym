@@ -214,7 +214,7 @@ const AdminClientes = () => {
     <Container fluid className="vh-100 d-flex flex-column p-0">
       <Row className="flex-grow-1 m-0">
         {/* Sidebar para pantallas medianas y grandes */}
-        <Col xs={2} md={2} lg={2} className="d-none d-md-block p-0 h-100">
+        <Col xs={2} md={3} lg={2} xl={2} className="d-none d-md-block p-0 h-100">
           {renderSidebar()}
         </Col>
 
@@ -234,7 +234,7 @@ const AdminClientes = () => {
         </Offcanvas>
 
         {/* Contenedor principal */}
-        <Col xs={12} md={10} lg={10} className="h-100 p-0">
+        <Col xs={12} md={9} lg={10} xl={10} className="h-100 p-0">
           {/* Navbar para móviles */}
           <Navbar bg="dark" variant="dark" className="d-md-none">
             <Container fluid>
@@ -250,244 +250,241 @@ const AdminClientes = () => {
           </Navbar>
 
           {/* Contenido de la página */}
-          <Container fluid className="p-3 p-md-4">
-            <Row>
-              <Col xs={12} className="d-flex justify-content-between align-items-center mb-4">
+          <Container fluid className="p-3">
+            <Row className="mb-3">
+              <Col sm={12} lg={6} xl={8} className="mb-2 mb-lg-0">
                 <h2>Administración de Clientes</h2>
+              </Col>
+              <Col sm={12} lg={6} xl={4} className="text-lg-end">
                 <Button 
                   variant="success" 
-                  className="d-flex align-items-center"
+                  className="w-100 w-lg-auto"
                   onClick={abrirModalNuevo}
                 >
                   <FaPlus className="me-2" /> Nuevo Cliente
                 </Button>
               </Col>
+            </Row>
 
-              {/* Barra de filtros y búsqueda */}
-              <Col xs={12} className="mb-4">
-                <Row>
-                  <Col xs={12} md={6} className="mb-3 mb-md-0">
-                    <Form onSubmit={handleSearch}>
-                      <InputGroup>
-                        <Form.Control
-                          type="text"
-                          placeholder="Buscar por nombre o DNI"
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                        <Button variant="primary" type="submit">
-                          <FaSearch />
-                        </Button>
-                      </InputGroup>
-                    </Form>
-                  </Col>
-                  <Col xs={12} md={6}>
-                    <div className="d-flex gap-2">
-                      <Button 
-                        variant={filtroActivo === "todos" ? "primary" : "outline-primary"} 
-                        onClick={() => setFiltroActivo("todos")}
-                        className="flex-grow-1"
-                      >
-                        Todos
-                      </Button>
-                      <Button 
-                        variant={filtroActivo === "activos" ? "success" : "outline-success"}
-                        onClick={() => setFiltroActivo("activos")}
-                        className="flex-grow-1"
-                      >
-                        Activos
-                      </Button>
-                      <Button 
-                        variant={filtroActivo === "vencidos" ? "danger" : "outline-danger"}
-                        onClick={() => setFiltroActivo("vencidos")}
-                        className="flex-grow-1"
-                      >
-                        Vencidos
-                      </Button>
-                    </div>
-                  </Col>
-                </Row>
+            {/* Barra de filtros y búsqueda */}
+            <Row className="mb-3">
+              <Col sm={12} lg={6} className="mb-2 mb-lg-0">
+                <Form onSubmit={handleSearch}>
+                  <InputGroup>
+                    <Form.Control
+                      type="text"
+                      placeholder="Buscar por nombre o DNI"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                    <Button variant="primary" type="submit">
+                      <FaSearch />
+                    </Button>
+                  </InputGroup>
+                </Form>
               </Col>
-
-              {/* Tabla de clientes */}
-              <Col xs={12} className="mb-4">
-                <div className="table-responsive">
-                  <Table hover className="mb-0">
-                    <thead className="bg-light">
-                      <tr>
-                        <th>Nombre</th>
-                        <th>DNI</th>
-                        <th>Vencimiento</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {clientesPaginados.length > 0 ? (
-                        clientesPaginados.map((cliente) => (
-                          <tr key={cliente.id} onClick={() => seleccionarCliente(cliente)}>
-                            <td>{cliente.nombre}</td>
-                            <td>{cliente.dni}</td>
-                            <td>{cliente.vencimiento}</td>
-                            <td>
-                              {cliente.estado === "Activo" ? (
-                                <Badge bg="success" pill className="d-inline-flex align-items-center">
-                                  <FaCheckCircle className="me-1" /> Activo
-                                </Badge>
-                              ) : (
-                                <Badge bg="danger" pill className="d-inline-flex align-items-center">
-                                  <FaTimesCircle className="me-1" /> Vencida
-                                </Badge>
-                              )}
-                            </td>
-                            <td>
-                              <div className="d-flex gap-2">
-                                <Button 
-                                  variant="primary" 
-                                  size="sm"
-                                  onClick={(e) => abrirModalEditar(cliente, e)}
-                                >
-                                  <FaEdit />
-                                </Button>
-                                <Button 
-                                  variant="danger" 
-                                  size="sm"
-                                  onClick={(e) => abrirModalEliminar(cliente, e)}
-                                >
-                                  <FaTrash />
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan="5" className="text-center py-3">
-                            No se encontraron clientes con los criterios de búsqueda.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </Table>
+              <Col sm={12} lg={6}>
+                <div className="d-flex">
+                  <Button 
+                    variant={filtroActivo === "todos" ? "primary" : "outline-primary"} 
+                    onClick={() => setFiltroActivo("todos")}
+                    className="flex-grow-1"
+                    size="sm"
+                  >
+                    Todos
+                  </Button>
+                  <Button 
+                    variant={filtroActivo === "activos" ? "success" : "outline-success"}
+                    onClick={() => setFiltroActivo("activos")}
+                    className="flex-grow-1 mx-2"
+                    size="sm"
+                  >
+                    Activos
+                  </Button>
+                  <Button 
+                    variant={filtroActivo === "vencidos" ? "danger" : "outline-danger"}
+                    onClick={() => setFiltroActivo("vencidos")}
+                    className="flex-grow-1"
+                    size="sm"
+                  >
+                    Vencidos
+                  </Button>
                 </div>
               </Col>
-              
-              {/* Paginación */}
-              {clientesFiltrados.length > clientesPorPagina && (
-                <Col xs={12} className="d-flex justify-content-center mb-4">
-                  <Pagination>
-                    <Pagination.First onClick={() => setPaginaActual(1)} disabled={paginaActual === 1} />
-                    <Pagination.Prev onClick={() => setPaginaActual(paginaActual - 1)} disabled={paginaActual === 1} />
-                    
-                    {[...Array(totalPaginas).keys()].map((numero) => (
-                      <Pagination.Item 
-                        key={numero + 1} 
-                        active={numero + 1 === paginaActual}
-                        onClick={() => setPaginaActual(numero + 1)}
-                      >
-                        {numero + 1}
-                      </Pagination.Item>
-                    ))}
-                    
-                    <Pagination.Next onClick={() => setPaginaActual(paginaActual + 1)} disabled={paginaActual === totalPaginas} />
-                    <Pagination.Last onClick={() => setPaginaActual(totalPaginas)} disabled={paginaActual === totalPaginas} />
-                  </Pagination>
-                </Col>
-              )}
-
-              {/* Información detallada del cliente seleccionado */}
-              {clienteSeleccionado && (
-                <Col xs={12}>
-                  <Card border="0" className="shadow-sm">
-                    <Card.Header className="bg-light">
-                      <div className="d-flex justify-content-between align-items-center">
-                        <h4 className="mb-0">Detalles del Cliente</h4>
-                        <div className="d-flex">
-                          <Button 
-                            variant="primary" 
-                            size="sm" 
-                            className="me-2 d-flex align-items-center"
-                            onClick={() => abrirModalEditar(clienteSeleccionado)}
-                          >
-                            <FaEdit className="me-1" /> Editar
-                          </Button>
-                          <Button 
-                            variant="secondary" 
-                            size="sm" 
-                            onClick={cancelarSeleccion}
-                            className="d-flex align-items-center"
-                          >
-                            <FaTimes className="me-1" /> Cerrar
-                          </Button>
-                        </div>
-                      </div>
-                    </Card.Header>
-                    <Card.Body className="p-4">
-                      <Row>
-                        <Col xs={12} lg={6} className="mb-4 mb-lg-0">
-                          <h5 className="mb-3">Información Personal</h5>
-                          <Form.Group className="mb-3">
-                            <Form.Label className="text-muted">Nombre Completo</Form.Label>
-                            <Form.Control
-                              plaintext
-                              readOnly
-                              defaultValue={clienteSeleccionado.nombre}
-                            />
-                          </Form.Group>
-                          <Form.Group>
-                            <Form.Label className="text-muted">DNI</Form.Label>
-                            <Form.Control
-                              plaintext
-                              readOnly
-                              defaultValue={clienteSeleccionado.dni}
-                            />
-                          </Form.Group>
-                        </Col>
-                        <Col xs={12} lg={6}>
-                          <h5 className="mb-3">Información de Cuenta</h5>
-                          <Form.Group className="mb-3">
-                            <Form.Label className="text-muted">Fecha de Inicio</Form.Label>
-                            <Form.Control
-                              plaintext
-                              readOnly
-                              defaultValue={clienteSeleccionado.fechaInicio}
-                            />
-                          </Form.Group>
-                          <Form.Group className="mb-3">
-                            <Form.Label className="text-muted">Fecha de Vencimiento</Form.Label>
-                            <Form.Control
-                              plaintext
-                              readOnly
-                              defaultValue={clienteSeleccionado.vencimiento}
-                            />
-                          </Form.Group>
-                          <Form.Group>
-                            <Form.Label className="text-muted">Estado</Form.Label>
-                            <div>
-                              {clienteSeleccionado.estado === "Activo" ? (
-                                <Badge bg="success" className="d-inline-flex align-items-center fs-6 px-2 py-1">
-                                  <FaCheckCircle className="me-1" /> Activo
-                                </Badge>
-                              ) : (
-                                <Badge bg="danger" className="d-inline-flex align-items-center fs-6 px-2 py-1">
-                                  <FaTimesCircle className="me-1" /> Vencida
-                                </Badge>
-                              )}
-                            </div>
-                          </Form.Group>
-                        </Col>
-                      </Row>
-                    </Card.Body>
-                  </Card>
-                </Col>
-              )}
             </Row>
+
+            {/* Tabla de clientes */}
+            <div className="table-responsive mb-3">
+              <Table hover size="sm" className="align-middle">
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>DNI</th>
+                    <th className="d-none d-xl-table-cell">Vencimiento</th>
+                    <th>Estado</th>
+                    <th style={{width: "100px"}}>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {clientesPaginados.length > 0 ? (
+                    clientesPaginados.map((cliente) => (
+                      <tr key={cliente.id} onClick={() => seleccionarCliente(cliente)}>
+                        <td>{cliente.nombre}</td>
+                        <td>{cliente.dni}</td>
+                        <td className="d-none d-xl-table-cell">{cliente.vencimiento}</td>
+                        <td>
+                          {cliente.estado === "Activo" ? (
+                            <Badge bg="success">Activo</Badge>
+                          ) : (
+                            <Badge bg="danger">Vencida</Badge>
+                          )}
+                        </td>
+                        <td>
+                          <div className="d-flex gap-2 justify-content-center">
+                            <Button 
+                              variant="primary" 
+                              size="sm"
+                              onClick={(e) => abrirModalEditar(cliente, e)}
+                            >
+                              <FaEdit />
+                            </Button>
+                            <Button 
+                              variant="danger" 
+                              size="sm"
+                              onClick={(e) => abrirModalEliminar(cliente, e)}
+                            >
+                              <FaTrash />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="5" className="text-center py-3">
+                        No se encontraron clientes con los criterios de búsqueda.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </Table>
+            </div>
+              
+            {/* Paginación */}
+            {clientesFiltrados.length > clientesPorPagina && (
+              <div className="d-flex justify-content-center mb-3">
+                <Pagination>
+                  <Pagination.Prev 
+                    onClick={() => setPaginaActual(paginaActual - 1)} 
+                    disabled={paginaActual === 1} 
+                  />
+                  
+                  {[...Array(totalPaginas).keys()].map((numero) => (
+                    <Pagination.Item 
+                      key={numero + 1} 
+                      active={numero + 1 === paginaActual}
+                      onClick={() => setPaginaActual(numero + 1)}
+                    >
+                      {numero + 1}
+                    </Pagination.Item>
+                  ))}
+                  
+                  <Pagination.Next 
+                    onClick={() => setPaginaActual(paginaActual + 1)} 
+                    disabled={paginaActual === totalPaginas} 
+                  />
+                </Pagination>
+              </div>
+            )}
+
+            {/* Información detallada del cliente seleccionado */}
+            {clienteSeleccionado && (
+              <Card className="mb-3">
+                <Card.Header className="bg-light">
+                  <div className="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2">
+                    <h4 className="mb-0">Detalles del Cliente</h4>
+                    <div className="d-flex gap-2">
+                      <Button 
+                        variant="primary" 
+                        size="sm" 
+                        onClick={() => abrirModalEditar(clienteSeleccionado)}
+                      >
+                        <FaEdit className="me-1 d-none d-sm-inline" /> Editar
+                      </Button>
+                      <Button 
+                        variant="secondary" 
+                        size="sm" 
+                        onClick={cancelarSeleccion}
+                      >
+                        <FaTimes className="me-1 d-none d-sm-inline" /> Cerrar
+                      </Button>
+                    </div>
+                  </div>
+                </Card.Header>
+                <Card.Body>
+                  <Row>
+                    <Col xs={12} xl={6} className="mb-4 mb-xl-0">
+                      <h5>Información Personal</h5>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Nombre Completo</Form.Label>
+                        <Form.Control
+                          plaintext
+                          readOnly
+                          defaultValue={clienteSeleccionado.nombre}
+                        />
+                      </Form.Group>
+                      <Form.Group>
+                        <Form.Label>DNI</Form.Label>
+                        <Form.Control
+                          plaintext
+                          readOnly
+                          defaultValue={clienteSeleccionado.dni}
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col xs={12} xl={6}>
+                      <h5>Información de Cuenta</h5>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Fecha de Inicio</Form.Label>
+                        <Form.Control
+                          plaintext
+                          readOnly
+                          defaultValue={clienteSeleccionado.fechaInicio}
+                        />
+                      </Form.Group>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Fecha de Vencimiento</Form.Label>
+                        <Form.Control
+                          plaintext
+                          readOnly
+                          defaultValue={clienteSeleccionado.vencimiento}
+                        />
+                      </Form.Group>
+                      <Form.Group>
+                        <Form.Label>Estado</Form.Label>
+                        <div>
+                          {clienteSeleccionado.estado === "Activo" ? (
+                            <Badge bg="success">Activo</Badge>
+                          ) : (
+                            <Badge bg="danger">Vencida</Badge>
+                          )}
+                        </div>
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                </Card.Body>
+              </Card>
+            )}
           </Container>
         </Col>
       </Row>
 
       {/* Modal para Nuevo Cliente */}
-      <Modal show={showModalNuevo} onHide={() => setShowModalNuevo(false)}>
+      <Modal 
+        show={showModalNuevo} 
+        onHide={() => setShowModalNuevo(false)}
+        size="md"
+      >
         <Modal.Header closeButton>
           <Modal.Title>Nuevo Cliente</Modal.Title>
         </Modal.Header>
@@ -529,8 +526,8 @@ const AdminClientes = () => {
                 onChange={handleFormChange}
                 readOnly
               />
-              <Form.Text className="text-muted">
-                La fecha de vencimiento se calcula automáticamente (30 días después del inicio)
+              <Form.Text>
+                Se calcula automáticamente (30 días después del inicio)
               </Form.Text>
             </Form.Group>
             <Form.Group className="mb-3">
@@ -557,7 +554,11 @@ const AdminClientes = () => {
       </Modal>
 
       {/* Modal para Editar Cliente */}
-      <Modal show={showModalEditar} onHide={() => setShowModalEditar(false)}>
+      <Modal 
+        show={showModalEditar} 
+        onHide={() => setShowModalEditar(false)}
+        size="md"
+      >
         <Modal.Header closeButton>
           <Modal.Title>Editar Cliente</Modal.Title>
         </Modal.Header>
@@ -599,8 +600,8 @@ const AdminClientes = () => {
                 onChange={handleFormChange}
                 readOnly
               />
-              <Form.Text className="text-muted">
-                La fecha de vencimiento se calcula automáticamente (30 días después del inicio)
+              <Form.Text>
+                Se calcula automáticamente (30 días después del inicio)
               </Form.Text>
             </Form.Group>
             <Form.Group className="mb-3">
