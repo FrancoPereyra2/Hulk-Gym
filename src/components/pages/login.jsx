@@ -93,15 +93,6 @@ const HulkGymLogin = () => {
                 <Button variant="success" type="submit" className="w-100 py-2">
                   INGRESAR
                 </Button>
-                
-                <Row className="mt-3">
-                  <Col className="text-center">
-                    <small className="text-muted">
-                      Admin: admin / admin123<br/>
-                      Cliente: cliente / cliente123
-                    </small>
-                  </Col>
-                </Row>
               </Form>
             </Card.Body>
           </Card>
