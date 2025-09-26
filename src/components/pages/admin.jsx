@@ -204,6 +204,12 @@ const AdminClientes = () => {
     setShowModalEliminar(false);
   };
 
+  // Función para cerrar sesión
+  const handleLogout = () => {
+    localStorage.removeItem('userType');
+    navigate('/login');
+  };
+  
   // Sidebar para dispositivos móviles
   const renderSidebar = () => (
     <Navbar bg="dark" variant="dark" className="d-flex flex-column h-100">
@@ -214,6 +220,15 @@ const AdminClientes = () => {
             <Nav.Link className="d-flex align-items-center px-0 text-primary">
               <FaUsers className="me-2" />
               <span>Todos los Clientes</span>
+            </Nav.Link>
+            
+            {/* Botón cerrar sesión en el sidebar */}
+            <Nav.Link 
+              className="d-flex align-items-center px-0 text-danger mt-3"
+              onClick={handleLogout}
+            >
+              <FaTimes className="me-2" />
+              <span>Cerrar Sesión</span>
             </Nav.Link>
           </Nav>
         </Navbar.Brand>
@@ -257,6 +272,15 @@ const AdminClientes = () => {
                 <FaBars />
               </Button>
               <Navbar.Brand className="fw-bold text-success">HULK GYM</Navbar.Brand>
+              
+              {/* Botón cerrar sesión en navbar móvil */}
+              <Button
+                variant="outline-danger"
+                onClick={handleLogout}
+                size="sm"
+              >
+                <FaTimes /> Salir
+              </Button>
             </Container>
           </Navbar>
 
