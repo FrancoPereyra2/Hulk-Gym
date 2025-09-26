@@ -13,6 +13,7 @@ import {
   Badge,
   Offcanvas,
   Pagination,
+  Modal
 } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { 
@@ -34,16 +35,57 @@ const AdminClientes = () => {
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [showSidebar, setShowSidebar] = useState(false);
   const [paginaActual, setPaginaActual] = useState(1);
+  
+  // Estados para modales
+  const [showModalNuevo, setShowModalNuevo] = useState(false);
+  const [showModalEditar, setShowModalEditar] = useState(false);
+  const [showModalEliminar, setShowModalEliminar] = useState(false);
+  const [clienteAEliminar, setClienteAEliminar] = useState(null);
 
   // Datos de ejemplo
-  const clientes = [
-    { id: 1, nombre: "Juan Pérez", dni: "12345678", membresia: "Premium", vencimiento: "15/12/2023", estado: "Activo", fechaInicio: "15/01/2023" },
-    { id: 2, nombre: "María López", dni: "87654321", membresia: "Básica", vencimiento: "02/11/2023", estado: "Vencida", fechaInicio: "02/05/2023" },
-    { id: 3, nombre: "Carlos Rodríguez", dni: "45678912", membresia: "Premium", vencimiento: "30/01/2024", estado: "Activo", fechaInicio: "30/07/2023" },
-    { id: 4, nombre: "Ana García", dni: "78912345", membresia: "Completa", vencimiento: "10/12/2023", estado: "Activo", fechaInicio: "10/08/2023" },
-    { id: 5, nombre: "Roberto Sánchez", dni: "32165498", membresia: "Básica", vencimiento: "05/10/2023", estado: "Vencida", fechaInicio: "05/04/2023" },
-  ];
+  const [clientes, setClientes] = useState([
+    { id: 1, nombre: "Juan Pérez", dni: "12345678", vencimiento: "15/12/2023", estado: "Activo", fechaInicio: "15/01/2023" },
+    { id: 2, nombre: "María López", dni: "87654321", vencimiento: "02/11/2023", estado: "Vencida", fechaInicio: "02/05/2023" },
+    { id: 3, nombre: "Carlos Rodríguez", dni: "45678912", vencimiento: "30/01/2024", estado: "Activo", fechaInicio: "30/07/2023" },
+    { id: 4, nombre: "Ana García", dni: "78912345", vencimiento: "10/12/2023", estado: "Activo", fechaInicio: "10/08/2023" },
+    { id: 5, nombre: "Roberto Sánchez", dni: "32165498", vencimiento: "05/10/2023", estado: "Vencida", fechaInicio: "05/04/2023" },
+  ]);
 
+  // Form para nuevo/editar cliente
+  const [formData, setFormData] = useState({
+    nombre: "",
+    dni: "",
+    fechaInicio: "",
+    vencimiento: "",
+    estado: "Activo"
+  });
+
+  // Manejo del formulario
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    
+    // Si la fecha de inicio cambia, calcular automáticamente la fecha de vencimiento (30 días después)
+    if (name === "fechaInicio" && value) {
+      const fechaInicio = new Date(value);
+      const fechaVencimiento = new Date(fechaInicio);
+      fechaVencimiento.setDate(fechaVencimiento.getDate() + 30);
+      
+      // Formatear la fecha de vencimiento como YYYY-MM-DD para el campo date
+      const vencimientoFormateado = fechaVencimiento.toISOString().split('T')[0];
+      
+      setFormData({
+        ...formData,
+        fechaInicio: value,
+        vencimiento: vencimientoFormateado
+      });
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value
+      });
+    }
+  };
+  
   // Filtrar y buscar clientes
   const clientesFiltrados = clientes.filter(cliente => {
     // Filtro por búsqueda
@@ -72,7 +114,6 @@ const AdminClientes = () => {
   
   const handleSearch = (e) => {
     e.preventDefault();
-    // La búsqueda se hace automáticamente con el estado
     setPaginaActual(1); // Volver a la primera página al buscar
   };
 
@@ -81,10 +122,81 @@ const AdminClientes = () => {
     setClienteSeleccionado(null);
   };
 
+  // Funciones para manejar modal nuevo cliente
+  const abrirModalNuevo = () => {
+    const fechaHoy = new Date().toISOString().split('T')[0];
+    const fechaVencimiento = new Date();
+    fechaVencimiento.setDate(fechaVencimiento.getDate() + 30);
+    const vencimientoFormateado = fechaVencimiento.toISOString().split('T')[0];
+    
+    setFormData({
+      nombre: "",
+      dni: "",
+      fechaInicio: fechaHoy,
+      vencimiento: vencimientoFormateado,
+      estado: "Activo"
+    });
+    setShowModalNuevo(true);
+  };
+
+  const guardarNuevoCliente = () => {
+    const nuevoCliente = {
+      id: clientes.length > 0 ? Math.max(...clientes.map(c => c.id)) + 1 : 1,
+      ...formData
+    };
+    setClientes([...clientes, nuevoCliente]);
+    setShowModalNuevo(false);
+  };
+
+  // Funciones para manejar modal editar cliente
+  const abrirModalEditar = (cliente, e) => {
+    if (e) e.stopPropagation();
+    setFormData({
+      id: cliente.id,
+      nombre: cliente.nombre,
+      dni: cliente.dni,
+      fechaInicio: cliente.fechaInicio,
+      vencimiento: cliente.vencimiento,
+      estado: cliente.estado
+    });
+    setShowModalEditar(true);
+  };
+
+  const guardarClienteEditado = () => {
+    const clientesActualizados = clientes.map(c => 
+      c.id === formData.id ? formData : c
+    );
+    setClientes(clientesActualizados);
+    
+    if (clienteSeleccionado && clienteSeleccionado.id === formData.id) {
+      setClienteSeleccionado(formData);
+    }
+    
+    setShowModalEditar(false);
+  };
+
+  // Funciones para manejar eliminación
+  const abrirModalEliminar = (cliente, e) => {
+    if (e) e.stopPropagation();
+    setClienteAEliminar(cliente);
+    setShowModalEliminar(true);
+  };
+
+  const confirmarEliminarCliente = () => {
+    const clientesActualizados = clientes.filter(c => c.id !== clienteAEliminar.id);
+    setClientes(clientesActualizados);
+    
+    if (clienteSeleccionado && clienteSeleccionado.id === clienteAEliminar.id) {
+      setClienteSeleccionado(null);
+    }
+    
+    setShowModalEliminar(false);
+  };
+
   // Sidebar para dispositivos móviles
   const renderSidebar = () => (
     <Navbar bg="dark" variant="dark" className="d-flex flex-column h-100">
-      <Container fluid className="d-flex flex-column h-100 p-0">
+      <Container fluid className="d-flex flex-column h-100">
         <Navbar.Brand className="p-3 w-100">
           <h3 className="fw-bold text-success">HULK GYM</h3>
           <Nav className="flex-column w-100 mt-4">
@@ -142,7 +254,11 @@ const AdminClientes = () => {
             <Row>
               <Col xs={12} className="d-flex justify-content-between align-items-center mb-4">
                 <h2>Administración de Clientes</h2>
-                <Button variant="success" className="d-flex align-items-center">
+                <Button 
+                  variant="success" 
+                  className="d-flex align-items-center"
+                  onClick={abrirModalNuevo}
+                >
                   <FaPlus className="me-2" /> Nuevo Cliente
                 </Button>
               </Col>
@@ -201,7 +317,6 @@ const AdminClientes = () => {
                       <tr>
                         <th>Nombre</th>
                         <th>DNI</th>
-                        <th>Membresía</th>
                         <th>Vencimiento</th>
                         <th>Estado</th>
                         <th>Acciones</th>
@@ -213,7 +328,6 @@ const AdminClientes = () => {
                           <tr key={cliente.id} onClick={() => seleccionarCliente(cliente)}>
                             <td>{cliente.nombre}</td>
                             <td>{cliente.dni}</td>
-                            <td>{cliente.membresia}</td>
                             <td>{cliente.vencimiento}</td>
                             <td>
                               {cliente.estado === "Activo" ? (
@@ -228,10 +342,18 @@ const AdminClientes = () => {
                             </td>
                             <td>
                               <div className="d-flex gap-2">
-                                <Button variant="primary" size="sm">
+                                <Button 
+                                  variant="primary" 
+                                  size="sm"
+                                  onClick={(e) => abrirModalEditar(cliente, e)}
+                                >
                                   <FaEdit />
                                 </Button>
-                                <Button variant="danger" size="sm">
+                                <Button 
+                                  variant="danger" 
+                                  size="sm"
+                                  onClick={(e) => abrirModalEliminar(cliente, e)}
+                                >
                                   <FaTrash />
                                 </Button>
                               </div>
@@ -240,7 +362,7 @@ const AdminClientes = () => {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="6" className="text-center py-3">
+                          <td colSpan="5" className="text-center py-3">
                             No se encontraron clientes con los criterios de búsqueda.
                           </td>
                         </tr>
@@ -281,11 +403,13 @@ const AdminClientes = () => {
                       <div className="d-flex justify-content-between align-items-center">
                         <h4 className="mb-0">Detalles del Cliente</h4>
                         <div className="d-flex">
-                          <Button variant="primary" size="sm" className="me-2 d-flex align-items-center">
+                          <Button 
+                            variant="primary" 
+                            size="sm" 
+                            className="me-2 d-flex align-items-center"
+                            onClick={() => abrirModalEditar(clienteSeleccionado)}
+                          >
                             <FaEdit className="me-1" /> Editar
-                          </Button>
-                          <Button variant="success" size="sm" className="me-2 d-flex align-items-center">
-                            Renovar Membresía
                           </Button>
                           <Button 
                             variant="secondary" 
@@ -320,15 +444,7 @@ const AdminClientes = () => {
                           </Form.Group>
                         </Col>
                         <Col xs={12} lg={6}>
-                          <h5 className="mb-3">Información de Membresía</h5>
-                          <Form.Group className="mb-3">
-                            <Form.Label className="text-muted">Tipo de Membresía</Form.Label>
-                            <Form.Control
-                              plaintext
-                              readOnly
-                              defaultValue={clienteSeleccionado.membresia}
-                            />
-                          </Form.Group>
+                          <h5 className="mb-3">Información de Cuenta</h5>
                           <Form.Group className="mb-3">
                             <Form.Label className="text-muted">Fecha de Inicio</Form.Label>
                             <Form.Control
@@ -369,6 +485,165 @@ const AdminClientes = () => {
           </Container>
         </Col>
       </Row>
+
+      {/* Modal para Nuevo Cliente */}
+      <Modal show={showModalNuevo} onHide={() => setShowModalNuevo(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Nuevo Cliente</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Nombre Completo</Form.Label>
+              <Form.Control
+                type="text"
+                name="nombre"
+                value={formData.nombre}
+                onChange={handleFormChange}
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>DNI</Form.Label>
+              <Form.Control
+                type="text"
+                name="dni"
+                value={formData.dni}
+                onChange={handleFormChange}
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Fecha de Inicio</Form.Label>
+              <Form.Control
+                type="date"
+                name="fechaInicio"
+                value={formData.fechaInicio}
+                onChange={handleFormChange}
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Fecha de Vencimiento</Form.Label>
+              <Form.Control
+                type="date"
+                name="vencimiento"
+                value={formData.vencimiento}
+                onChange={handleFormChange}
+                readOnly
+              />
+              <Form.Text className="text-muted">
+                La fecha de vencimiento se calcula automáticamente (30 días después del inicio)
+              </Form.Text>
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Estado</Form.Label>
+              <Form.Select 
+                name="estado" 
+                value={formData.estado}
+                onChange={handleFormChange}
+              >
+                <option value="Activo">Activo</option>
+                <option value="Vencida">Vencida</option>
+              </Form.Select>
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowModalNuevo(false)}>
+            Cancelar
+          </Button>
+          <Button variant="primary" onClick={guardarNuevoCliente}>
+            Guardar
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Modal para Editar Cliente */}
+      <Modal show={showModalEditar} onHide={() => setShowModalEditar(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Editar Cliente</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Nombre Completo</Form.Label>
+              <Form.Control
+                type="text"
+                name="nombre"
+                value={formData.nombre}
+                onChange={handleFormChange}
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>DNI</Form.Label>
+              <Form.Control
+                type="text"
+                name="dni"
+                value={formData.dni}
+                onChange={handleFormChange}
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Fecha de Inicio</Form.Label>
+              <Form.Control
+                type="date"
+                name="fechaInicio"
+                value={formData.fechaInicio}
+                onChange={handleFormChange}
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Fecha de Vencimiento</Form.Label>
+              <Form.Control
+                type="date"
+                name="vencimiento"
+                value={formData.vencimiento}
+                onChange={handleFormChange}
+                readOnly
+              />
+              <Form.Text className="text-muted">
+                La fecha de vencimiento se calcula automáticamente (30 días después del inicio)
+              </Form.Text>
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Estado</Form.Label>
+              <Form.Select 
+                name="estado" 
+                value={formData.estado}
+                onChange={handleFormChange}
+              >
+                <option value="Activo">Activo</option>
+                <option value="Vencida">Vencida</option>
+              </Form.Select>
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowModalEditar(false)}>
+            Cancelar
+          </Button>
+          <Button variant="primary" onClick={guardarClienteEditado}>
+            Guardar Cambios
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Modal para confirmar eliminación */}
+      <Modal show={showModalEliminar} onHide={() => setShowModalEliminar(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Confirmar Eliminación</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          ¿Está seguro que desea eliminar al cliente {clienteAEliminar?.nombre}?
+          Esta acción no se puede deshacer.
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowModalEliminar(false)}>
+            Cancelar
+          </Button>
+          <Button variant="danger" onClick={confirmarEliminarCliente}>
+            Eliminar
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </Container>
   );
 };
