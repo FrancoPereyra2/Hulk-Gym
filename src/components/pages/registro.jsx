@@ -13,7 +13,7 @@ const googleProvider = new GoogleAuthProvider();
 
 const Registro = () => {
   const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState(''); // Cambiado de username a email
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showAlert, setShowAlert] = useState(false);
@@ -22,19 +22,14 @@ const Registro = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [showGoogleDevMessage, setShowGoogleDevMessage] = useState(false);
   
-  // Cargar usuarios del localStorage al iniciar
+  // Eliminar la opción de registrarse como admin con Google
+  // const [isGoogleAdmin, setIsGoogleAdmin] = useState(false);
+  
+  // Cargar usuarios del localStorage sin datos hardcodeados
   const [users, setUsers] = useState(() => {
     const savedUsers = localStorage.getItem('users');
-    if (savedUsers) {
-      return JSON.parse(savedUsers);
-    } else {
-      return [
-        { fullName: 'Administrador', username: 'HulkgymAdmin', password: 'HulkGym2024', role: 'admin' },
-        { fullName: 'Cliente Demo', username: 'HulkgymCliente', password: 'HulkGym2024', role: 'cliente' }
-      ];
-    }
+    return savedUsers ? JSON.parse(savedUsers) : [];
   });
   
   const navigate = useNavigate();
@@ -98,7 +93,7 @@ const Registro = () => {
       return;
     }
 
-    // Verificar si el correo ya existe
+    // Verificar si el usuario ya existe
     if (users.some(user => user.username === email.trim())) {
       setAlertVariant('danger');
       setAlertMessage('Este correo electrónico ya está registrado');
@@ -109,7 +104,7 @@ const Registro = () => {
     // Crear nuevo usuario
     const newUser = {
       fullName: fullName.trim(),
-      username: email.trim(), // Guardar email en campo username para mantener compatibilidad
+      username: email.trim(),
       password: password.trim(),
       role: 'cliente' // Por defecto los nuevos usuarios son clientes
     };
@@ -200,18 +195,16 @@ const Registro = () => {
       setAlertMessage('Conectando con Google...');
       setShowAlert(true);
       
-      // Nombrar el popup para poder referenciarlo después
-      const windowFeatures = 'width=500,height=600,resizable,scrollbars=yes,status=1';
-      const provider = new GoogleAuthProvider();
-      provider.addScope('email');
-      
       // Autenticación con popup
-      const result = await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
       console.log("Usuario autenticado:", user);
       
       // Verificar si el usuario ya existe
-      if (!users.some(u => u.username === user.email)) {
+      const existingUser = users.find(u => u.username === user.email);
+      
+      if (!existingUser) {
+        // Registrar siempre como cliente (nunca como admin)
         const newUser = {
           fullName: user.displayName || "Usuario de Google",
           username: user.email,
@@ -224,19 +217,23 @@ const Registro = () => {
         const updatedUsers = [...users, newUser];
         setUsers(updatedUsers);
         localStorage.setItem('users', JSON.stringify(updatedUsers));
+        
+        setAlertVariant('success');
+        setAlertMessage('¡Registro exitoso! Serás redirigido automáticamente.');
+      } else {
+        setAlertVariant('info');
+        setAlertMessage('Ya existe una cuenta con este email. Iniciando sesión...');
       }
       
       // Guardar información del usuario
-      localStorage.setItem('userType', 'cliente');
+      const userRole = existingUser ? existingUser.role : 'cliente';
+      localStorage.setItem('userType', userRole);
       localStorage.setItem('userName', user.displayName || "Usuario de Google");
+      localStorage.setItem('userEmail', user.email);
       
       // Mostrar mensaje y redireccionar
-      setAlertVariant('success');
-      setAlertMessage('¡Autenticación exitosa! Redirigiendo...');
-      setShowAlert(true);
-      
       setTimeout(() => {
-        navigate('/principal');
+        navigate(userRole === 'admin' ? '/admin' : '/principal');
       }, 1500);
       
     } catch (error) {
@@ -336,8 +333,6 @@ const Registro = () => {
                 </Alert>
               )}
               
-              {/* Eliminamos este mensaje estático si existe */}
-              
               <Form onSubmit={handleRegister}>
                 <Form.Group className="mb-3">
                   <Form.Label>Nombre Completo</Form.Label>
@@ -401,7 +396,7 @@ const Registro = () => {
                   REGISTRARSE
                 </Button>
                 
-                {/* Nuevo botón de Google con ref para poder manipularlo directamente */}
+                {/* Botón de Google para registro como cliente únicamente */}
                 <Button 
                   variant="outline-dark" 
                   type="button" 
@@ -429,4 +424,5 @@ const Registro = () => {
 };
 
 export default Registro;
+
 

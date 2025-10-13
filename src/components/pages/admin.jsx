@@ -38,11 +38,26 @@ import {
 const AdminClientes = () => {
   const navigate = useNavigate();
 
-  // Verificación básica de usuario administrador
+  // Verificación más robusta de usuario administrador
   useEffect(() => {
     const userType = localStorage.getItem("userType");
+    const userEmail = localStorage.getItem("userEmail");
+    
     if (userType !== "admin") {
       navigate("/login");
+    } else {
+      // Verificación adicional contra la base de usuarios
+      const savedUsers = localStorage.getItem('users');
+      if (savedUsers) {
+        const users = JSON.parse(savedUsers);
+        const currentUser = users.find(u => u.username === userEmail && u.role === 'admin');
+        if (!currentUser) {
+          localStorage.removeItem("userType");
+          localStorage.removeItem("userName");
+          localStorage.removeItem("userEmail");
+          navigate("/login");
+        }
+      }
     }
   }, [navigate]);
 
@@ -58,54 +73,11 @@ const AdminClientes = () => {
   const [showModalEliminar, setShowModalEliminar] = useState(false);
   const [clienteAEliminar, setClienteAEliminar] = useState(null);
 
-  // Datos de ejemplo
-  const [clientes, setClientes] = useState([
-    {
-      id: 1,
-      nombre: "Juan Pérez",
-      dni: "12345678",
-      vencimiento: "15/12/2023",
-      estado: "Activo",
-      fechaInicio: "15/01/2023",
-      precio: 15000,
-    },
-    {
-      id: 2,
-      nombre: "María López",
-      dni: "87654321",
-      vencimiento: "02/11/2023",
-      estado: "Vencida",
-      fechaInicio: "02/05/2023",
-      precio: 12000,
-    },
-    {
-      id: 3,
-      nombre: "Carlos Rodríguez",
-      dni: "45678912",
-      vencimiento: "30/01/2024",
-      estado: "Activo",
-      fechaInicio: "30/07/2023",
-      precio: 15000,
-    },
-    {
-      id: 4,
-      nombre: "Ana García",
-      dni: "78912345",
-      vencimiento: "10/12/2023",
-      estado: "Activo",
-      fechaInicio: "10/08/2023",
-      precio: 10000,
-    },
-    {
-      id: 5,
-      nombre: "Roberto Sánchez",
-      dni: "32165498",
-      vencimiento: "05/10/2023",
-      estado: "Vencida",
-      fechaInicio: "05/04/2023",
-      precio: 15000,
-    },
-  ]);
+  // Cargar clientes de localStorage o inicializar vacío
+  const [clientes, setClientes] = useState(() => {
+    const savedClientes = localStorage.getItem('clientes');
+    return savedClientes ? JSON.parse(savedClientes) : [];
+  });
 
   // Form para nuevo/editar cliente
   const [formData, setFormData] = useState({
@@ -116,6 +88,11 @@ const AdminClientes = () => {
     estado: "Activo",
     precio: 10000,
   });
+
+  // Guardar clientes en localStorage cada vez que cambian
+  useEffect(() => {
+    localStorage.setItem('clientes', JSON.stringify(clientes));
+  }, [clientes]);
 
   // Calcular datos del dashboard basados en la lista de clientes actual
   const clientesActivos = clientes.filter(
@@ -393,6 +370,8 @@ const AdminClientes = () => {
   // Función para cerrar sesión
   const handleLogout = () => {
     localStorage.removeItem("userType");
+    localStorage.removeItem("userName");
+    localStorage.removeItem("userEmail");
     navigate("/login");
   };
 
@@ -1055,4 +1034,3 @@ const AdminClientes = () => {
 };
 
 export default AdminClientes;
-

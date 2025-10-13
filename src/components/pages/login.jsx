@@ -11,7 +11,7 @@ import { auth } from '../../firebase/config';
 const googleProvider = new GoogleAuthProvider();
 
 const HulkGymLogin = () => {
-  const [email, setEmail] = useState(''); // Cambiado de username a email
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -22,22 +22,35 @@ const HulkGymLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isFirstUse, setIsFirstUse] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isGoogleAdmin, setIsGoogleAdmin] = useState(false);
   
-  // Base de datos simulada de usuarios
+  // Base de datos de usuarios desde localStorage sin datos hardcodeados
   const [users, setUsers] = useState(() => {
     const savedUsers = localStorage.getItem('users');
     if (savedUsers) {
       return JSON.parse(savedUsers);
     } else {
-      return [
-        { fullName: 'Administrador', username: 'HulkgymAdmin', password: 'HulkGym2024', role: 'admin' },
-        { fullName: 'Cliente Demo', username: 'HulkgymCliente', password: 'HulkGym2024', role: 'cliente' }
-      ];
+      // Si no hay usuarios, estamos en el primer uso
+      setIsFirstUse(true);
+      return [];
     }
   });
   
   const navigate = useNavigate();
 
+  // Verificar si es la primera vez que se inicia la app
+  useEffect(() => {
+    if (isFirstUse && users.length === 0) {
+      setMostrarRegistro(true);
+      setIsAdmin(true);
+      setAlertVariant('info');
+      setAlertMessage('¡Bienvenido! Por favor, crea el primer usuario administrador.');
+      setShowAlert(true);
+    }
+  }, [isFirstUse, users]);
+  
   // Efecto para limpiar cualquier mensaje de desarrollo que pueda existir
   useEffect(() => {
     const alertElements = document.querySelectorAll('.alert');
@@ -127,44 +140,28 @@ const HulkGymLogin = () => {
       return;
     }
 
-    // Credenciales fijas
-    if (emailSinEspacios === 'HulkgymAdmin' && passwordSinEspacios === 'HulkGym2024') {
-      // Es un administrador
-      localStorage.setItem('userType', 'admin');
-      setAlertVariant('success');
-      setAlertMessage('¡Bienvenido Administrador!');
-      setShowAlert(true);
-      navigate('/admin');
-    } 
-    else if (emailSinEspacios === 'HulkgymCliente' && passwordSinEspacios === 'HulkGym2024') {
-      // Es un cliente
-      localStorage.setItem('userType', 'cliente');
-      setAlertVariant('success');
-      setAlertMessage('¡Bienvenido Cliente!');
-      setShowAlert(true);
-      navigate('/principal');
-    }
-    else {
-      // Buscar en usuarios registrados
-      const user = users.find(
-        u => u.username === emailSinEspacios && u.password === passwordSinEspacios
-      );
+    // Buscar en usuarios registrados sin importar si son admin o cliente
+    const user = users.find(
+      u => u.username === emailSinEspacios && u.password === passwordSinEspacios
+    );
 
-      if (user) {
-        localStorage.setItem('userType', user.role);
-        localStorage.setItem('userName', user.fullName);
-        setAlertVariant('success');
-        setAlertMessage(`¡Bienvenido ${user.fullName}!`);
-        setShowAlert(true);
-        setTimeout(() => {
-          navigate(user.role === 'admin' ? '/admin' : '/principal');
-        }, 1000);
-      } else {
-        // Credenciales incorrectas
-        setAlertVariant('danger');
-        setAlertMessage('Correo electrónico o contraseña incorrectos');
-        setShowAlert(true);
-      }
+    if (user) {
+      localStorage.setItem('userType', user.role);
+      localStorage.setItem('userName', user.fullName);
+      localStorage.setItem('userEmail', user.username);
+      
+      setAlertVariant('success');
+      setAlertMessage(`¡Bienvenido ${user.fullName}!`);
+      setShowAlert(true);
+      
+      setTimeout(() => {
+        navigate(user.role === 'admin' ? '/admin' : '/principal');
+      }, 1000);
+    } else {
+      // Credenciales incorrectas
+      setAlertVariant('danger');
+      setAlertMessage('Correo electrónico o contraseña incorrectos');
+      setShowAlert(true);
     }
   };
 
@@ -206,9 +203,9 @@ const HulkGymLogin = () => {
     // Crear nuevo usuario
     const newUser = {
       fullName: fullName.trim(),
-      username: email.trim(), // Guardar email en campo username para mantener compatibilidad
+      username: email.trim(),
       password: password.trim(),
-      role: 'cliente' // Por defecto los nuevos usuarios son clientes
+      role: isAdmin ? 'admin' : 'cliente' // Si es el primer uso o se marcó como admin, crear admin
     };
 
     const updatedUsers = [...users, newUser];
@@ -218,7 +215,13 @@ const HulkGymLogin = () => {
     localStorage.setItem('users', JSON.stringify(updatedUsers));
     
     setAlertVariant('success');
-    setAlertMessage('¡Registro exitoso! Ahora puedes iniciar sesión');
+    if (isFirstUse) {
+      setAlertMessage('¡Administrador registrado correctamente! Ahora puedes iniciar sesión');
+      setIsFirstUse(false);
+      setIsAdmin(false);
+    } else {
+      setAlertMessage('¡Registro exitoso! Ahora puedes iniciar sesión');
+    }
     setShowAlert(true);
 
     // Limpiar formulario y volver a login
@@ -251,14 +254,24 @@ const HulkGymLogin = () => {
       console.log("Usuario autenticado con Google:", user);
       
       // Verificar si el usuario ya existe en nuestra base de datos local
-      if (!users.some(u => u.username === user.email)) {
-        // Crear nuevo usuario con los datos de Google
+      const existingUser = users.find(u => u.username === user.email);
+      
+      if (!existingUser) {
+        // CAMBIO: Si estamos en el formulario de inicio de sesión y el usuario no existe, mostrar error
+        if (!mostrarRegistro) {
+          setAlertVariant('danger');
+          setAlertMessage('No existe una cuenta con este correo electrónico. Por favor, regístrate primero.');
+          setShowAlert(true);
+          return;
+        }
+        
+        // Solo crear usuario nuevo si estamos en el formulario de registro
         const newUser = {
           fullName: user.displayName || "Usuario de Google",
           username: user.email,
-          password: `google_${user.uid}`, // Contraseña ficticia que no usaremos
-          role: 'cliente',
-          googleAuth: true, // Marcamos que se autenticó con Google
+          password: `google_${user.uid}`,
+          role: isFirstUse ? 'admin' : 'cliente',
+          googleAuth: true,
           uid: user.uid
         };
         
@@ -267,20 +280,32 @@ const HulkGymLogin = () => {
         localStorage.setItem('users', JSON.stringify(updatedUsers));
         
         setAlertVariant('success');
-        setAlertMessage('¡Registro con Google exitoso! Serás redirigido automáticamente.');
+        setAlertMessage(`¡Registro exitoso como ${isFirstUse ? 'administrador' : 'cliente'}! Serás redirigido automáticamente.`);
+        
+        // Guardar datos del usuario en localStorage
+        localStorage.setItem('userType', isFirstUse ? 'admin' : 'cliente');
+        localStorage.setItem('userName', user.displayName || "Usuario de Google");
+        localStorage.setItem('userEmail', user.email);
+        
+        // Redirigir después de una breve pausa según el tipo de usuario
+        setTimeout(() => {
+          navigate(isFirstUse ? '/admin' : '/principal');
+        }, 2000);
       } else {
-        setAlertVariant('info');
-        setAlertMessage('Ya existe una cuenta con este email. Iniciando sesión...');
+        // Si ya existe, iniciar sesión con el rol que ya tiene
+        setAlertVariant('success');
+        setAlertMessage('Iniciando sesión...');
+        
+        // Guardar datos del usuario existente
+        localStorage.setItem('userType', existingUser.role);
+        localStorage.setItem('userName', existingUser.fullName);
+        localStorage.setItem('userEmail', existingUser.username);
+        
+        // Redirigir según el rol
+        setTimeout(() => {
+          navigate(existingUser.role === 'admin' ? '/admin' : '/principal');
+        }, 1000);
       }
-      
-      // Guardar datos del usuario en localStorage
-      localStorage.setItem('userType', 'cliente');
-      localStorage.setItem('userName', user.displayName || "Usuario de Google");
-      
-      // Redirigir después de una breve pausa
-      setTimeout(() => {
-        navigate('/principal');
-      }, 2000);
       
     } catch (error) {
       console.error("Error al autenticar con Google:", error);
@@ -317,7 +342,11 @@ const HulkGymLogin = () => {
               <div className="text-center mb-4">
                 <img src={LogoLoginImg} alt="Logo" className="img-fluid w-50" />
                 <p className="text-muted h5">
-                  {mostrarRegistro ? 'Crea tu cuenta para continuar' : 'Inicia sesión para continuar'}
+                  {isFirstUse 
+                    ? 'Crea el primer usuario administrador' 
+                    : mostrarRegistro 
+                      ? 'Crea tu cuenta para continuar' 
+                      : 'Inicia sesión para continuar'}
                 </p>
               </div>
               
@@ -369,7 +398,7 @@ const HulkGymLogin = () => {
                     </InputGroup>
                   </Form.Group>
                   
-                  <Form.Group className="mb-4">
+                  <Form.Group className="mb-3">
                     <Form.Label>Confirmar Contraseña</Form.Label>
                     <InputGroup>
                       <Form.Control
@@ -388,31 +417,72 @@ const HulkGymLogin = () => {
                     </InputGroup>
                   </Form.Group>
                   
+                  {/* Solo mostrar checkbox para crear admin si NO es el primer uso Y el usuario tiene permisos de admin */}
+                  {!isFirstUse && !isAdmin && users.some(u => u.role === 'admin' && u.username === localStorage.getItem('userEmail')) && (
+                    <Form.Group className="mb-3">
+                      <Form.Check 
+                        type="checkbox"
+                        id="adminCheck"
+                        label="Registrar como administrador"
+                        checked={isAdmin}
+                        onChange={() => setIsAdmin(!isAdmin)}
+                      />
+                    </Form.Group>
+                  )}
+                  
                   <Button variant="success" type="submit" className="w-100 mb-3">
-                    REGISTRARSE
+                    {isFirstUse ? 'CREAR ADMINISTRADOR' : 'REGISTRARSE'}
                   </Button>
                   
-                  <Button 
-                    variant="outline-dark" 
-                    type="button" 
-                    className="w-100 mb-3 d-flex align-items-center justify-content-center"
-                    onClick={handleGoogleSignIn}
-                    disabled={isGoogleLoading}
-                    data-testid="google-sign-in-button"
-                  >
-                    <FaGoogle className="me-2" /> 
-                    {isGoogleLoading ? "CONECTANDO..." : "REGISTRARSE CON GOOGLE"}
-                  </Button>
+                  {/* Solo mostrar registro con Google si es el primer uso (creación admin) o no es admin */}
+                  {(isFirstUse || !isAdmin) && (
+                    <>
+                      {/* Checkbox para Google Admin SOLO si es primer uso */}
+                      {isFirstUse && (
+                        <Form.Group className="mb-3">
+                          <Form.Check 
+                            type="checkbox"
+                            id="googleAdminCheck"
+                            label="Registrarse con Google como administrador"
+                            checked={true} // Si es primer uso, siempre marcado y deshabilitado
+                            disabled={true}
+                          />
+                        </Form.Group>
+                      )}
+                    
+                      <Button 
+                        variant="outline-dark" 
+                        type="button" 
+                        className="w-100 mb-3 d-flex align-items-center justify-content-center"
+                        onClick={() => {
+                          // Si es primer uso, forzamos registro como admin con Google
+                          if (isFirstUse) {
+                            setIsGoogleAdmin(true);
+                          } else {
+                            setIsGoogleAdmin(false);
+                          }
+                          handleGoogleSignIn();
+                        }}
+                        disabled={isGoogleLoading}
+                        data-testid="google-sign-in-button"
+                      >
+                        <FaGoogle className="me-2" /> 
+                        {isGoogleLoading ? "CONECTANDO..." : `REGISTRARSE CON GOOGLE ${isFirstUse ? '(ADMIN)' : ''}`}
+                      </Button>
+                    </>
+                  )}
                   
-                  <div className="text-center">
-                    <Button 
-                      variant="link" 
-                      onClick={() => setMostrarRegistro(false)}
-                      className="text-decoration-none"
-                    >
-                      ¿Ya tienes una cuenta? Inicia sesión aquí
-                    </Button>
-                  </div>
+                  {!isFirstUse && (
+                    <div className="text-center">
+                      <Button 
+                        variant="link" 
+                        onClick={() => setMostrarRegistro(false)}
+                        className="text-decoration-none"
+                      >
+                        ¿Ya tienes una cuenta? Inicia sesión aquí
+                      </Button>
+                    </div>
+                  )}
                 </Form>
               ) : (
                 // Formulario de inicio de sesión
@@ -461,6 +531,24 @@ const HulkGymLogin = () => {
                       ¿No tienes una cuenta? Regístrate aquí
                     </Button>
                   </div>
+                  
+                  <hr className="my-4" />
+                  
+                  <div className="text-center mb-3">
+                    <p className="text-muted">O inicia sesión con:</p>
+                  </div>
+                  
+                  <Button 
+                    variant="outline-dark" 
+                    type="button" 
+                    className="w-100 mb-3 d-flex align-items-center justify-content-center"
+                    onClick={handleGoogleSignIn}
+                    disabled={isGoogleLoading}
+                    data-testid="google-sign-in-button"
+                  >
+                    <FaGoogle className="me-2" /> 
+                    {isGoogleLoading ? "CONECTANDO..." : "INICIAR SESIÓN CON GOOGLE"}
+                  </Button>
                 </>
               )}
             </Card.Body>

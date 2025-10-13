@@ -20,13 +20,34 @@ import { FaUser, FaSearch, FaCheckCircle, FaTimesCircle, FaBars, FaTimes } from 
 const PagePrincipal = () => {
   const navigate = useNavigate();
 
-  // Verificación básica de usuario
+  // Verificación más robusta de usuario
   useEffect(() => {
     const userType = localStorage.getItem('userType');
+    const userEmail = localStorage.getItem('userEmail');
+    
     if (!userType) {
       navigate('/login');
+    } else {
+      // Verificación adicional contra la base de usuarios
+      const savedUsers = localStorage.getItem('users');
+      if (savedUsers) {
+        const users = JSON.parse(savedUsers);
+        const currentUser = users.find(u => u.username === userEmail);
+        if (!currentUser) {
+          localStorage.removeItem("userType");
+          localStorage.removeItem("userName");
+          localStorage.removeItem("userEmail");
+          navigate("/login");
+        }
+      }
     }
   }, [navigate]);
+
+  // Inicializar clientes desde localStorage
+  const [clientes, setClientes] = useState(() => {
+    const savedClientes = localStorage.getItem('clientes');
+    return savedClientes ? JSON.parse(savedClientes) : [];
+  });
 
   const [searchDNI, setSearchDNI] = useState("");
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
@@ -45,6 +66,8 @@ const PagePrincipal = () => {
   // Función para cerrar sesión
   const handleLogout = () => {
     localStorage.removeItem('userType');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('userEmail');
     navigate('/login');
   };
 
