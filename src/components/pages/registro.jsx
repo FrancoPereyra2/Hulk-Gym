@@ -13,7 +13,7 @@ const googleProvider = new GoogleAuthProvider();
 
 const Registro = () => {
   const [fullName, setFullName] = useState('');
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState(''); // Cambiado de username a email
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showAlert, setShowAlert] = useState(false);
@@ -75,9 +75,18 @@ const Registro = () => {
     e.preventDefault();
 
     // Validación
-    if (!fullName.trim() || !username.trim() || !password.trim() || !confirmPassword.trim()) {
+    if (!fullName.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
       setAlertVariant('danger');
       setAlertMessage('Por favor, completa todos los campos');
+      setShowAlert(true);
+      return;
+    }
+
+    // Validar formato de correo electrónico
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setAlertVariant('danger');
+      setAlertMessage('Por favor, introduce un correo electrónico válido');
       setShowAlert(true);
       return;
     }
@@ -89,10 +98,10 @@ const Registro = () => {
       return;
     }
 
-    // Verificar si el usuario ya existe
-    if (users.some(user => user.username === username.trim())) {
+    // Verificar si el correo ya existe
+    if (users.some(user => user.username === email.trim())) {
       setAlertVariant('danger');
-      setAlertMessage('Este nombre de usuario ya está registrado');
+      setAlertMessage('Este correo electrónico ya está registrado');
       setShowAlert(true);
       return;
     }
@@ -100,7 +109,7 @@ const Registro = () => {
     // Crear nuevo usuario
     const newUser = {
       fullName: fullName.trim(),
-      username: username.trim(),
+      username: email.trim(), // Guardar email en campo username para mantener compatibilidad
       password: password.trim(),
       role: 'cliente' // Por defecto los nuevos usuarios son clientes
     };
@@ -118,7 +127,7 @@ const Registro = () => {
     // Limpiar formulario y redirigir al login después de un tiempo
     setTimeout(() => {
       setFullName('');
-      setUsername('');
+      setEmail('');
       setPassword('');
       setConfirmPassword('');
       navigate('/login');
@@ -341,12 +350,12 @@ const Registro = () => {
                 </Form.Group>
                 
                 <Form.Group className="mb-3">
-                  <Form.Label>Usuario</Form.Label>
+                  <Form.Label>Correo Electrónico</Form.Label>
                   <Form.Control
-                    type="text"
-                    placeholder="Elige un nombre de usuario"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    type="email"
+                    placeholder="Ingresa tu correo electrónico"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                   />
                 </Form.Group>
                 

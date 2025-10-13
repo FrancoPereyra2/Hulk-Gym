@@ -11,7 +11,7 @@ import { auth } from '../../firebase/config';
 const googleProvider = new GoogleAuthProvider();
 
 const HulkGymLogin = () => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState(''); // Cambiado de username a email
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -116,11 +116,11 @@ const HulkGymLogin = () => {
     e.preventDefault();
 
     // Trim básico - quitar espacios
-    const usuarioSinEspacios = username.trim();
+    const emailSinEspacios = email.trim();
     const passwordSinEspacios = password.trim();
 
     // Validación simple
-    if (!usuarioSinEspacios || !passwordSinEspacios) {
+    if (!emailSinEspacios || !passwordSinEspacios) {
       setAlertVariant('danger');
       setAlertMessage('Por favor, completa todos los campos');
       setShowAlert(true);
@@ -128,7 +128,7 @@ const HulkGymLogin = () => {
     }
 
     // Credenciales fijas
-    if (usuarioSinEspacios === 'HulkgymAdmin' && passwordSinEspacios === 'HulkGym2024') {
+    if (emailSinEspacios === 'HulkgymAdmin' && passwordSinEspacios === 'HulkGym2024') {
       // Es un administrador
       localStorage.setItem('userType', 'admin');
       setAlertVariant('success');
@@ -136,7 +136,7 @@ const HulkGymLogin = () => {
       setShowAlert(true);
       navigate('/admin');
     } 
-    else if (usuarioSinEspacios === 'HulkgymCliente' && passwordSinEspacios === 'HulkGym2024') {
+    else if (emailSinEspacios === 'HulkgymCliente' && passwordSinEspacios === 'HulkGym2024') {
       // Es un cliente
       localStorage.setItem('userType', 'cliente');
       setAlertVariant('success');
@@ -147,7 +147,7 @@ const HulkGymLogin = () => {
     else {
       // Buscar en usuarios registrados
       const user = users.find(
-        u => u.username === usuarioSinEspacios && u.password === passwordSinEspacios
+        u => u.username === emailSinEspacios && u.password === passwordSinEspacios
       );
 
       if (user) {
@@ -162,7 +162,7 @@ const HulkGymLogin = () => {
       } else {
         // Credenciales incorrectas
         setAlertVariant('danger');
-        setAlertMessage('Usuario o contraseña incorrectos');
+        setAlertMessage('Correo electrónico o contraseña incorrectos');
         setShowAlert(true);
       }
     }
@@ -172,9 +172,18 @@ const HulkGymLogin = () => {
     e.preventDefault();
 
     // Validación
-    if (!fullName.trim() || !username.trim() || !password.trim() || !confirmPassword.trim()) {
+    if (!fullName.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
       setAlertVariant('danger');
       setAlertMessage('Por favor, completa todos los campos');
+      setShowAlert(true);
+      return;
+    }
+
+    // Validar formato de correo electrónico
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setAlertVariant('danger');
+      setAlertMessage('Por favor, introduce un correo electrónico válido');
       setShowAlert(true);
       return;
     }
@@ -186,10 +195,10 @@ const HulkGymLogin = () => {
       return;
     }
 
-    // Verificar si el usuario ya existe
-    if (users.some(user => user.username === username.trim())) {
+    // Verificar si el correo ya existe
+    if (users.some(user => user.username === email.trim())) {
       setAlertVariant('danger');
-      setAlertMessage('Este nombre de usuario ya está registrado');
+      setAlertMessage('Este correo electrónico ya está registrado');
       setShowAlert(true);
       return;
     }
@@ -197,7 +206,7 @@ const HulkGymLogin = () => {
     // Crear nuevo usuario
     const newUser = {
       fullName: fullName.trim(),
-      username: username.trim(),
+      username: email.trim(), // Guardar email en campo username para mantener compatibilidad
       password: password.trim(),
       role: 'cliente' // Por defecto los nuevos usuarios son clientes
     };
@@ -214,7 +223,7 @@ const HulkGymLogin = () => {
 
     // Limpiar formulario y volver a login
     setFullName('');
-    setUsername('');
+    setEmail('');
     setPassword('');
     setConfirmPassword('');
     setMostrarRegistro(false);
@@ -332,12 +341,12 @@ const HulkGymLogin = () => {
                   </Form.Group>
                   
                   <Form.Group className="mb-3">
-                    <Form.Label>Usuario</Form.Label>
+                    <Form.Label>Correo Electrónico</Form.Label>
                     <Form.Control
-                      type="text"
-                      placeholder="Elige un nombre de usuario"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
+                      type="email"
+                      placeholder="Ingresa tu correo electrónico"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                     />
                   </Form.Group>
                   
@@ -410,12 +419,12 @@ const HulkGymLogin = () => {
                 <>
                   <Form onSubmit={handleLogin}>
                     <Form.Group className="mb-3">
-                      <Form.Label>Usuario</Form.Label>
+                      <Form.Label>Correo Electrónico</Form.Label>
                       <Form.Control
-                        type="text"
-                        placeholder="Ingresa tu usuario"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
+                        type="email"
+                        placeholder="Ingresa tu correo electrónico"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                       />
                     </Form.Group>
                     
