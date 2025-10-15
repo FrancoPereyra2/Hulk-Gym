@@ -23,8 +23,8 @@ const Registro = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   
-  // Eliminar la opción de registrarse como admin con Google
-  // const [isGoogleAdmin, setIsGoogleAdmin] = useState(false);
+  // Estado para determinar si estamos creando un administrador
+  const [isCreatingAdmin, setIsCreatingAdmin] = useState(false);
   
   // Cargar usuarios del localStorage sin datos hardcodeados
   const [users, setUsers] = useState(() => {
@@ -66,6 +66,36 @@ const Registro = () => {
     };
   }, []);
 
+  // Verificar si se está creando un administrador
+  useEffect(() => {
+    const creandoAdmin = localStorage.getItem('creandoAdmin') === 'true';
+    if (creandoAdmin) {
+      setIsCreatingAdmin(true);
+      // Limpiar el flag después de usarlo
+      localStorage.removeItem('creandoAdmin');
+    }
+
+    // Verificar que el usuario actual tenga permisos de administrador
+    const userType = localStorage.getItem('userType');
+    const userEmail = localStorage.getItem('userEmail');
+    
+    if (creandoAdmin && userType !== 'admin') {
+      // Si no es un administrador, redirigir al login
+      navigate('/login');
+    } else if (creandoAdmin) {
+      // Verificar en la base de usuarios
+      const savedUsers = localStorage.getItem('users');
+      if (savedUsers) {
+        const users = JSON.parse(savedUsers);
+        const currentUser = users.find(u => u.username === userEmail && u.role === 'admin');
+        if (!currentUser) {
+          // Si no es admin, redirigir al login
+          navigate('/login');
+        }
+      }
+    }
+  }, [navigate]);
+
   const handleRegister = (e) => {
     e.preventDefault();
 
@@ -106,7 +136,7 @@ const Registro = () => {
       fullName: fullName.trim(),
       username: email.trim(),
       password: password.trim(),
-      role: 'cliente' // Por defecto los nuevos usuarios son clientes
+      role: isCreatingAdmin ? 'admin' : 'cliente' // Asignar rol según el contexto
     };
 
     const updatedUsers = [...users, newUser];
@@ -116,16 +146,21 @@ const Registro = () => {
     localStorage.setItem('users', JSON.stringify(updatedUsers));
     
     setAlertVariant('success');
-    setAlertMessage('¡Registro exitoso! Ahora puedes iniciar sesión');
+    setAlertMessage(isCreatingAdmin 
+      ? '¡Nuevo administrador registrado correctamente!' 
+      : '¡Registro exitoso! Ahora puedes iniciar sesión');
     setShowAlert(true);
 
-    // Limpiar formulario y redirigir al login después de un tiempo
+    // Limpiar formulario y redirigir
     setTimeout(() => {
       setFullName('');
       setEmail('');
       setPassword('');
       setConfirmPassword('');
-      navigate('/login');
+      
+      // Si estamos creando un admin, redirigir a la página de admin
+      // Si es registro normal, redirigir al login
+      navigate(isCreatingAdmin ? '/admin' : '/login');
     }, 2000);
   };
 
@@ -204,12 +239,12 @@ const Registro = () => {
       const existingUser = users.find(u => u.username === user.email);
       
       if (!existingUser) {
-        // Registrar siempre como cliente (nunca como admin)
+        // Registrar como cliente o admin según el contexto
         const newUser = {
           fullName: user.displayName || "Usuario de Google",
           username: user.email,
           password: `google_${user.uid}`,
-          role: 'cliente',
+          role: isCreatingAdmin ? 'admin' : 'cliente',
           googleAuth: true,
           uid: user.uid
         };
@@ -219,7 +254,9 @@ const Registro = () => {
         localStorage.setItem('users', JSON.stringify(updatedUsers));
         
         setAlertVariant('success');
-        setAlertMessage('¡Registro exitoso! Serás redirigido automáticamente.');
+        setAlertMessage(isCreatingAdmin 
+          ? '¡Nuevo administrador registrado correctamente con Google!' 
+          : '¡Registro exitoso! Serás redirigido automáticamente.');
       } else {
         setAlertVariant('info');
         setAlertMessage('Ya existe una cuenta con este email. Iniciando sesión...');
@@ -323,9 +360,18 @@ const Registro = () => {
               <div className="text-center mb-4">
                 <img src={LogoLoginImg} alt="Logo" className="img-fluid w-50" />
                 <p className="text-muted h5">
-                  Crea tu cuenta para continuar
+                  {isCreatingAdmin 
+                    ? 'Crea un nuevo administrador' 
+                    : 'Crea tu cuenta para continuar'}
                 </p>
               </div>
+              
+              {/* Añadir alerta si se está creando un admin sin permiso */}
+              {isCreatingAdmin && (
+                <Alert variant="info" className="mb-3">
+                  <strong>Importante:</strong> Estás creando una cuenta con permisos de administrador.
+                </Alert>
+              )}
               
               {showAlert && (
                 <Alert variant={alertVariant} onClose={() => setShowAlert(false)} dismissible>
@@ -393,10 +439,10 @@ const Registro = () => {
                 </Form.Group>
                 
                 <Button variant="success" type="submit" className="w-100 mb-3">
-                  REGISTRARSE
+                  {isCreatingAdmin ? 'REGISTRAR ADMINISTRADOR' : 'REGISTRARSE'}
                 </Button>
                 
-                {/* Botón de Google para registro como cliente únicamente */}
+                {/* Botón de Google para registro, adaptado según contexto */}
                 <Button 
                   variant="outline-dark" 
                   type="button" 
@@ -406,14 +452,28 @@ const Registro = () => {
                   data-testid="google-sign-in-button"
                 >
                   <FaGoogle className="me-2" /> 
-                  {isGoogleLoading ? "CONECTANDO..." : "REGISTRARSE CON GOOGLE"}
+                  {isGoogleLoading 
+                    ? "CONECTANDO..." 
+                    : isCreatingAdmin 
+                      ? "REGISTRAR ADMIN CON GOOGLE" 
+                      : "REGISTRARSE CON GOOGLE"}
                 </Button>
               </Form>
               
               <div className="text-center">
-                <Link to="/login" className="text-decoration-none">
-                  ¿Ya tienes una cuenta? Inicia sesión aquí
-                </Link>
+                {isCreatingAdmin ? (
+                  <Button 
+                    variant="link" 
+                    onClick={() => navigate('/admin')}
+                    className="text-decoration-none"
+                  >
+                    Volver al panel de administración
+                  </Button>
+                ) : (
+                  <Link to="/login" className="text-decoration-none">
+                    ¿Ya tienes una cuenta? Inicia sesión aquí
+                  </Link>
+                )}
               </div>
             </Card.Body>
           </Card>

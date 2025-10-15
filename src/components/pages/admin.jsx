@@ -468,6 +468,13 @@ const AdminClientes = () => {
     return `${partes[2]}-${partes[1]}-${partes[0]}`;
   };
 
+  // Función para redirigir al formulario de registro con permisos de admin
+  const handleNuevoAdmin = () => {
+    // Guardar en localStorage que estamos creando un admin para que el formulario lo detecte
+    localStorage.setItem('creandoAdmin', 'true');
+    navigate('/registro');
+  };
+
   return (
     <Container fluid className="vh-100 d-flex flex-column p-0">
       <Row className="flex-grow-1 m-0">
@@ -575,8 +582,11 @@ const AdminClientes = () => {
                 >
                   <FaPlus className="me-2" /> Agregar Cliente
                 </Button>
-                <Button variant="outline-primary">
-                  <FaDollarSign className="me-2" /> Registrar Pago
+                <Button 
+                  variant="outline-success"
+                  onClick={handleNuevoAdmin}
+                >
+                  <FaUser className="me-2" /> Nuevo Admin
                 </Button>
               </Col>
             </Row>
