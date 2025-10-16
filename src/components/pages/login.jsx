@@ -25,7 +25,8 @@ const HulkGymLogin = () => {
   const [isFirstUse, setIsFirstUse] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isGoogleAdmin, setIsGoogleAdmin] = useState(false);
-  
+  const [isDarkMode, setIsDarkMode] = useState(false); // Estado para el modo oscuro
+ 
   // Base de datos de usuarios desde localStorage sin datos hardcodeados
   const [users, setUsers] = useState(() => {
     const savedUsers = localStorage.getItem('users');
@@ -387,11 +388,12 @@ const HulkGymLogin = () => {
                         placeholder="Crea una contraseña"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
+                        style={{ borderRight: 'none' }}
                       />
                       <InputGroup.Text 
                         as="button"
                         onClick={togglePasswordVisibility}
-                        className="bg-white"
+                        className="bg-transparent"
                       >
                         {showPassword ? <FaEyeSlash /> : <FaEye />}
                       </InputGroup.Text>
@@ -406,11 +408,12 @@ const HulkGymLogin = () => {
                         placeholder="Confirma tu contraseña"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
+                        style={{ borderRight: 'none' }}
                       />
                       <InputGroup.Text 
                         as="button"
                         onClick={toggleConfirmPasswordVisibility}
-                        className="bg-white"
+                        className="bg-transparent"
                       >
                         {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
                       </InputGroup.Text>
@@ -451,7 +454,7 @@ const HulkGymLogin = () => {
                       )}
                     
                       <Button 
-                        variant="outline-dark" 
+                        variant="outline-secondary"
                         type="button" 
                         className="w-100 mb-3 d-flex align-items-center justify-content-center"
                         onClick={() => {
@@ -465,9 +468,17 @@ const HulkGymLogin = () => {
                         }}
                         disabled={isGoogleLoading}
                         data-testid="google-sign-in-button"
+                        style={{
+                          borderColor: 'var(--bs-border-color)',
+                          color: 'var(--bs-body-color)',
+                          backgroundColor: 'var(--bs-body-bg)',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          padding: '10px 24px'
+                        }}
                       >
-                        <FaGoogle className="me-2" /> 
-                        {isGoogleLoading ? "CONECTANDO..." : `REGISTRARSE CON GOOGLE ${isFirstUse ? '(ADMIN)' : ''}`}
+                        <FaGoogle className="me-3" style={{ color: '#4285f4', fontSize: '18px' }} /> 
+                        {isGoogleLoading ? "Conectando..." : `Registrarse con Google${isFirstUse ? ' (Admin)' : ''}`}
                       </Button>
                     </>
                   )}
@@ -506,11 +517,12 @@ const HulkGymLogin = () => {
                           placeholder="Ingresa tu contraseña"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
+                          style={{ borderRight: 'none' }}
                         />
                         <InputGroup.Text 
                           as="button"
                           onClick={togglePasswordVisibility}
-                          className="bg-white"
+                          className="bg-transparent"
                         >
                           {showPassword ? <FaEyeSlash /> : <FaEye />}
                         </InputGroup.Text>
@@ -539,15 +551,23 @@ const HulkGymLogin = () => {
                   </div>
                   
                   <Button 
-                    variant="outline-dark" 
+                    variant="outline-secondary"
                     type="button" 
                     className="w-100 mb-3 d-flex align-items-center justify-content-center"
                     onClick={handleGoogleSignIn}
                     disabled={isGoogleLoading}
                     data-testid="google-sign-in-button"
+                    style={{
+                      borderColor: 'var(--bs-border-color)',
+                      color: 'var(--bs-body-color)',
+                      backgroundColor: 'var(--bs-body-bg)',
+                      fontSize: '16px',
+                      fontWeight: '500',
+                      padding: '10px 24px'
+                    }}
                   >
-                    <FaGoogle className="me-2" /> 
-                    {isGoogleLoading ? "CONECTANDO..." : "INICIAR SESIÓN CON GOOGLE"}
+                    <FaGoogle className="me-3" style={{ color: '#4285f4', fontSize: '18px' }} /> 
+                    {isGoogleLoading ? "Conectando..." : "Iniciar sesión con Google"}
                   </Button>
                 </>
               )}

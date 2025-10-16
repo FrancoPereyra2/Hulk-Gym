@@ -412,7 +412,7 @@ const Registro = () => {
                     <InputGroup.Text 
                       as="button"
                       onClick={togglePasswordVisibility}
-                      className="bg-white"
+                      className="bg-transparent border-0"
                     >
                       {showPassword ? <FaEyeSlash /> : <FaEye />}
                     </InputGroup.Text>
@@ -431,7 +431,7 @@ const Registro = () => {
                     <InputGroup.Text 
                       as="button"
                       onClick={toggleConfirmPasswordVisibility}
-                      className="bg-white"
+                      className="bg-transparent border-0"
                     >
                       {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
                     </InputGroup.Text>
@@ -444,19 +444,19 @@ const Registro = () => {
                 
                 {/* Botón de Google para registro, adaptado según contexto */}
                 <Button 
-                  variant="outline-dark" 
+                  variant="outline-secondary"
                   type="button" 
                   className="w-100 mb-3 d-flex align-items-center justify-content-center"
                   onClick={handleGoogleSignIn}
                   disabled={isGoogleLoading}
                   data-testid="google-sign-in-button"
                 >
-                  <FaGoogle className="me-2" /> 
+                  <FaGoogle className="me-2" style={{ color: '#42f442ff' }} /> 
                   {isGoogleLoading 
-                    ? "CONECTANDO..." 
+                    ? "Conectando..." 
                     : isCreatingAdmin 
-                      ? "REGISTRAR ADMIN CON GOOGLE" 
-                      : "REGISTRARSE CON GOOGLE"}
+                      ? "Registrar admin con Google" 
+                      : "Registrarse con Google"}
                 </Button>
               </Form>
               

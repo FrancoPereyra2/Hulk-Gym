@@ -15,10 +15,12 @@ import {
   Offcanvas,
 } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
-import { FaUser, FaSearch, FaCheckCircle, FaTimesCircle, FaBars, FaTimes } from "react-icons/fa";
+import { FaUser, FaSearch, FaCheckCircle, FaTimesCircle, FaBars, FaTimes, FaDumbbell, FaMoon, FaSun } from "react-icons/fa";
+import { useTheme } from './admin.jsx';
 
 const PagePrincipal = () => {
   const navigate = useNavigate();
+  const { isDarkMode, alternarTema } = useTheme();
 
   // Verificación más robusta de usuario
   useEffect(() => {
@@ -83,6 +85,24 @@ const PagePrincipal = () => {
               <span>Clientes</span>
             </Nav.Link>
             
+            <Nav.Link 
+              className="d-flex align-items-center px-0 text-warning"
+              onClick={() => navigate('/rutinas')}
+              style={{ cursor: 'pointer' }}
+            >
+              <FaDumbbell className="me-2" />
+              <span>Rutinas</span>
+            </Nav.Link>
+
+            <Nav.Link 
+              className="d-flex align-items-center px-0 text-info"
+              onClick={alternarTema}
+              style={{ cursor: 'pointer' }}
+            >
+              {isDarkMode ? <FaSun className="me-2" /> : <FaMoon className="me-2" />}
+              <span>{isDarkMode ? 'Modo Claro' : 'Modo Oscuro'}</span>
+            </Nav.Link>
+            
             {/* Botón cerrar sesión en el sidebar */}
             <Nav.Link 
               className="d-flex align-items-center px-0 text-danger mt-3"
@@ -134,19 +154,41 @@ const PagePrincipal = () => {
               </Button>
               <Navbar.Brand className="fw-bold text-success">HULK GYM</Navbar.Brand>
               
-              {/* Botón cerrar sesión en navbar móvil */}
-              <Button
-                variant="outline-danger"
-                onClick={handleLogout}
-                size="sm"
-              >
-                <FaTimes /> Salir
-              </Button>
+              <div className="d-flex align-items-center gap-2">
+                <Button 
+                  variant="outline-info" 
+                  onClick={alternarTema} 
+                  size="sm"
+                >
+                  {isDarkMode ? <FaSun /> : <FaMoon />}
+                </Button>
+                <Button
+                  variant="outline-danger"
+                  onClick={handleLogout}
+                  size="sm"
+                >
+                  <FaTimes /> Salir
+                </Button>
+              </div>
             </Container>
           </Navbar>
 
           {/* Contenido de la página */}
           <Container fluid className="p-3 p-md-4">
+            {/* Header con botón de tema */}
+            <Row className="mb-3">
+              <Col className="d-flex justify-content-end">
+                <Button 
+                  variant="outline-secondary" 
+                  size="sm"
+                  onClick={alternarTema}
+                  className="d-flex align-items-center"
+                >
+                  {isDarkMode ? <FaSun size={14} /> : <FaMoon size={14} />}
+                </Button>
+              </Col>
+            </Row>
+
             <Row>
               <Col xs={12}>
                 <h2 className="mb-3 mb-md-4">Gestión de Clientes</h2>

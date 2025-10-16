@@ -33,10 +33,33 @@ import {
   FaTimes,
   FaDollarSign,
   FaCalendarAlt,
+  FaDumbbell,
+  FaMoon,
+  FaSun,
 } from "react-icons/fa";
+
+// Hook personalizado para el tema
+export const useTheme = () => {
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const temaGuardado = localStorage.getItem('tema');
+    return temaGuardado === 'oscuro';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('tema', isDarkMode ? 'oscuro' : 'claro');
+    document.body.setAttribute('data-bs-theme', isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
+
+  const alternarTema = () => {
+    setIsDarkMode(!isDarkMode);
+  };
+
+  return { isDarkMode, alternarTema };
+};
 
 const AdminClientes = () => {
   const navigate = useNavigate();
+  const { isDarkMode, alternarTema } = useTheme();
 
   // Verificación más robusta de usuario administrador
   useEffect(() => {
@@ -444,6 +467,15 @@ const AdminClientes = () => {
               <span>Todos los Clientes</span>
             </Nav.Link>
 
+            <Nav.Link 
+              className="d-flex align-items-center px-0 text-warning"
+              onClick={() => navigate('/rutinas')}
+              style={{ cursor: 'pointer' }}
+            >
+              <FaDumbbell className="me-2" />
+              <span>Rutinas</span>
+            </Nav.Link>
+
             {/* Botón cerrar sesión en el sidebar */}
             <Nav.Link
               className="d-flex align-items-center px-0 text-danger mt-3"
@@ -518,15 +550,37 @@ const AdminClientes = () => {
                 HULK GYM
               </Navbar.Brand>
 
-              {/* Botón cerrar sesión en navbar móvil */}
-              <Button variant="outline-danger" onClick={handleLogout} size="sm">
-                <FaTimes /> Salir
-              </Button>
+              <div className="d-flex align-items-center gap-2">
+                <Button 
+                  variant="outline-info" 
+                  onClick={alternarTema} 
+                  size="sm"
+                >
+                  {isDarkMode ? <FaSun /> : <FaMoon />}
+                </Button>
+                <Button variant="outline-danger" onClick={handleLogout} size="sm">
+                  <FaTimes /> Salir
+                </Button>
+              </div>
             </Container>
           </Navbar>
 
           {/* Contenido de la página */}
           <Container fluid className="p-3">
+            {/* Header con botón de tema */}
+            <Row className="mb-3">
+              <Col className="d-flex justify-content-end">
+                <Button 
+                  variant="outline-secondary" 
+                  size="sm"
+                  onClick={alternarTema}
+                  className="d-flex align-items-center"
+                >
+                  {isDarkMode ? <FaSun size={14} /> : <FaMoon size={14} />}
+                </Button>
+              </Col>
+            </Row>
+
             {/* Tarjetas de resumen */}
             <Row className="mb-4 d-flex justify-content-center">
               <Col xs={6} md={3} className="mb-3 mb-md-0">
