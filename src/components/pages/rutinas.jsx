@@ -13,11 +13,20 @@ import {
   Modal,
   Form,
 } from "react-bootstrap";
-import { FaUsers, FaDumbbell, FaTimes, FaBars, FaMoon, FaSun, FaPlus, FaTrash } from "react-icons/fa";
+import { FaUsers, FaDumbbell, FaTimes, FaBars, FaMoon, FaSun, FaPlus, FaTrash, FaEdit } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from './admin.jsx';
 import "bootstrap-icons/font/bootstrap-icons.css";
 import { FaTrashCan } from "react-icons/fa6";
+
+// Función utilitaria para capitalizar la primera letra de cada palabra
+const capitalizarPrimeraLetra = (texto) => {
+  if (!texto) return '';
+  return texto
+    .split(' ')
+    .map(palabra => palabra.charAt(0).toUpperCase() + palabra.slice(1).toLowerCase())
+    .join(' ');
+};
 
 const Rutinas = () => {
   const navigate = useNavigate();
@@ -68,6 +77,10 @@ const Rutinas = () => {
     repeticiones: ""
   });
 
+  // Estado para ejercicio en edición
+  const [ejercicioEnEdicion, setEjercicioEnEdicion] = useState(null);
+  const [indexEjercicioEdicion, setIndexEjercicioEdicion] = useState(null);
+
   // Guardar rutinas en localStorage cuando cambien
   useEffect(() => {
     localStorage.setItem('rutinas', JSON.stringify(rutinas));
@@ -100,7 +113,7 @@ const Rutinas = () => {
   const agregarEjercicio = () => {
     if (formDataEjercicio.ejercicio.trim() && formDataEjercicio.series && formDataEjercicio.repeticiones) {
       const nuevoEjercicio = {
-        ejercicio: formDataEjercicio.ejercicio.trim(),
+        ejercicio: capitalizarPrimeraLetra(formDataEjercicio.ejercicio.trim()),
         series: parseInt(formDataEjercicio.series),
         repeticiones: parseInt(formDataEjercicio.repeticiones)
       };
@@ -131,7 +144,7 @@ const Rutinas = () => {
     if (formDataRutina.nombre.trim()) {
       const nuevaRutina = {
         id: rutinas.length > 0 ? Math.max(...rutinas.map(r => r.id)) + 1 : 1,
-        nombre: formDataRutina.nombre.trim(),
+        nombre: capitalizarPrimeraLetra(formDataRutina.nombre.trim()),
         ejercicios: formDataRutina.ejercicios
       };
 
@@ -171,7 +184,7 @@ const Rutinas = () => {
   const agregarEjercicioEdicion = () => {
     if (formDataEjercicioEdicion.ejercicio.trim() && formDataEjercicioEdicion.series && formDataEjercicioEdicion.repeticiones) {
       const nuevoEjercicio = {
-        ejercicio: formDataEjercicioEdicion.ejercicio.trim(),
+        ejercicio: capitalizarPrimeraLetra(formDataEjercicioEdicion.ejercicio.trim()),
         series: parseInt(formDataEjercicioEdicion.series),
         repeticiones: parseInt(formDataEjercicioEdicion.repeticiones)
       };
@@ -204,7 +217,7 @@ const Rutinas = () => {
         rutina.id === formDataEdicion.id
           ? {
               ...rutina,
-              nombre: formDataEdicion.nombre.trim(),
+              nombre: capitalizarPrimeraLetra(formDataEdicion.nombre.trim()),
               ejercicios: formDataEdicion.ejercicios
             }
           : rutina
@@ -216,7 +229,7 @@ const Rutinas = () => {
       if (rutinaSeleccionada && rutinaSeleccionada.id === formDataEdicion.id) {
         setRutinaSeleccionada({
           ...formDataEdicion,
-          nombre: formDataEdicion.nombre.trim()
+          nombre: capitalizarPrimeraLetra(formDataEdicion.nombre.trim())
         });
       }
       
@@ -258,6 +271,55 @@ const Rutinas = () => {
     navigate("/login");
   };
 
+  // Función para iniciar la edición de un ejercicio
+  const iniciarEdicionEjercicio = (ejercicio, index) => {
+    setEjercicioEnEdicion(ejercicio);
+    setIndexEjercicioEdicion(index);
+    setFormDataEjercicioEdicion({
+      ejercicio: ejercicio.ejercicio,
+      series: ejercicio.series,
+      repeticiones: ejercicio.repeticiones
+    });
+  };
+
+  // Función para guardar el ejercicio editado
+  const guardarEjercicioEditado = () => {
+    if (
+      formDataEjercicioEdicion.ejercicio.trim() && 
+      formDataEjercicioEdicion.series && 
+      formDataEjercicioEdicion.repeticiones
+    ) {
+      const ejercicioActualizado = {
+        ejercicio: capitalizarPrimeraLetra(formDataEjercicioEdicion.ejercicio.trim()),
+        series: parseInt(formDataEjercicioEdicion.series),
+        repeticiones: parseInt(formDataEjercicioEdicion.repeticiones)
+      };
+
+      // Actualizar el ejercicio en el array
+      const ejerciciosActualizados = [...formDataEdicion.ejercicios];
+      ejerciciosActualizados[indexEjercicioEdicion] = ejercicioActualizado;
+
+      setFormDataEdicion({
+        ...formDataEdicion,
+        ejercicios: ejerciciosActualizados
+      });
+
+      // Limpiar estado de edición
+      cancelarEdicionEjercicio();
+    }
+  };
+
+  // Función para cancelar la edición de un ejercicio
+  const cancelarEdicionEjercicio = () => {
+    setEjercicioEnEdicion(null);
+    setIndexEjercicioEdicion(null);
+    setFormDataEjercicioEdicion({
+      ejercicio: "",
+      series: "",
+      repeticiones: ""
+    });
+  };
+
   // Sidebar para dispositivos móviles
   const renderSidebar = () => (
     <Navbar bg="dark" variant="dark" className="d-flex flex-column h-100">
@@ -295,6 +357,38 @@ const Rutinas = () => {
       </Container>
     </Navbar>
   );
+
+  // Dentro del componente Rutinas, añade estos estilos:
+  const cardStyle = {
+    transition: "all 0.3s ease",
+    borderRadius: "12px",
+    overflow: "hidden"
+  };
+
+  const cardHeaderStyle = {
+    fontFamily: "'Fjalla One', sans-serif",
+    letterSpacing: "1px",
+    textTransform: "uppercase"
+  };
+
+  // Función para generar un estilo de gradiente para cada tarjeta
+  const getCardGradient = (id) => {
+    const colors = [
+      ['#4285f4', '#1a73e8'], // Azules
+      ['#34a853', '#1e8e3e'], // Verdes
+      ['#fbbc05', '#f29900'], // Amarillos
+      ['#ea4335', '#d93025'], // Rojos
+      ['#8e44ad', '#6c3483'], // Púrpuras
+      ['#f39c12', '#e67e22'], // Naranjas
+      ['#16a085', '#1abc9c'], // Verde azulado
+      ['#e74c3c', '#c0392b'], // Rojo más claro
+      ['#3498db', '#2980b9'], // Azul más claro
+      ['#2c3e50', '#1a2530']  // Azul oscuro
+    ];
+    
+    const colorPair = colors[id % colors.length];
+    return `linear-gradient(135deg, ${colorPair[0]} 0%, ${colorPair[1]} 100%)`;
+  };
 
   return (
     <Container fluid className="vh-100 d-flex flex-column p-0">
@@ -387,117 +481,258 @@ const Rutinas = () => {
                         onClick={handleAgregarRutina}
                         className="d-flex align-items-center border-0 bg-transparent fs-3"
                       >
-                        <i class="bi bi-plus-square"></i>
+                        <i className={`bi bi-plus-square ${isDarkMode ? 'text-light' : 'text-dark'}`}></i>
                       </Button>
                     </Col>
                   </Row>
                 </div>
-                <Card>
-                  <Card.Body className="p-0">
-                    <Table hover responsive className="mb-0">
-                      <thead className="table-light">
-                        <tr>
-                          <th>Nombre</th>
-                          <th className="text-center">Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {rutinas.length > 0 ? (
-                          rutinas.map((rutina) => (
-                            <tr
-                              key={rutina.id}
-                              onClick={() => handleSeleccionarRutina(rutina)}
-                              className="cursor-pointer"
+
+                {/* Reemplazar la tabla por tarjetas de rutinas */}
+                <Row xs={1} md={2} lg={3} className="g-4">
+                  {rutinas.length > 0 ? (
+                    rutinas.map((rutina) => (
+                      <Col key={rutina.id}>
+                        <Card 
+                          className={`h-100 shadow ${rutina.id === rutinaSeleccionada?.id ? 'border-primary border-3' : ''}`}
+                          onClick={() => handleSeleccionarRutina(rutina)}
+                          style={{ 
+                            ...cardStyle,
+                            transform: rutina.id === rutinaSeleccionada?.id ? 'translateY(-5px)' : '',
+                            boxShadow: rutina.id === rutinaSeleccionada?.id ? '0 10px 20px rgba(0,0,0,0.15)' : '0 4px 6px rgba(0,0,0,0.1)'
+                          }}
+                        >
+                          <Card.Header 
+                            className="text-white text-center py-3 border-0"
+                            style={{ 
+                              background: getCardGradient(rutina.id),
+                              fontSize: '1.3rem',
+                              ...cardHeaderStyle
+                            }}
+                          >
+                            {rutina.nombre}
+                          </Card.Header> 
+                          <Card.Body className="p-0">
+                            <div className="p-3">
+                              {rutina.ejercicios && rutina.ejercicios.length > 0 ? (
+                                <div className="exercise-list">
+                                  {rutina.ejercicios.slice(0, 3).map((ejercicio, index) => (
+                                    <div 
+                                      key={index} 
+                                      className="mb-3"
+                                      style={{
+                                        borderRadius: "8px",
+                                        padding: "12px",
+                                        background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+                                      }}
+                                    >
+                                      <div className="d-flex flex-column">
+                                        <div className="d-flex justify-content-between align-items-center mb-2 fs-4">
+                                          <span
+                                            style={{ 
+                                              fontWeight: '600',
+                                            }}
+                                          >
+                                            {ejercicio.ejercicio}
+                                          </span>
+                                          <FaDumbbell size={14} style={{ color: getRandomCardColor(rutina.id), opacity: 0.7 }} />
+                                        </div>
+                                        <div className="d-flex gap-2 align-items-center">
+                                          <Badge 
+                                            bg="transparent" 
+                                            text= {isDarkMode ? "light" : "dark"} 
+                                            pill 
+                                            style={{ 
+                                              border: `1px solid ${getRandomCardColor(rutina.id)}`,
+                                              fontSize: '0.9rem',
+                                              opacity: 0.9
+                                            }}
+                                          >
+                                            <span className="fw-bold">{ejercicio.series}</span> series
+                                          </Badge>
+                                          <span className="text-muted mx-1">•</span>
+                                          <Badge 
+                                            bg="transparent" 
+                                            text= {isDarkMode ? "light" : "dark"}
+                                            pill
+                                            style={{ 
+                                              border: `1px solid ${getRandomCardColor(rutina.id)}`,
+                                              fontSize: '0.8rem',
+                                              opacity: 0.9
+                                            }}
+                                          >
+                                            <span className="fw-bold">{ejercicio.repeticiones}</span> reps
+                                          </Badge>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                  {rutina.ejercicios.length > 3 && (
+                                    <div className="text-center mt-2">
+                                      <Badge 
+                                        pill 
+                                        style={{
+                                          background: getCardGradient(rutina.id),
+                                          color: 'white',
+                                          padding: '0.5rem 1rem',
+                                          fontSize: '0.85rem',
+                                          boxShadow: '0 2px 4px rgba(0,0,0,0.15)'
+                                        }}
+                                      >
+                                        +{rutina.ejercicios.length - 3} ejercicios más
+                                      </Badge>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="text-center py-4">
+                                  <FaDumbbell size={24} className="mb-3 text-muted" />
+                                  <p className="text-muted mb-0">
+                                    No hay ejercicios en esta rutina
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </Card.Body>
+                          <Card.Footer className="bg-transparent d-flex justify-content-between py-3 border-0">
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              className="px-3"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditarRutina(rutina.id);
+                              }}
                             >
-                              <td className="fw-semibold">{rutina.nombre}</td>
-                              <td className="text-center">
-                                <Button
-                                  variant="outline-primary"
-                                  size="sm"
-                                  className="me-2"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEditarRutina(rutina.id);
-                                  }}
-                                >
-                                  Editar
-                                </Button>
-                                <Button
-                                  variant="outline-danger"
-                                  size="sm"
-                                  onClick={(e) => abrirModalEliminar(rutina, e)}
-                                >
-                                  Eliminar
-                                </Button>
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan="2" className="text-center py-4">
-                              No hay rutinas disponibles. Agrega una nueva rutina.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </Table>
-                  </Card.Body>
-                </Card>
+                              <FaEdit className="me-2" /> Editar
+                            </Button>
+                            <Button
+                              variant="outline-danger"
+                              size="sm"
+                              className="px-3"
+                              onClick={(e) => abrirModalEliminar(rutina, e)}
+                            >
+                              <FaTrash className="me-2" /> Eliminar
+                            </Button>
+                          </Card.Footer>
+                        </Card>
+                      </Col>
+                    ))
+                  ) : (
+                    <Col xs={12}>
+                      <Card className="text-center p-5 border-0 shadow-sm">
+                        <Card.Body>
+                          <FaDumbbell size={48} className="mb-3 text-muted" />
+                          <h4>No hay rutinas disponibles</h4>
+                          <p className="text-muted">Agrega una nueva rutina haciendo clic en el botón +</p>
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                  )}
+                </Row>
+                
+                {/* Botón para agregar rutina en vista móvil */}
+                <div className="position-fixed bottom-0 end-0 mb-4 me-4 d-md-none">
+                  <Button 
+                    onClick={handleAgregarRutina}
+                    className="rounded-circle shadow"
+                    style={{ width: "60px", height: "60px" }}
+                    variant="primary"
+                  >
+                    <FaPlus size={24} />
+                  </Button>
+                </div>
               </Col>
             </Row>
 
+            {/* Detalle de rutina seleccionada */}
             {rutinaSeleccionada && (
-              <Row>
+              <Row className="mt-4">
                 <Col>
-                  <Card>
-                    <Card.Header className="bg-primary text-white">
+                  <Card className="border-0 shadow">
+                    <Card.Header 
+                      className="text-white"
+                      style={{ 
+                        background: getCardGradient(rutinaSeleccionada.id),
+                        fontSize: '1.5rem',
+                        ...cardHeaderStyle,
+                        padding: '1rem 1.5rem'
+                      }}
+                    >
                       <h3 className="mb-0">{rutinaSeleccionada.nombre}</h3>
                     </Card.Header>
                     <Card.Body>
-                      <h5 className="mb-3">Ejercicios</h5>
-                      <Table striped bordered hover responsive>
-                        <thead className="table-dark">
-                          <tr>
-                            <th>Ejercicio</th>
-                            <th>Series</th>
-                            <th>Repeticiones</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {rutinaSeleccionada.ejercicios && rutinaSeleccionada.ejercicios.length > 0 ? (
-                            rutinaSeleccionada.ejercicios.map((ejercicio, index) => (
-                              <tr key={index}>
-                                <td className="fw-semibold fs-5">{ejercicio.ejercicio}</td>
-                                <td className="text-center">
-                                  <Badge bg="transparent" className="fs-6">{ejercicio.series}</Badge>
-                                </td>
-                                <td className="text-center">
-                                  <Badge bg="transparent" className="fs-6">{ejercicio.repeticiones}</Badge>
+                      <h5 className="mb-4" >Ejercicios</h5>
+                      <div className="table-responsive">
+                        <Table striped hover responsive>
+                          <thead>
+                            <tr style={{background: isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)'}}>
+                              <th width="60%">Ejercicio</th>
+                              <th className="text-center">Series</th>
+                              <th className="text-center">Repeticiones</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rutinaSeleccionada.ejercicios && rutinaSeleccionada.ejercicios.length > 0 ? (
+                              rutinaSeleccionada.ejercicios.map((ejercicio, index) => (
+                                <tr key={index}>
+                                  <td 
+                                    className=" fs-5"
+                                    style={{ 
+                                      fontFamily: "'Fjalla One', sans-serif", 
+                                      fontWeight: 300 
+                                    }}
+                                  >
+                                    {ejercicio.ejercicio}
+                                  </td>
+                                  <td className="text-center align-middle">
+                                    <Badge 
+                                      pill 
+                                      bg={isDarkMode ? "dark" : "light"}
+                                      text={isDarkMode ? "light" : "dark"}
+                                      className="fs-6 px-3"
+                                      style={{border: `1px solid ${getRandomCardColor(rutinaSeleccionada.id + index)}`}}
+                                    >
+                                      {ejercicio.series}
+                                    </Badge>
+                                  </td>
+                                  <td className="text-center align-middle">
+                                    <Badge 
+                                      pill 
+                                      bg={isDarkMode ? "dark" : "light"}
+                                      text={isDarkMode ? "light" : "dark"}
+                                      className="fs-6 px-3"
+                                      style={{border: `1px solid ${getRandomCardColor(rutinaSeleccionada.id + index)}`}}
+                                    >
+                                      {ejercicio.repeticiones}
+                                    </Badge>
+                                  </td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan="3" className="text-center py-3">
+                                  <FaDumbbell className="me-2" /> No hay ejercicios en esta rutina.
                                 </td>
                               </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan="3" className="text-center py-3">
-                                No hay ejercicios en esta rutina.
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </Table>
+                            )}
+                          </tbody>
+                        </Table>
+                      </div>
 
                       <div className="d-flex gap-2 justify-content-end mt-4">
                         <Button 
-                          variant="outline-primary"
+                          variant="primary"
                           onClick={() => handleEditarRutina(rutinaSeleccionada.id)}
+                          className="px-4"
                         >
-                          Editar
+                          <FaEdit className="me-2" /> Editar
                         </Button>
                         <Button 
-                          variant="outline-secondary"
+                          variant="secondary"
                           onClick={handleCancelarEdicion}
+                          className="px-4"
                         >
-                          Cancelar
+                          Cerrar
                         </Button>
                       </div>
                     </Card.Body>
@@ -665,7 +900,7 @@ const Rutinas = () => {
               />
             </Form.Group>
             <h5 className="mb-3">Ejercicios</h5>
-            {/* Formulario para agregar ejercicios */}
+            {/* Formulario para editar o agregar ejercicios */}
             <Card className="mb-3">
               <Card.Body>
                 <Row>
@@ -708,14 +943,35 @@ const Rutinas = () => {
                     </Form.Group>
                   </Col>
                 </Row>
-                <Button 
-                  variant="outline-primary" 
-                  onClick={agregarEjercicioEdicion}
-                  className="w-100"
-                >
-                  <FaPlus className="me-2" />
-                  Agregar Ejercicio
-                </Button>
+                {/* Botones para agregar nuevo o guardar editado */}
+                {ejercicioEnEdicion ? (
+                  <div className="d-flex gap-2">
+                    <Button 
+                      variant="success" 
+                      onClick={guardarEjercicioEditado}
+                      className="flex-grow-1"
+                    >
+                      <FaEdit className="me-2" />
+                      Guardar cambios en ejercicio
+                    </Button>
+                    <Button 
+                      variant="secondary" 
+                      onClick={cancelarEdicionEjercicio}
+                      className="flex-grow-1"
+                    >
+                      Cancelar edición
+                    </Button>
+                  </div>
+                ) : (
+                  <Button 
+                    variant="outline-primary" 
+                    onClick={agregarEjercicioEdicion}
+                    className="w-100"
+                  >
+                    <FaPlus className="me-2" />
+                    Agregar Ejercicio
+                  </Button>
+                )}
               </Card.Body>
             </Card>
 
@@ -732,12 +988,12 @@ const Rutinas = () => {
                         <th>Ejercicio</th>
                         <th>Series</th>
                         <th>Repeticiones</th>
-                        <th className="text-center">Acción</th>
+                        <th className="text-center">Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
                       {formDataEdicion.ejercicios.map((ejercicio, index) => (
-                        <tr key={index}>
+                        <tr key={index} className={indexEjercicioEdicion === index ? "table-primary" : ""}>
                           <td className="fw-semibold fs-6">{ejercicio.ejercicio}</td>
                           <td>
                             <Badge bg="transparent fs-6">{ejercicio.series}</Badge>
@@ -746,6 +1002,15 @@ const Rutinas = () => {
                             <Badge bg="transparent fs-6">{ejercicio.repeticiones}</Badge>
                           </td>
                           <td className="text-center">
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              onClick={() => iniciarEdicionEjercicio(ejercicio, index)}
+                              className="me-1"
+                              disabled={ejercicioEnEdicion !== null}
+                            >
+                              <FaEdit />
+                            </Button>
                             <Button
                               variant="outline-danger"
                               size="sm"
@@ -764,13 +1029,16 @@ const Rutinas = () => {
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModalEditarRutina(false)}>
+          <Button variant="secondary" onClick={() => {
+            setShowModalEditarRutina(false);
+            cancelarEdicionEjercicio(); // Asegurarse de limpiar estados de edición
+          }}>
             Cancelar
           </Button>
           <Button 
             variant="success" 
             onClick={guardarEdicionRutina}
-            disabled={!formDataEdicion.nombre.trim()}
+            disabled={!formDataEdicion.nombre.trim() || ejercicioEnEdicion !== null}
           >
             Guardar Cambios
           </Button>
@@ -804,5 +1072,24 @@ const Rutinas = () => {
     </Container>
   );
 };
+
+// Función para generar colores aleatorios pero consistentes basados en el ID
+function getRandomCardColor(id) {
+  const colors = [
+    '#4285f4', // Azul
+    '#34a853', // Verde
+    '#fbbc05', // Amarillo
+    '#ea4335', // Rojo
+    '#8e44ad', // Púrpura
+    '#f39c12', // Naranja
+    '#16a085', // Verde azulado
+    '#e74c3c', // Rojo más claro
+    '#3498db', // Azul más claro
+    '#2c3e50'  // Azul oscuro
+  ];
+  
+  // Usamos el ID como semilla para obtener un color consistente
+  return colors[id % colors.length];
+}
 
 export default Rutinas;
