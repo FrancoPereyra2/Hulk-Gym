@@ -108,7 +108,8 @@ const AdminClientes = () => {
     dni: "",
     fechaInicio: "",
     vencimiento: "",
-    estado: "Activo",
+    estado: "Activo", // estado de la membresía (Activo / Vencida)
+    estadoCuenta: "Activo", // nuevo: estado de la cuenta (Activo / Suspendida / Bloqueada)
     precio: 10000,
   });
 
@@ -118,16 +119,30 @@ const AdminClientes = () => {
   }, [clientes]);
 
   // Calcular datos del dashboard basados en la lista de clientes actual
+  // Derivar estado de membresía a partir de la fecha de vencimiento
+  const getEstadoMembresia = (cliente) => {
+    try {
+      const partes = (cliente?.vencimiento || "").split("/");
+      if (partes.length !== 3) return "Activo"; // fallback
+      const d = Number(partes[0]), m = Number(partes[1]) - 1, y = Number(partes[2]);
+      const venc = new Date(y, m, d);
+      if (isNaN(venc.getTime())) return "Activo";
+      return venc < new Date() ? "Vencida" : "Activo";
+    } catch (e) {
+      return "Activo";
+    }
+  };
+
   const clientesActivos = clientes.filter(
-    (cliente) => cliente.estado === "Activo"
+    (cliente) => getEstadoMembresia(cliente) === "Activo"
   ).length;
   const membresiasVencidas = clientes.filter(
-    (cliente) => cliente.estado === "Vencida"
+    (cliente) => getEstadoMembresia(cliente) === "Vencida"
   ).length;
 
   // Simular ingresos basados en clientes (usando el precio real de cada cliente)
   const ingresosMes = `$${clientes
-    .filter((cliente) => cliente.estado === "Activo")
+    .filter((cliente) => getEstadoMembresia(cliente) === "Activo")
     .reduce((total, cliente) => total + (cliente.precio || 0), 0)
     .toLocaleString()}`;
 
@@ -206,6 +221,15 @@ const AdminClientes = () => {
 
   // Cambiar de useState con valor inicial a useState mutable:
   const [datosIngresos, setDatosIngresos] = useState([]);
+  const [hoveredBar, setHoveredBar] = useState(null); // <-- nuevo estado
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+
+  // listener para detectar cambios de tamaño y adaptar vista móvil
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const valorMaximo =
     Math.max(...(datosIngresos.length > 0 ? datosIngresos.map((item) => item.valor) : [0])) || 10000;
@@ -238,18 +262,20 @@ const AdminClientes = () => {
     }
   };
 
-  // Filtrar y buscar clientes
+  // Filtrar y buscar clientes (usa estado derivado por fecha)
   const clientesFiltrados = clientes.filter((cliente) => {
-    // Filtro por búsqueda
+    // Búsqueda segura
+    const nombre = (cliente.nombre || "").toLowerCase();
+    const dni = String(cliente.dni || "");
+    const termino = searchTerm || "";
     const coincideTermino =
-      cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.dni.includes(searchTerm);
+      nombre.includes(termino.toLowerCase()) || dni.includes(termino);
 
-    // Filtro por estado
+    // Filtro por estado usando la función derivada
     if (filtroActivo === "activos") {
-      return coincideTermino && cliente.estado === "Activo";
+      return coincideTermino && getEstadoMembresia(cliente) === "Activo";
     } else if (filtroActivo === "vencidos") {
-      return coincideTermino && cliente.estado === "Vencida";
+      return coincideTermino && getEstadoMembresia(cliente) === "Vencida";
     }
 
     return coincideTermino;
@@ -301,6 +327,7 @@ const AdminClientes = () => {
       fechaInicio: fechaHoyFormateada,
       vencimiento: vencimientoFormateado,
       estado: "Activo",
+      estadoCuenta: "Activo",
       precio: 10000,
     });
     setShowModalNuevo(true);
@@ -313,6 +340,9 @@ const AdminClientes = () => {
       ...formData,
       precio: Number(formData.precio)
     };
+
+    // Compatibilidad: si un cliente anterior no trae estadoCuenta, asignarlo
+    if (!nuevoCliente.estadoCuenta) nuevoCliente.estadoCuenta = "Activo";
 
     // Actualizar la lista de clientes
     const nuevosClientes = [...clientes, nuevoCliente];
@@ -335,7 +365,8 @@ const AdminClientes = () => {
       dni: cliente.dni,
       fechaInicio: cliente.fechaInicio,
       vencimiento: cliente.vencimiento,
-      estado: cliente.estado,
+      // Nota: la membresía se calcula por fecha; no la almacenamos/edita manualmente aquí.
+      estadoCuenta: cliente.estadoCuenta || "Activo", // estado de la cuenta editable
       precio: cliente.precio,
     });
     setShowModalEditar(true);
@@ -348,8 +379,9 @@ const AdminClientes = () => {
       precio: Number(formData.precio)
     };
     
+    // Merge para no eliminar campos que existían (p.ej. estructura antigua con `estado`)
     const clientesActualizados = clientes.map((c) =>
-      c.id === formData.id ? formDataActualizado : c
+      c.id === formData.id ? { ...c, ...formDataActualizado } : c
     );
 
     setClientes(clientesActualizados);
@@ -360,7 +392,8 @@ const AdminClientes = () => {
     setDatosIngresos(nuevosIngresos);
 
     if (clienteSeleccionado && clienteSeleccionado.id === formData.id) {
-      setClienteSeleccionado(formDataActualizado);
+      // actualizar el seleccionado mezclando los valores nuevos
+      setClienteSeleccionado(prev => prev ? { ...prev, ...formDataActualizado } : formDataActualizado);
     }
 
     setShowModalEditar(false);
@@ -400,59 +433,99 @@ const AdminClientes = () => {
 
   // Gráfico de barras usando componentes de React Bootstrap
   const renderBarChart = () => {
-    // Verificar si hay datos para mostrar
     const hayDatos = datosIngresos.some(item => item.valor > 0);
-    
     if (!hayDatos) {
       return (
-        <Card className="shadow-sm">
-          <Card.Body className="text-center py-5">
-            <Card.Title as="h5" className="mb-3">
-              Ingresos por mes basados en clientes registrados
-            </Card.Title>
-            <p className="text-muted">No hay datos de ingresos para mostrar en el gráfico.</p>
-            <p className="small">Agregue clientes activos con precios para ver los ingresos mensuales.</p>
+        <Card className="shadow-sm mb-3">
+          <Card.Body className="text-center py-4">
+            <Card.Title as="h5" className="mb-2">Ingresos por mes basados en clientes registrados</Card.Title>
+            <p className="text-muted small">No hay datos de ingresos para mostrar en el gráfico.</p>
           </Card.Body>
         </Card>
       );
     }
+
+    const chartHeight = isMobile ? 140 : 240;
+    const gap = isMobile ? 8 : 12;
+    const indexMax = datosIngresos.reduce((acc, cur, i) => (cur.valor > (datosIngresos[acc]?.valor || 0) ? i : acc), 0);
+
+    // qué etiquetas de mes mostrar en móvil (antes mostraba cada 2 meses)
+    // Mostrar siempre todas las etiquetas de mes (compactadas por tamaño en móvil)
+    const mostrarEtiqueta = () => true;
     
     return (
-      <Card className="shadow-sm">
-        <Card.Body>
-          <Card.Title as="h5" className="mb-3">
-            Ingresos por mes basados en clientes registrados
-          </Card.Title>
-          <Container fluid className="p-0">
-            <Row className="align-items-end g-0" style={{ height: "300px" }}>
-              {datosIngresos.map((item, index) => (
-                <Col key={index}>
-                  <Stack className="align-items-center">
-                    <div
-                      className="bg-primary rounded-top"
-                      style={{
-                        width: "80%",
-                        height:
-                          valorMaximo > 0
-                            ? `${(item.valor / valorMaximo) * 200}px`
-                            : "0",
-                        minHeight: item.valor > 0 ? "20px" : "0",
-                      }}
-                    />
-                    <small className="mt-1">{item.mes}</small>
-                    <small className="text-muted">
-                      ${item.valor.toLocaleString()}
-                    </small>
-                  </Stack>
-                </Col>
-              ))}
-            </Row>
-          </Container>
+      <Card className="shadow-sm mb-3">
+        <Card.Body style={{ background: isDarkMode ? 'linear-gradient(180deg, rgba(30,58,138,0.03), transparent)' : 'linear-gradient(180deg, rgba(59,130,246,0.03), transparent)' }}>
+          <Card.Title as="h6" className="mb-3">Ingresos por mes basados en clientes registrados</Card.Title>
+
+          <div style={{ padding: isMobile ? '0.5rem' : '1rem' }}>
+            <div style={{ height: chartHeight + 40, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: gap, height: chartHeight }}>
+                {datosIngresos.map((item, index) => {
+                  const valor = item.valor || 0;
+                  const heightPx = valorMaximo > 0 ? Math.max((valor / valorMaximo) * chartHeight, valor > 0 ? 6 : 2) : 0;
+                  const hue = 200 - Math.floor((index / datosIngresos.length) * 70);
+                  const colorStart = `hsl(${hue} 90% 55%)`;
+                  const colorEnd = `hsl(${Math.max(hue - 12, 160)} 80% 40%)`;
+                  const isMax = index === indexMax;
+
+                  return (
+                    <div key={index} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: isMobile ? 18 : 28 }}>
+                      <div style={{ height: chartHeight - heightPx }} />
+                      <div
+                        role="button"
+                        onMouseEnter={() => setHoveredBar(index)}
+                        onMouseLeave={() => setHoveredBar(null)}
+                        style={{
+                          width: '70%',
+                          height: heightPx,
+                          background: `linear-gradient(180deg, ${colorStart}, ${colorEnd})`,
+                          borderRadius: isMax ? 10 : 6,
+                          boxShadow: hoveredBar === index ? '0 8px 20px rgba(0,0,0,0.2)' : '0 4px 10px rgba(0,0,0,0.08)',
+                          transition: 'transform 120ms ease, box-shadow 120ms ease',
+                          transform: hoveredBar === index ? 'translateY(-6px) scale(1.02)' : 'translateY(0)',
+                          display: 'flex',
+                          alignItems: 'flex-end',
+                          justifyContent: 'center',
+                          position: 'relative',
+                        }}
+                      >
+                        {/* mostrar valor sólo cuando se hace hover o para la barra máxima en desktop */}
+                        {(hoveredBar === index || (!isMobile && isMax)) && valor > 0 && (
+                          <div style={{
+                            position: 'absolute',
+                            top: -26,
+                            background: isDarkMode ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.95)',
+                            color: isDarkMode ? '#fff' : '#111',
+                            padding: '3px 8px',
+                            borderRadius: 8,
+                            fontSize: isMobile ? 10 : 12,
+                            fontWeight: 700,
+                            boxShadow: '0 6px 12px rgba(0,0,0,0.08)'
+                          }}>
+                            ${valor.toLocaleString()}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ height: 8 }} />
+                      <div style={{ fontSize: isMobile ? 10 : 12, color: isDarkMode ? '#e6eef8' : '#374151', fontWeight: 600, textAlign: 'center' }}>
+                        {mostrarEtiqueta(index) ? item.mes : ''}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* nota de contexto más compacta */}
+              <div style={{ marginTop: 8, textAlign: 'right', fontSize: 11, color: isDarkMode ? '#9fb4ff' : '#6b7280' }}>
+                Datos basados en clientes activos — año actual
+              </div>
+            </div>
+          </div>
         </Card.Body>
       </Card>
     );
   };
-
+ 
   // Sidebar para dispositivos móviles
   const renderSidebar = () => (
     <Navbar bg="dark" variant="dark" className="d-flex flex-column h-100">
@@ -490,15 +563,44 @@ const AdminClientes = () => {
     </Navbar>
   );
 
-  // Helper para convertir formato de fecha DD/MM/YYYY a YYYY-MM-DD para inputs de tipo date
+  // --- Nuevos helpers para mostrar progreso y días hasta vencimiento ---
+  // Convierte "DD/MM/YYYY" -> "YYYY-MM-DD" para inputs type="date"
   const formatearFechaParaInput = (fechaString) => {
-    if (!fechaString) return '';
-    
-    const partes = fechaString.split('/');
-    if (partes.length !== 3) return '';
-    
-    return `${partes[2]}-${partes[1]}-${partes[0]}`;
+    if (!fechaString) return "";
+    const partes = fechaString.split("/");
+    if (partes.length !== 3) return "";
+    const dia = partes[0].padStart(2, "0");
+    const mes = partes[1].padStart(2, "0");
+    const año = partes[2];
+    return `${año}-${mes}-${dia}`;
   };
+
+  const parseFecha = (fechaString) => {
+    if (!fechaString) return null;
+    const partes = fechaString.split('/');
+    if (partes.length !== 3) return null;
+    const d = Number(partes[0]), m = Number(partes[1]) - 1, y = Number(partes[2]);
+    const fecha = new Date(y, m, d);
+    return isNaN(fecha.getTime()) ? null : fecha;
+  };
+
+  const calcularProgresoMembresia = (cliente) => {
+    const inicio = parseFecha(cliente.fechaInicio);
+    const venc = parseFecha(cliente.vencimiento);
+    const ahora = new Date();
+    if (!inicio || !venc) return { pct: 0, diasRestantes: null, vencido: false };
+
+    const totalMs = venc - inicio;
+    const restanteMs = venc - ahora;
+    const vencido = restanteMs <= 0;
+    // Si inicio en el futuro, mostrar 0% cumplido
+    const transcurridoMs = ahora > inicio ? Math.min(Math.max(0, ahora - inicio), totalMs) : 0;
+    const pct = totalMs > 0 ? Math.round((transcurridoMs / totalMs) * 100) : 100;
+    const diasRestantes = vencido ? 0 : Math.ceil(remainingOrZero(restanteMs) / (1000 * 60 * 60 * 24));
+    return { pct: Math.max(0, Math.min(100, pct)), diasRestantes, vencido };
+  };
+
+  const remainingOrZero = (ms) => (ms > 0 ? ms : 0);
 
   // Función para redirigir al formulario de registro con permisos de admin
   const handleNuevoAdmin = () => {
@@ -569,7 +671,7 @@ const AdminClientes = () => {
           <Container fluid className="p-3">
             {/* Header con botón de tema */}
             <Row className="mb-3">
-              <Col className="d-flex justify-content-end">
+              <Col className="d-flex justify-content-end d-none d-md-flex">
                 <Button 
                   variant="outline-secondary" 
                   size="sm"
@@ -614,7 +716,7 @@ const AdminClientes = () => {
                       {ingresosMes}
                     </Card.Title>
                     <Card.Text className="text-muted mb-0 small">
-                      Ingresos del mes
+                      Ingresos anuales
                     </Card.Text>
                   </Card.Body>
                 </Card>
@@ -705,69 +807,103 @@ const AdminClientes = () => {
               </Col>
             </Row>
 
-            {/* Tabla de clientes */}
-            <Table responsive hover size="sm" className="mb-3">
-              <thead>
-                <tr>
-                  <th>Nombre</th>
-                  <th>DNI</th>
-                  <th className="d-none d-xl-table-cell">Vencimiento</th>
-                  <th>Estado</th>
-                  <th>Precio</th>
-                  <th style={{ width: "100px" }}>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {clientesPaginados.length > 0 ? (
-                  clientesPaginados.map((cliente) => (
-                    <tr
-                      key={cliente.id}
-                      onClick={() => seleccionarCliente(cliente)}
-                    >
-                      <td>{cliente.nombre}</td>
-                      <td>{cliente.dni}</td>
-                      <td className="d-none d-xl-table-cell">
-                        {cliente.vencimiento}
-                      </td>
-                      <td>
-                        <Badge
-                          bg={
-                            cliente.estado === "Activo" ? "success" : "danger"
-                          }
-                        >
-                          {cliente.estado}
-                        </Badge>
-                      </td>
-                      <td>${cliente.precio?.toLocaleString() || "0"}</td>
-                      <td>
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onClick={(e) => abrirModalEditar(cliente, e)}
-                          className="me-1"
-                        >
-                          <FaEdit />
-                        </Button>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={(e) => abrirModalEliminar(cliente, e)}
-                        >
-                          <FaTrash />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="5" className="text-center py-3">
-                      No se encontraron clientes con los criterios de búsqueda.
-                    </td>
-                  </tr>
+            {/* Tarjetas de clientes para móvil (sin scroll horizontal) */}
+            {isMobile ? (
+              <div className="d-flex flex-column gap-2 mb-3">
+                {clientesPaginados.length > 0 ? clientesPaginados.map(cliente => {
+                  const membership = getEstadoMembresia(cliente);
+                  return (
+                    <Card key={cliente.id} className="shadow-sm" role="button" onClick={() => seleccionarCliente(cliente)}>
+                      <Card.Body className="p-2 d-flex align-items-center justify-content-between">
+                        <div className="d-flex align-items-center">
+                          <div className="rounded-circle d-inline-flex align-items-center justify-content-center bg-secondary text-white me-3" style={{ width: 46, height: 46, fontWeight: 700 }}>
+                            {cliente.nombre ? cliente.nombre.charAt(0).toUpperCase() : <FaUser />}
+                          </div>
+                          <div>
+                            <div className="fw-bold" style={{ fontSize: 14 }}>{cliente.nombre}</div>
+                            <div className="text-muted small">DNI: {cliente.dni}</div>
+                            <div className="small mt-1">
+                              <Badge bg={membership === "Activo" ? "success" : "danger"} className="me-2">
+                                {membership}
+                              </Badge>
+                              <span className="text-success fw-bold">${(Number(cliente.precio) || 0).toLocaleString()}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="d-flex gap-1 align-items-center">
+                          <Button size="sm" variant="outline-primary" onClick={(e) => { e.stopPropagation(); abrirModalEditar(cliente, e); }}>
+                            <FaEdit />
+                          </Button>
+                          <Button size="sm" variant="danger" onClick={(e) => { e.stopPropagation(); abrirModalEliminar(cliente, e); }}>
+                            <FaTrash />
+                          </Button>
+                        </div>
+                      </Card.Body>
+                    </Card>
+                  );
+                }) : (
+                  <div className="text-center text-muted py-3">No se encontraron clientes con los criterios de búsqueda.</div>
                 )}
-              </tbody>
-            </Table>
-
+              </div>
+            ) : (
+              // Tabla de clientes para escritorio
+              <Table responsive hover size="sm" className="mb-3">
+                <thead>
+                  <tr>
+                    <th style={{ width: 60 }}></th>
+                    <th>Cliente</th>
+                    <th className="d-none d-md-table-cell">Membresía</th>
+                    <th>Estado</th>
+                    <th>Precio</th>
+                    <th style={{ width: "110px" }}>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {clientesPaginados.length > 0 ? clientesPaginados.map((cliente) => {
+                    const membership = getEstadoMembresia(cliente);
+                    const variant = membership === "Activo" ? "success" : "danger";
+                    return (
+                      <tr key={cliente.id} onClick={() => seleccionarCliente(cliente)} style={{ cursor: "pointer" }}>
+                        <td className="align-middle">
+                          <div className="rounded-circle d-inline-flex align-items-center justify-content-center bg-secondary text-white" style={{ width: 44, height: 44, fontWeight: 700 }}>
+                            {cliente.nombre ? cliente.nombre.charAt(0).toUpperCase() : <FaUser />}
+                          </div>
+                        </td>
+                        <td className="align-middle">
+                          <div className="fw-bold">{cliente.nombre}</div>
+                          <div className="text-muted small">DNI: {cliente.dni}</div>
+                        </td>
+                        <td className="align-middle d-none d-md-table-cell" style={{ minWidth: 220 }}>
+                          <div className="mb-1 small text-muted">Vence: {cliente.vencimiento || "—"}</div>
+                          <div className={`small fw-bold ${membership === 'Activo' ? 'text-success' : 'text-danger'}`}>{membership}</div>
+                        </td>
+                        <td className="align-middle">
+                          <Badge bg={variant} pill className="d-inline-flex align-items-center" title={`Membresía: ${membership}`} style={{ padding: "0.28rem 0.6rem", fontSize: 13 }}>
+                            {membership === "Activo" ? <FaCheckCircle className="me-1" /> : <FaTimesCircle className="me-1" />}
+                            <span style={{ marginLeft: 4 }}>Membresía: {membership}</span>
+                          </Badge>
+                        </td>
+                        <td className="align-middle">
+                          <div className="fw-bold text-success">${(Number(cliente.precio) || 0).toLocaleString()}</div>
+                          <div className="small text-muted">mensual</div>
+                        </td>
+                        <td className="align-middle">
+                          <div className="d-flex gap-2 justify-content-end">
+                            <Button variant="outline-primary" size="sm" onClick={(e) => { e.stopPropagation(); abrirModalEditar(cliente, e); }}><FaEdit /></Button>
+                            <Button variant="danger" size="sm" onClick={(e) => abrirModalEliminar(cliente, e)}><FaTrash /></Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }) : (
+                    <tr>
+                      <td colSpan="6" className="text-center py-3">No se encontraron clientes con los criterios de búsqueda.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </Table>
+            )}
+ 
             {/* Paginación */}
             {clientesFiltrados.length > clientesPorPagina && (
               <Row className="mb-3">
@@ -799,94 +935,220 @@ const AdminClientes = () => {
 
             {/* Información detallada del cliente seleccionado */}
             {clienteSeleccionado && (
-              <Card className="mb-3">
-                <Card.Header className="bg-light">
-                  <Row>
-                    <Col xs={12} sm={6}>
-                      <Card.Title as="h4" className="mb-0">
-                        Detalles del Cliente
-                      </Card.Title>
+              <Card className="mb-4 shadow-lg border-0 overflow-hidden">
+                {/* Cabecera con degradado */}
+                <div 
+                  className="position-relative py-4 px-4" 
+                  style={{
+                    background: isDarkMode 
+                      ? 'linear-gradient(45deg, #1e3a8a 0%, #1e40af 100%)' 
+                      : 'linear-gradient(45deg, #3b82f6 0%, #2563eb 100%)',
+                    minHeight: '140px'
+                  }}
+                >
+                  {/* Botones de acción reposicionados debajo del contenido principal */}
+                  <Row className="align-items-center">
+                    <Col xs={12} md={8} className="text-white">
+                      <div className="d-flex align-items-center">
+                        <div 
+                          className="rounded-circle bg-white d-flex align-items-center justify-content-center me-3"
+                          style={{width: "60px", height: "60px"}}
+                        >
+                          <FaUser size={30} color="#3b82f6" />
+                        </div>
+                        <div>
+                          <h3 className="mb-0 fw-bold">{clienteSeleccionado.nombre}</h3>
+                          <p className="mb-0 text-white text-opacity-75">Cliente #{clienteSeleccionado.id}</p>
+                        </div>
+                      </div>
                     </Col>
-                    <Col xs={12} sm={6} className="text-sm-end mt-2 mt-sm-0">
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => abrirModalEditar(clienteSeleccionado)}
-                        className="me-2"
-                      >
-                        <FaEdit className="me-1 d-none d-sm-inline" /> Editar
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={cancelarSeleccion}
-                      >
-                        <FaTimes className="me-1 d-none d-sm-inline" /> Cerrar
-                      </Button>
+                    <Col xs={12} md={4} className="text-md-end mt-3 mt-md-0">
+                      <div className="d-flex justify-content-end align-items-end">
+                        {/* Badge de membresía más compacta */}
+                        <Badge
+                          bg={getEstadoMembresia(clienteSeleccionado) === "Activo" ? "success" : "danger"}
+                          className="d-inline-flex align-items-center"
+                          title={getEstadoMembresia(clienteSeleccionado) === "Activo" ? "Membresía: Activa" : "Membresía: Vencida"}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            padding: "0.28rem 0.6rem",
+                            fontSize: 13,
+                            maxWidth: 220,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {getEstadoMembresia(clienteSeleccionado) === "Activo" ? <FaCheckCircle className="me-1" /> : <FaTimesCircle className="me-1" />}
+                          <span style={{ marginLeft: 4 }}>
+                            Membresía: {getEstadoMembresia(clienteSeleccionado)}
+                          </span>
+                        </Badge>
+                      </div>
                     </Col>
                   </Row>
-                </Card.Header>
-                <Card.Body>
-                  <Row>
-                    <Col xs={12} xl={6} className="mb-4 mb-xl-0">
-                      <Card.Subtitle as="h5">Información Personal</Card.Subtitle>
-                      <Form.Group className="mb-3">
-                        <Form.Label>Nombre Completo</Form.Label>
-                        <Form.Control
-                          plaintext
-                          readOnly
-                          defaultValue={clienteSeleccionado.nombre}
-                        />
-                      </Form.Group>
-                      <Form.Group>
-                        <Form.Label>DNI</Form.Label>
-                        <Form.Control
-                          plaintext
-                          readOnly
-                          defaultValue={clienteSeleccionado.dni}
-                        />
-                      </Form.Group>
+                  
+                  {/* Botones reposicionados debajo del resto del contenido con mayor tamaño */}
+                  <Row className="mt-4">
+                    <Col xs={12} className="d-flex justify-content-end">
+                      <ButtonGroup>
+                        <Button
+                          variant="light"
+                          className="d-flex align-items-center fs-6"
+                          onClick={() => abrirModalEditar(clienteSeleccionado)}
+                        >
+                          <FaEdit className="me-2" /> <span>Editar</span>
+                        </Button>
+                        <Button
+                          variant="outline-light"
+                          className="d-flex align-items-center fs-6"
+                          onClick={cancelarSeleccion}
+                        >
+                          <FaTimes className="me-2" /> <span>Cerrar</span>
+                        </Button>
+                      </ButtonGroup>
                     </Col>
-                    <Col xs={12} xl={6}>
-                      <Card.Subtitle as="h5">Información de Cuenta</Card.Subtitle>
-                      <Form.Group className="mb-3">
-                        <Form.Label>Fecha de Inicio</Form.Label>
-                        <Form.Control
-                          plaintext
-                          readOnly
-                          defaultValue={clienteSeleccionado.fechaInicio}
-                        />
-                      </Form.Group>
-                      <Form.Group className="mb-3">
-                        <Form.Label>Fecha de Vencimiento</Form.Label>
-                        <Form.Control
-                          plaintext
-                          readOnly
-                          defaultValue={clienteSeleccionado.vencimiento}
-                        />
-                      </Form.Group>
-                      <Form.Group className="mb-3">
-                        <Form.Label>Precio</Form.Label>
-                        <Form.Control
-                          plaintext
-                          readOnly
-                          defaultValue={`$${clienteSeleccionado.precio?.toLocaleString()}`}
-                        />
-                      </Form.Group>
-                      <Form.Group>
-                        <Form.Label>Estado</Form.Label>
-                        <div>
-                          <Badge
-                            bg={
-                              clienteSeleccionado.estado === "Activo"
-                                ? "success"
-                                : "danger"
-                            }
-                          >
-                            {clienteSeleccionado.estado}
-                          </Badge>
-                        </div>
-                      </Form.Group>
+                  </Row>
+                </div>
+                
+                {/* Contenido con tarjetas de información */}
+                <Card.Body className="p-4">
+                  <Row className="g-4">
+                    <Col xs={12} md={6}>
+                      <Card className={`h-100 border-0 ${isDarkMode ? 'bg-dark' : 'bg-light'} shadow-sm`}>
+                        <Card.Body>
+                          <div className="d-flex align-items-center mb-3">
+                            <div 
+                              className={`rounded-circle d-flex align-items-center justify-content-center ${
+                                isDarkMode ? 'bg-info bg-opacity-25' : 'bg-primary bg-opacity-10'
+                              } p-2 me-3`}
+                            >
+                              <FaUser size={18} className={isDarkMode ? "text-info" : "text-primary"} />
+                            </div>
+                            <h5 className="mb-0 fw-bold">Información Personal</h5>
+                          </div>
+                          
+                          <Table borderless className={`mb-0 ${isDarkMode ? 'table-dark' : ''}`}>
+                            <tbody>
+                              <tr>
+                                <td width="40%" className="fw-bold text-muted ps-0">Nombre Completo:</td>
+                                <td className="fs-6">{clienteSeleccionado.nombre}</td>
+                              </tr>
+                              <tr>
+                                <td className="fw-bold text-muted ps-0">DNI:</td>
+                                <td className="fs-6">{clienteSeleccionado.dni}</td>
+                              </tr>
+                            </tbody>
+                          </Table>
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                    
+                    <Col xs={12} md={6}>
+                      <Card className={`h-100 border-0 ${isDarkMode ? 'bg-dark' : 'bg-light'} shadow-sm`}>
+                        <Card.Body>
+                          <div className="d-flex align-items-center mb-3">
+                            <div 
+                              className={`rounded-circle d-flex align-items-center justify-content-center ${
+                                isDarkMode ? 'bg-success bg-opacity-25' : 'bg-success bg-opacity-10'
+                              } p-2 me-3`}
+                            >
+                              <FaDollarSign size={18} className={isDarkMode ? "text-success" : "text-success"} />
+                            </div>
+                            <h5 className="mb-0 fw-bold">Detalles de Membresía</h5>
+                          </div>
+                          
+                          <Table borderless className={`mb-0 ${isDarkMode ? 'table-dark' : ''}`}>
+                            <tbody>
+                              <tr>
+                                <td width="40%" className="fw-bold text-muted ps-0">Inicio:</td>
+                                <td>
+                                  <div className="d-flex align-items-center">
+                                    <FaCalendarAlt className={`me-2 ${isDarkMode ? 'text-light' : 'text-dark'}`} size={14} />
+                                    <span>{clienteSeleccionado.fechaInicio || "No disponible"}</span>
+                                  </div>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td className="fw-bold text-muted ps-0">Vencimiento:</td>
+                                <td>
+                                  <Badge 
+                                    bg={clienteSeleccionado.estado === "Activo" ? "success" : "danger"} 
+                                    className="py-1 px-2"
+                                    style={{ fontWeight: "normal" }}
+                                  >
+                                    {clienteSeleccionado.vencimiento}
+                                  </Badge>
+                                </td>
+                              </tr>
+                            </tbody>
+                          </Table>
+                        </Card.Body>
+                      </Card>
+                    </Col>
+                    
+                    <Col xs={12}>
+                      <Card className={`border-0 ${isDarkMode ? 'bg-dark' : 'bg-light'} shadow-sm`}>
+                        <Card.Body>
+                          <div className="d-flex align-items-center mb-3">
+                            <div 
+                              className={`rounded-circle d-flex align-items-center justify-content-center ${
+                                isDarkMode ? 'bg-warning bg-opacity-25' : 'bg-warning bg-opacity-10'
+                              } p-2 me-3`}
+                            >
+                              <FaDollarSign size={18} className="text-warning" />
+                            </div>
+                            <h5 className="mb-0 fw-bold">Información de Pago</h5>
+                          </div>
+                          
+                          <Row>
+                            <Col md={6}>
+                              <div className={`p-3 rounded-3 mb-3 ${isDarkMode ? 'bg-dark bg-opacity-50' : 'bg-light'}`}>
+                                <div className="d-flex justify-content-between align-items-center">
+                                  <div>
+                                    <p className="mb-1 text-muted">Precio de Membresía</p>
+                                    <h2 className="text-success fw-bold mb-0">
+                                      ${clienteSeleccionado.precio?.toLocaleString()}
+                                    </h2>
+                                  </div>
+                                  <div 
+                                    className={`rounded-circle d-flex align-items-center justify-content-center ${
+                                      isDarkMode ? 'bg-success bg-opacity-25' : 'bg-success bg-opacity-10'
+                                    } p-3`}
+                                  >
+                                    <FaDollarSign size={24} className="text-success" />
+                                  </div>
+                                </div>
+                              </div>
+                            </Col>
+                            <Col md={6}>
+                              <div className={`p-3 rounded-3 mb-3 ${isDarkMode ? 'bg-dark bg-opacity-50' : 'bg-light'}`}>
+                                <div className="d-flex justify-content-between align-items-center">
+                                  <div>
+                                    <p className="mb-1 text-muted">Estado</p>
+                                    <h4 className={`fw-bold mb-0 ${clienteSeleccionado.estado === "Activo" ? "text-success" : "text-danger"}`}>
+                                      {clienteSeleccionado.estado}
+                                    </h4>
+                                  </div>
+                                  <div 
+                                    className={`rounded-circle d-flex align-items-center justify-content-center ${
+                                      clienteSeleccionado.estado === "Activo" ? 
+                                      (isDarkMode ? 'bg-success bg-opacity-25' : 'bg-success bg-opacity-10') : 
+                                      (isDarkMode ? 'bg-danger bg-opacity-25' : 'bg-danger bg-opacity-10')
+                                    } p-3`}
+                                  >
+                                    {clienteSeleccionado.estado === "Activo" ? 
+                                      <FaCheckCircle size={24} className="text-success" /> : 
+                                      <FaTimesCircle size={24} className="text-danger" />
+                                    }
+                                  </div>
+                                </div>
+                              </div>
+                            </Col>
+                          </Row>
+                        </Card.Body>
+                      </Card>
                     </Col>
                   </Row>
                 </Card.Body>
@@ -930,7 +1192,6 @@ const AdminClientes = () => {
               <Form.Control
                 type="date"
                 name="fechaInicio"
-                // Convertir DD/MM/YYYY a YYYY-MM-DD para el input date
                 value={formatearFechaParaInput(formData.fechaInicio)}
                 onChange={handleFormChange}
               />
@@ -940,7 +1201,6 @@ const AdminClientes = () => {
               <Form.Control
                 type="date"
                 name="vencimiento"
-                // Convertir DD/MM/YYYY a YYYY-MM-DD para el input date
                 value={formatearFechaParaInput(formData.vencimiento)}
                 readOnly
               />
@@ -960,17 +1220,7 @@ const AdminClientes = () => {
                 />
               </InputGroup>
             </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Estado</Form.Label>
-              <Form.Select
-                name="estado"
-                value={formData.estado}
-                onChange={handleFormChange}
-              >
-                <option value="Activo">Activo</option>
-                <option value="Vencida">Vencida</option>
-              </Form.Select>
-            </Form.Group>
+            {/* Campo de estado eliminado en el formulario de nuevo cliente */}
           </Form>
         </Modal.Body>
         <Modal.Footer>
@@ -1017,7 +1267,6 @@ const AdminClientes = () => {
               <Form.Control
                 type="date"
                 name="fechaInicio"
-                // Convertir DD/MM/YYYY a YYYY-MM-DD para el input date
                 value={formatearFechaParaInput(formData.fechaInicio)}
                 onChange={handleFormChange}
               />
@@ -1027,7 +1276,6 @@ const AdminClientes = () => {
               <Form.Control
                 type="date"
                 name="vencimiento"
-                // Convertir DD/MM/YYYY a YYYY-MM-DD para el input date
                 value={formatearFechaParaInput(formData.vencimiento)}
                 readOnly
               />
@@ -1047,15 +1295,16 @@ const AdminClientes = () => {
                 />
               </InputGroup>
             </Form.Group>
+            {/* Estado de la membresía se calcula por fecha; solo editar estado de la cuenta */}
             <Form.Group className="mb-3">
-              <Form.Label>Estado</Form.Label>
+              <Form.Label>Estado de la Cuenta</Form.Label>
               <Form.Select
-                name="estado"
-                value={formData.estado}
+                name="estadoCuenta"
+                value={formData.estadoCuenta}
                 onChange={handleFormChange}
               >
                 <option value="Activo">Activo</option>
-                <option value="Vencida">Vencida</option>
+                <option value="Suspendida">Suspendida</option>
               </Form.Select>
             </Form.Group>
           </Form>
