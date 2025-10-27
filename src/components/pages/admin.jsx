@@ -814,7 +814,7 @@ const AdminClientes = () => {
                   const membership = getEstadoMembresia(cliente);
                   return (
                     <Card key={cliente.id} className="shadow-sm" role="button" onClick={() => seleccionarCliente(cliente)}>
-                      <Card.Body className="p-2 d-flex align-items-center justify-content-between">
+                      <Card.Body className="p-2">
                         <div className="d-flex align-items-center">
                           <div className="rounded-circle d-inline-flex align-items-center justify-content-center bg-secondary text-white me-3" style={{ width: 46, height: 46, fontWeight: 700 }}>
                             {cliente.nombre ? cliente.nombre.charAt(0).toUpperCase() : <FaUser />}
@@ -830,11 +830,9 @@ const AdminClientes = () => {
                             </div>
                           </div>
                         </div>
-                        <div className="d-flex gap-1 align-items-center">
-                          <Button size="sm" variant="outline-primary" onClick={(e) => { e.stopPropagation(); abrirModalEditar(cliente, e); }}>
-                            <FaEdit />
-                          </Button>
-                          <Button size="sm" variant="danger" onClick={(e) => { e.stopPropagation(); abrirModalEliminar(cliente, e); }}>
+                        {/* Botón de borrar centrado debajo de la info (no interfiere con el click en la tarjeta) */}
+                        <div className="d-flex justify-content-center mt-2">
+                          <Button aria-label={`Eliminar ${cliente.nombre}`} size="sm" variant="danger" onClick={(e) => { e.stopPropagation(); abrirModalEliminar(cliente, e); }}>
                             <FaTrash />
                           </Button>
                         </div>
@@ -888,9 +886,9 @@ const AdminClientes = () => {
                           <div className="small text-muted">mensual</div>
                         </td>
                         <td className="align-middle">
-                          <div className="d-flex gap-2 justify-content-end">
-                            <Button variant="outline-primary" size="sm" onClick={(e) => { e.stopPropagation(); abrirModalEditar(cliente, e); }}><FaEdit /></Button>
-                            <Button variant="danger" size="sm" onClick={(e) => abrirModalEliminar(cliente, e)}><FaTrash /></Button>
+                          {/* centrar botón de borrar en la celda de acciones */}
+                          <div className="d-flex justify-content-center">
+                            <Button variant="danger" size="sm" onClick={(e) => { e.stopPropagation(); abrirModalEliminar(cliente, e); }}><FaTrash /></Button>
                           </div>
                         </td>
                       </tr>
