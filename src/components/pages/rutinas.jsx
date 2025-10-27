@@ -32,6 +32,7 @@ const Rutinas = () => {
   const navigate = useNavigate();
   const { isDarkMode, alternarTema } = useTheme();
   const [showSidebar, setShowSidebar] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
 
   // Estados para modales
   const [showModalNuevaRutina, setShowModalNuevaRutina] = useState(false);
@@ -85,6 +86,12 @@ const Rutinas = () => {
   useEffect(() => {
     localStorage.setItem('rutinas', JSON.stringify(rutinas));
   }, [rutinas]);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const handleAgregarRutina = () => {
     setFormDataRutina({
@@ -453,14 +460,17 @@ const Rutinas = () => {
             {/* Header con botón de tema */}
             <Row className="mb-3">
               <Col className="d-flex justify-content-end">
-                <Button 
-                  variant="outline-secondary" 
-                  size="sm"
-                  onClick={alternarTema}
-                  className="d-flex align-items-center"
-                >
-                  {isDarkMode ? <FaSun size={14} /> : <FaMoon size={14} />}
-                </Button>
+                {/* Ocultar botón de tema en la pantalla principal para móviles (ya existe en la navbar móvil) */}
+                {!isMobile && (
+                  <Button 
+                    variant="outline-secondary" 
+                    size="sm"
+                    onClick={alternarTema}
+                    className="d-flex align-items-center"
+                  >
+                    {isDarkMode ? <FaSun size={14} /> : <FaMoon size={14} />}
+                  </Button>
+                )}
               </Col>
             </Row>
 
@@ -493,24 +503,19 @@ const Rutinas = () => {
                     rutinas.map((rutina) => (
                       <Col key={rutina.id}>
                         <Card 
-                          className={`h-100 shadow ${rutina.id === rutinaSeleccionada?.id ? 'border-primary border-3' : ''}`}
-                          onClick={() => handleSeleccionarRutina(rutina)}
-                          style={{ 
-                            ...cardStyle,
-                            transform: rutina.id === rutinaSeleccionada?.id ? 'translateY(-5px)' : '',
-                            boxShadow: rutina.id === rutinaSeleccionada?.id ? '0 10px 20px rgba(0,0,0,0.15)' : '0 4px 6px rgba(0,0,0,0.1)'
-                          }}
+                          className="h-100 shadow"
+                          style={cardStyle}
                         >
-                          <Card.Header 
-                            className="text-white text-center py-3 border-0"
-                            style={{ 
-                              background: getCardGradient(rutina.id),
-                              fontSize: '1.3rem',
-                              ...cardHeaderStyle
-                            }}
-                          >
-                            {rutina.nombre}
-                          </Card.Header> 
+                           <Card.Header 
+                             className="text-white text-center py-3 border-0"
+                             style={{ 
+                               background: getCardGradient(rutina.id),
+                               fontSize: '1.3rem',
+                               ...cardHeaderStyle
+                             }}
+                           >
+                             {rutina.nombre}
+                           </Card.Header> 
                           <Card.Body className="p-0">
                             <div className="p-3">
                               {rutina.ejercicios && rutina.ejercicios.length > 0 ? (

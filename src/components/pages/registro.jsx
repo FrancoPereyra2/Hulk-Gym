@@ -233,7 +233,6 @@ const Registro = () => {
       // Autenticación con popup
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
-      console.log("Usuario autenticado:", user);
       
       // Verificar si el usuario ya existe
       const existingUser = users.find(u => u.username === user.email);

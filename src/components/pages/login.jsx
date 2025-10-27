@@ -252,7 +252,6 @@ const HulkGymLogin = () => {
       
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
-      console.log("Usuario autenticado con Google:", user);
       
       // Verificar si el usuario ya existe en nuestra base de datos local
       const existingUser = users.find(u => u.username === user.email);

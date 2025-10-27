@@ -203,7 +203,7 @@ const AdminClientes = () => {
     });
 
     // Añadir logs para depuración
-    console.log("Ingresos mensuales calculados:", ingresosMensuales);
+    // console.log("Ingresos mensuales calculados:", ingresosMensuales);
 
     // Crear el array de objetos para el gráfico
     return meses.map((mes, index) => ({
@@ -215,7 +215,7 @@ const AdminClientes = () => {
   // Cuando se monta el componente, calcular los datos del gráfico
   useEffect(() => {
     const datos = calcularIngresosAnuales();
-    console.log("Datos iniciales del gráfico:", datos);
+    // console.log("Datos iniciales del gráfico:", datos);
     setDatosIngresos(datos);
   }, []); // Solo se ejecuta al montar el componente
 
@@ -349,7 +349,7 @@ const AdminClientes = () => {
     setClientes(nuevosClientes);
 
     // Recalcular los datos del gráfico con el nuevo cliente
-    console.log("Guardando nuevo cliente:", nuevoCliente);
+    // console.log("Guardando nuevo cliente:", nuevoCliente);
     const nuevosIngresos = calcularIngresosAnuales(nuevosClientes);
     setDatosIngresos(nuevosIngresos);
 
@@ -387,7 +387,7 @@ const AdminClientes = () => {
     setClientes(clientesActualizados);
 
     // Actualizar datos del gráfico
-    console.log("Cliente editado:", formDataActualizado);
+    // console.log("Cliente editado:", formDataActualizado);
     const nuevosIngresos = calcularIngresosAnuales(clientesActualizados);
     setDatosIngresos(nuevosIngresos);
 
