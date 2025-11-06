@@ -80,30 +80,7 @@ const PagePrincipal = () => {
         <Navbar.Brand className="p-3 w-100">
           <h3 className="fw-bold text-success">HULK GYM</h3>
           <Nav className="flex-column w-100 mt-4">
-            <Nav.Link className="text-primary d-flex align-items-center px-0">
-              <FaUser className="me-2" />
-              <span>Clientes</span>
-            </Nav.Link>
-            
-            <Nav.Link 
-              className="d-flex align-items-center px-0 text-warning"
-              onClick={() => navigate('/rutinas')}
-              style={{ cursor: 'pointer' }}
-            >
-              <FaDumbbell className="me-2" />
-              <span>Rutinas</span>
-            </Nav.Link>
-
-            <Nav.Link 
-              className="d-flex align-items-center px-0 text-info"
-              onClick={alternarTema}
-              style={{ cursor: 'pointer' }}
-            >
-              {isDarkMode ? <FaSun className="me-2" /> : <FaMoon className="me-2" />}
-              <span>{isDarkMode ? 'Modo Claro' : 'Modo Oscuro'}</span>
-            </Nav.Link>
-            
-            {/* Botón cerrar sesión en el sidebar */}
+            {/* Solo botón de Cerrar Sesión en el sidebar */}
             <Nav.Link 
               className="d-flex align-items-center px-0 text-danger mt-3"
               onClick={handleLogout}
@@ -178,11 +155,12 @@ const PagePrincipal = () => {
             {/* Header con botón de tema */}
             <Row className="mb-3">
               <Col className="d-flex justify-content-end">
+                {/* Oculto en móviles: ya existe el botón de tema en la navbar móvil */}
                 <Button 
                   variant="outline-secondary" 
                   size="sm"
                   onClick={alternarTema}
-                  className="d-flex align-items-center"
+                  className="d-none d-md-flex align-items-center"
                 >
                   {isDarkMode ? <FaSun size={14} /> : <FaMoon size={14} />}
                 </Button>
