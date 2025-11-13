@@ -10,10 +10,10 @@ import {
   Navbar,
   Nav,
   Offcanvas,
-  Modal,
-  Form,
+  // Modal,
+  // Form,
 } from "react-bootstrap";
-import { FaUsers, FaDumbbell, FaTimes, FaBars, FaMoon, FaSun, FaPlus, FaTrash, FaEdit } from "react-icons/fa";
+import { FaUsers, FaDumbbell, FaTimes, FaBars, FaMoon, FaSun } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from './admin.jsx';
 import "bootstrap-icons/font/bootstrap-icons.css";
@@ -33,27 +33,10 @@ const Rutinas = () => {
   const [showSidebar, setShowSidebar] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
 
-  // modales y rutinas
-  const [showModalNuevaRutina, setShowModalNuevaRutina] = useState(false);
-  const [showModalEliminar, setShowModalEliminar] = useState(false);
-  const [showModalEditarRutina, setShowModalEditarRutina] = useState(false);
-  const [rutinaAEliminar, setRutinaAEliminar] = useState(null);
-
   const [rutinas, setRutinas] = useState(() => {
     const saved = localStorage.getItem('rutinas');
     return saved ? JSON.parse(saved) : [];
   });
-
-  const [rutinaSeleccionada, setRutinaSeleccionada] = useState(null);
-  const [modoEdicion, setModoEdicion] = useState(false);
-
-  // formularios
-  const [formDataRutina, setFormDataRutina] = useState({ nombre: "", ejercicios: [] });
-  const [formDataEjercicio, setFormDataEjercicio] = useState({ ejercicio: "", series: "", repeticiones: "" });
-  const [formDataEdicion, setFormDataEdicion] = useState({ id: null, nombre: "", ejercicios: [] });
-  const [formDataEjercicioEdicion, setFormDataEjercicioEdicion] = useState({ ejercicio: "", series: "", repeticiones: "" });
-  const [ejercicioEnEdicion, setEjercicioEnEdicion] = useState(null);
-  const [indexEjercicioEdicion, setIndexEjercicioEdicion] = useState(null);
 
   useEffect(() => {
     localStorage.setItem('rutinas', JSON.stringify(rutinas));
@@ -64,148 +47,6 @@ const Rutinas = () => {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
-
-  // manejo rutinas
-  const handleAgregarRutina = () => {
-    setFormDataRutina({ nombre: "", ejercicios: [] });
-    setShowModalNuevaRutina(true);
-  };
-
-  const handleFormRutinaChange = (e) => {
-    const { name, value } = e.target;
-    setFormDataRutina(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleFormEjercicioChange = (e) => {
-    const { name, value } = e.target;
-    setFormDataEjercicio(prev => ({ ...prev, [name]: value }));
-  };
-
-  const agregarEjercicio = () => {
-    if (!formDataEjercicio.ejercicio.trim()) return;
-    const nuevo = {
-      ejercicio: capitalizarPrimeraLetra(formDataEjercicio.ejercicio.trim()),
-      series: parseInt(formDataEjercicio.series) || 0,
-      repeticiones: parseInt(formDataEjercicio.repeticiones) || 0
-    };
-    setFormDataRutina(prev => ({ ...prev, ejercicios: [...prev.ejercicios, nuevo] }));
-    setFormDataEjercicio({ ejercicio: "", series: "", repeticiones: "" });
-  };
-
-  const eliminarEjercicio = (index) => {
-    setFormDataRutina(prev => ({ ...prev, ejercicios: prev.ejercicios.filter((_, i) => i !== index) }));
-  };
-
-  const guardarNuevaRutina = () => {
-    if (!formDataRutina.nombre.trim()) return;
-    const nuevaRutina = {
-      id: rutinas.length > 0 ? Math.max(...rutinas.map(r => r.id)) + 1 : 1,
-      nombre: capitalizarPrimeraLetra(formDataRutina.nombre.trim()),
-      ejercicios: formDataRutina.ejercicios
-    };
-    setRutinas(prev => [...prev, nuevaRutina]);
-    setShowModalNuevaRutina(false);
-  };
-
-  const handleEditarRutina = (id) => {
-    const rutina = rutinas.find(r => r.id === id);
-    if (!rutina) return;
-    setFormDataEdicion({ id: rutina.id, nombre: rutina.nombre, ejercicios: [...rutina.ejercicios] });
-    setShowModalEditarRutina(true);
-  };
-
-  const handleFormEdicionChange = (e) => {
-    const { name, value } = e.target;
-    setFormDataEdicion(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleFormEjercicioEdicionChange = (e) => {
-    const { name, value } = e.target;
-    setFormDataEjercicioEdicion(prev => ({ ...prev, [name]: value }));
-  };
-
-  const agregarEjercicioEdicion = () => {
-    if (!formDataEjercicioEdicion.ejercicio.trim()) return;
-    const nuevo = {
-      ejercicio: capitalizarPrimeraLetra(formDataEjercicioEdicion.ejercicio.trim()),
-      series: parseInt(formDataEjercicioEdicion.series) || 0,
-      repeticiones: parseInt(formDataEjercicioEdicion.repeticiones) || 0
-    };
-    setFormDataEdicion(prev => ({ ...prev, ejercicios: [...prev.ejercicios, nuevo] }));
-    setFormDataEjercicioEdicion({ ejercicio: "", series: "", repeticiones: "" });
-  };
-
-  const eliminarEjercicioEdicion = (index) => {
-    setFormDataEdicion(prev => ({ ...prev, ejercicios: prev.ejercicios.filter((_, i) => i !== index) }));
-  };
-
-  const guardarEdicionRutina = () => {
-    if (!formDataEdicion.nombre.trim()) return;
-    const actualizadas = rutinas.map(r =>
-      r.id === formDataEdicion.id ? { ...r, nombre: capitalizarPrimeraLetra(formDataEdicion.nombre.trim()), ejercicios: formDataEdicion.ejercicios } : r
-    );
-    setRutinas(actualizadas);
-    if (rutinaSeleccionada && rutinaSeleccionada.id === formDataEdicion.id) {
-      setRutinaSeleccionada({ ...rutinaSeleccionada, nombre: capitalizarPrimeraLetra(formDataEdicion.nombre.trim()), ejercicios: formDataEdicion.ejercicios });
-    }
-    setShowModalEditarRutina(false);
-    setModoEdicion(false);
-  };
-
-  const handleCancelarEdicion = () => {
-    setModoEdicion(false);
-    setRutinaSeleccionada(null);
-  };
-
-  const abrirModalEliminar = (rutina, e) => {
-    if (e) e.stopPropagation();
-    setRutinaAEliminar(rutina);
-    setShowModalEliminar(true);
-  };
-
-  const confirmarEliminarRutina = () => {
-    setRutinas(prev => prev.filter(r => r.id !== rutinaAEliminar.id));
-    if (rutinaSeleccionada && rutinaSeleccionada.id === rutinaAEliminar.id) setRutinaSeleccionada(null);
-    setShowModalEliminar(false);
-    setRutinaAEliminar(null);
-  };
-
-  const handleSeleccionarRutina = (rutina) => {
-    setRutinaSeleccionada(rutina);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("userType");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("userEmail");
-    navigate("/login");
-  };
-
-  // editar ejercicio
-  const iniciarEdicionEjercicio = (ejercicio, index) => {
-    setEjercicioEnEdicion(ejercicio);
-    setIndexEjercicioEdicion(index);
-    setFormDataEjercicioEdicion({ ejercicio: ejercicio.ejercicio, series: ejercicio.series, repeticiones: ejercicio.repeticiones });
-  };
-
-  const guardarEjercicioEditado = () => {
-    if (!formDataEjercicioEdicion.ejercicio.trim()) return;
-    const actualizado = {
-      ejercicio: capitalizarPrimeraLetra(formDataEjercicioEdicion.ejercicio.trim()),
-      series: parseInt(formDataEjercicioEdicion.series) || 0,
-      repeticiones: parseInt(formDataEjercicioEdicion.repeticiones) || 0
-    };
-    const ejerciciosAct = [...formDataEdicion.ejercicios];
-    ejerciciosAct[indexEjercicioEdicion] = actualizado;
-    setFormDataEdicion(prev => ({ ...prev, ejercicios: ejerciciosAct }));
-    cancelarEdicionEjercicio();
-  };
-
-  const cancelarEdicionEjercicio = () => {
-    setEjercicioEnEdicion(null);
-    setIndexEjercicioEdicion(null);
-    setFormDataEjercicioEdicion({ ejercicio: "", series: "", repeticiones: "" });
-  };
 
   // Sidebar
   const renderSidebar = () => (
@@ -307,7 +148,8 @@ const Rutinas = () => {
 
             <Row className="mb-4">
               <Col>
-                <div className="mb-4">
+                {/* Botón de agregar rutina oculto */}
+                {/* <div className="mb-4">
                   <Row>
                     <Col className="d-flex justify-content-end gap-2">
                       <Button onClick={handleAgregarRutina} className="d-flex align-items-center border-0 bg-transparent fs-3">
@@ -315,14 +157,14 @@ const Rutinas = () => {
                       </Button>
                     </Col>
                   </Row>
-                </div>
+                </div> */}
 
                 <Row xs={1} md={2} lg={3} className="g-4">
                   {rutinas.length > 0 ? rutinas.map((rutina, index) => (
                     <Col key={rutina.id}>
                       <Card className="h-100 shadow" style={cardStyle}>
                         <Card.Header
-                          className={`${isDarkMode ? 'text-white' : 'text-dark'} text-center py-3 fs-3`}///
+                          className={`${isDarkMode ? 'text-white' : 'text-dark'} text-center py-3 fs-3`}
                           style={{fontFamily:'"Stack Sans Headline", sans-serif', ...cardHeaderStyle }}
                         >
                           {rutina.nombre}
@@ -376,14 +218,15 @@ const Rutinas = () => {
                             )}
                           </div>
                         </Card.Body>
-                        <Card.Footer className="bg-transparent d-flex justify-content-between py-3 border-0">
+                        {/* Footer con botones de editar/eliminar oculto */}
+                        {/* <Card.Footer className="bg-transparent d-flex justify-content-between py-3 border-0">
                           <Button variant="outline-primary" size="sm" className="px-3" onClick={(e) => { e.stopPropagation(); handleEditarRutina(rutina.id); }}>
                             <FaEdit className="me-2" /> Editar
                           </Button>
                           <Button variant="outline-danger" size="sm" className="px-3" onClick={(e) => abrirModalEliminar(rutina, e)}>
                             <FaTrash className="me-2" /> Eliminar
                           </Button>
-                        </Card.Footer>
+                        </Card.Footer> */}
                       </Card>
                     </Col>
                   )) : (
@@ -399,224 +242,17 @@ const Rutinas = () => {
                   )}
                 </Row>
 
-                <div className="position-fixed bottom-0 end-0 mb-4 me-4 d-md-none">
+                {/* Botón flotante de agregar rutina oculto */}
+                {/* <div className="position-fixed bottom-0 end-0 mb-4 me-4 d-md-none">
                   <Button onClick={handleAgregarRutina} className="rounded-circle shadow" style={{ width: "60px", height: "60px" }} variant="primary">
                     <FaPlus size={24} />
                   </Button>
-                </div>
+                </div> */}
               </Col>
             </Row>
 
-            {rutinaSeleccionada && (
-              <Row className="mt-4">
-                <Col>
-                  <Card className="border-0 shadow">
-                    <Card.Header
-                      className={`${isDarkMode ? 'text-white' : 'text-dark'} text-center py-3 bg-transparent border-0`}
-                      style={{ fontSize: '1.5rem', ...cardHeaderStyle, padding: '1rem 1.5rem' }}
-                    >
-                      <h3 className="mb-0">{rutinaSeleccionada.nombre}</h3>
-                    </Card.Header>
-                    <Card.Body>
-                      <h5 className="mb-4">Ejercicios</h5>
-                      <div className="table-responsive">
-                        <Table striped hover responsive>
-                          <thead>
-                            <tr style={{ background: isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)' }}>
-                              <th width="60%">Ejercicio</th>
-                              <th className="text-center">Series</th>
-                              <th className="text-center">Repeticiones</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {rutinaSeleccionada.ejercicios && rutinaSeleccionada.ejercicios.length > 0 ? rutinaSeleccionada.ejercicios.map((ejercicio, i) => (
-                              <tr key={i}>
-                                <td className="fs-5" style={{ fontFamily: "'Fjalla One', sans-serif", fontWeight: 300 }}>{ejercicio.ejercicio}</td>
-                                <td className="text-center align-middle">
-                                  <Badge pill bg={isDarkMode ? "dark" : "light"} text={isDarkMode ? "light" : "dark"} className="fs-6 px-3" style={{ border: `1px solid ${getRandomCardColorByIndex(selIndex + i)}` }}>
-                                    {ejercicio.series}
-                                  </Badge>
-                                </td>
-                                <td className="text-center align-middle">
-                                  <Badge pill bg={isDarkMode ? "dark" : "light"} text={isDarkMode ? "light" : "dark"} className="fs-6 px-3" style={{ border: `1px solid ${getRandomCardColorByIndex(selIndex + i)}` }}>
-                                    {ejercicio.repeticiones}
-                                  </Badge>
-                                </td>
-                              </tr>
-                            )) : (
-                              <tr><td colSpan="3" className="text-center py-3"><FaDumbbell className="me-2" /> No hay ejercicios en esta rutina.</td></tr>
-                            )}
-                          </tbody>
-                        </Table>
-                      </div>
-
-                      <div className="d-flex gap-2 justify-content-end mt-4">
-                        <Button variant="primary" onClick={() => handleEditarRutina(rutinaSeleccionada.id)} className="px-4"><FaEdit className="me-2" /> Editar</Button>
-                        <Button variant="secondary" onClick={handleCancelarEdicion} className="px-4">Cerrar</Button>
-                      </div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-              </Row>
-            )}
-
-            {/* Modales */}
-            <Modal show={showModalNuevaRutina} onHide={() => setShowModalNuevaRutina(false)} size="lg">
-              <Modal.Header closeButton>
-                <Modal.Title>Nueva Rutina</Modal.Title>
-              </Modal.Header>
-              <Modal.Body>
-                <Form>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Nombre de la Rutina</Form.Label>
-                    <Form.Control type="text" name="nombre" placeholder="Ej: Rutina de Fuerza" value={formDataRutina.nombre} onChange={handleFormRutinaChange} />
-                  </Form.Group>
-
-                  <h5 className="mb-3">Ejercicios</h5>
-                  <Card className="mb-3">
-                    <Card.Body>
-                      <Row>
-                        <Col md={6}>
-                          <Form.Group className="mb-3">
-                            <Form.Label>Ejercicio</Form.Label>
-                            <Form.Control type="text" name="ejercicio" placeholder="Ej: Press de banca" value={formDataEjercicio.ejercicio} onChange={handleFormEjercicioChange} />
-                          </Form.Group>
-                        </Col>
-                        <Col md={3}>
-                          <Form.Group className="mb-3">
-                            <Form.Label>Series</Form.Label>
-                            <Form.Control type="number" name="series" placeholder="3" min="1" value={formDataEjercicio.series} onChange={handleFormEjercicioChange} />
-                          </Form.Group>
-                        </Col>
-                        <Col md={3}>
-                          <Form.Group className="mb-3">
-                            <Form.Label>Repeticiones</Form.Label>
-                            <Form.Control type="number" name="repeticiones" placeholder="10" min="1" value={formDataEjercicio.repeticiones} onChange={handleFormEjercicioChange} />
-                          </Form.Group>
-                        </Col>
-                      </Row>
-                      <Button variant="outline-primary" onClick={agregarEjercicio} className="w-100"><FaPlus className="me-2" /> Agregar Ejercicio</Button>
-                    </Card.Body>
-                  </Card>
-
-                  {formDataRutina.ejercicios.length > 0 && (
-                    <Card>
-                      <Card.Header><h6 className="mb-0">Ejercicios en la rutina ({formDataRutina.ejercicios.length})</h6></Card.Header>
-                      <Card.Body className="p-0">
-                        <Table responsive className="mb-0">
-                          <thead className="table-light">
-                            <tr><th>Ejercicio</th><th>Series</th><th>Repeticiones</th><th className="text-center">Acción</th></tr>
-                          </thead>
-                          <tbody>
-                            {formDataRutina.ejercicios.map((ej, idx) => (
-                              <tr key={idx}>
-                                <td className="fw-semibold fs-6">{ej.ejercicio}</td>
-                                <td><Badge bg="transparent fs-6">{ej.series}</Badge></td>
-                                <td><Badge bg="transparent fs-6">{ej.repeticiones}</Badge></td>
-                                <td className="text-center">
-                                  <Button variant="outline-danger" size="sm" onClick={() => eliminarEjercicio(idx)}><FaTrash /></Button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </Table>
-                      </Card.Body>
-                    </Card>
-                  )}
-                </Form>
-              </Modal.Body>
-              <Modal.Footer>
-                <Button variant="secondary" onClick={() => setShowModalNuevaRutina(false)}>Cancelar</Button>
-                <Button variant="success" onClick={guardarNuevaRutina} disabled={!formDataRutina.nombre.trim()}>Guardar Rutina</Button>
-              </Modal.Footer>
-            </Modal>
-
-            <Modal show={showModalEditarRutina} onHide={() => { setShowModalEditarRutina(false); cancelarEdicionEjercicio(); }} size="lg">
-              <Modal.Header closeButton><Modal.Title>Editar Rutina</Modal.Title></Modal.Header>
-              <Modal.Body>
-                <Form>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Nombre de la Rutina</Form.Label>
-                    <Form.Control type="text" name="nombre" placeholder="Ej: Rutina de Fuerza" value={formDataEdicion.nombre} onChange={handleFormEdicionChange} />
-                  </Form.Group>
-
-                  <h5 className="mb-3">Ejercicios</h5>
-                  <Card className="mb-3">
-                    <Card.Body>
-                      <Row>
-                        <Col md={6}>
-                          <Form.Group className="mb-3">
-                            <Form.Label>Ejercicio</Form.Label>
-                            <Form.Control type="text" name="ejercicio" placeholder="Ej: Press de banca" value={formDataEjercicioEdicion.ejercicio} onChange={handleFormEjercicioEdicionChange} />
-                          </Form.Group>
-                        </Col>
-                        <Col md={3}>
-                          <Form.Group className="mb-3">
-                            <Form.Label>Series</Form.Label>
-                            <Form.Control type="number" name="series" placeholder="3" min="1" value={formDataEjercicioEdicion.series} onChange={handleFormEjercicioEdicionChange} />
-                          </Form.Group>
-                        </Col>
-                        <Col md={3}>
-                          <Form.Group className="mb-3">
-                            <Form.Label>Repeticiones</Form.Label>
-                            <Form.Control type="number" name="repeticiones" placeholder="10" min="1" value={formDataEjercicioEdicion.repeticiones} onChange={handleFormEjercicioEdicionChange} />
-                          </Form.Group>
-                        </Col>
-                      </Row>
-
-                      {ejercicioEnEdicion ? (
-                        <div className="d-flex gap-2">
-                          <Button variant="success" onClick={guardarEjercicioEditado} className="flex-grow-1"><FaEdit className="me-2" /> Guardar cambios en ejercicio</Button>
-                          <Button variant="secondary" onClick={cancelarEdicionEjercicio} className="flex-grow-1">Cancelar edición</Button>
-                        </div>
-                      ) : (
-                        <Button variant="outline-primary" onClick={agregarEjercicioEdicion} className="w-100"><FaPlus className="me-2" /> Agregar Ejercicio</Button>
-                      )}
-                    </Card.Body>
-                  </Card>
-
-                  {formDataEdicion.ejercicios.length > 0 && (
-                    <Card>
-                      <Card.Header><h6 className="mb-0">Ejercicios en la rutina ({formDataEdicion.ejercicios.length})</h6></Card.Header>
-                      <Card.Body className="p-0">
-                        <Table responsive className="mb-0">
-                          <thead className="table-light">
-                            <tr><th>Ejercicio</th><th>Series</th><th>Repeticiones</th><th className="text-center">Acciones</th></tr>
-                          </thead>
-                          <tbody>
-                            {formDataEdicion.ejercicios.map((ej, idx) => (
-                              <tr key={idx} className={indexEjercicioEdicion === idx ? "table-primary" : ""}>
-                                <td className="fw-semibold fs-6">{ej.ejercicio}</td>
-                                <td><Badge bg="transparent fs-6">{ej.series}</Badge></td>
-                                <td><Badge bg="transparent fs-6">{ej.repeticiones}</Badge></td>
-                                <td className="text-center">
-                                  <Button variant="outline-primary" size="sm" onClick={() => iniciarEdicionEjercicio(ej, idx)} className="me-1" disabled={ejercicioEnEdicion !== null}><FaEdit /></Button>
-                                  <Button variant="outline-danger" size="sm" onClick={() => eliminarEjercicioEdicion(idx)}><FaTrash /></Button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </Table>
-                      </Card.Body>
-                    </Card>
-                  )}
-                </Form>
-              </Modal.Body>
-              <Modal.Footer>
-                <Button variant="secondary" onClick={() => { setShowModalEditarRutina(false); cancelarEdicionEjercicio(); }}>Cancelar</Button>
-                <Button variant="success" onClick={guardarEdicionRutina} disabled={!formDataEdicion.nombre.trim() || ejercicioEnEdicion !== null}>Guardar Cambios</Button>
-              </Modal.Footer>
-            </Modal>
-
-            <Modal show={showModalEliminar} onHide={() => setShowModalEliminar(false)}>
-              <Modal.Header closeButton><Modal.Title>Confirmar Eliminación</Modal.Title></Modal.Header>
-              <Modal.Body>¿Está seguro que desea eliminar la rutina "{rutinaAEliminar?.nombre}"? Esta acción no se puede deshacer.</Modal.Body>
-              <Modal.Footer>
-                <Button variant="secondary" onClick={() => setShowModalEliminar(false)}>Cancelar</Button>
-                <Button variant="danger" onClick={confirmarEliminarRutina}>Eliminar</Button>
-              </Modal.Footer>
-            </Modal>
-
+            {/* Detalle de rutina y modales ocultos */}
+            {/* ... */}
           </Container>
         </Col>
       </Row>
