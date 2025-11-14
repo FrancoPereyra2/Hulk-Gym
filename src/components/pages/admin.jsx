@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Container,
@@ -18,6 +18,7 @@ import {
   ProgressBar,
   ButtonGroup,
   Stack,
+  Alert,
 } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import {
@@ -36,6 +37,9 @@ import {
   FaDumbbell,
   FaMoon,
   FaSun,
+  FaChartLine,
+  FaUserShield,
+  FaCrown,
 } from "react-icons/fa";
 
 // Hook personalizado para el tema
@@ -55,6 +59,134 @@ export const useTheme = () => {
   };
 
   return { isDarkMode, alternarTema };
+};
+
+// Componente memoizado para tarjetas de estadísticas
+const StatCard = memo(({ title, value, icon: Icon, color, isDarkMode }) => (
+  <Card 
+    className="h-100 border-0 shadow-lg"
+    style={{ 
+      background: isDarkMode 
+        ? 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)' 
+        : 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%)',
+      backdropFilter: 'blur(15px)',
+      borderRadius: '20px',
+      transition: 'all 0.3s ease'
+    }}
+  >
+    <Card.Body className="p-4">
+      <div className="d-flex align-items-center justify-content-between">
+        <div>
+          <p className={`small mb-1 ${isDarkMode ? 'text-light opacity-75' : 'text-muted'}`}>
+            {title}
+          </p>
+          <h2 className={`fw-bold mb-0 text-${color}`}>
+            {value}
+          </h2>
+        </div>
+        <div 
+          className={`rounded-circle d-flex align-items-center justify-content-center bg-${color} bg-opacity-10`}
+          style={{ width: '60px', height: '60px' }}
+        >
+          <Icon className={`text-${color}`} size={24} />
+        </div>
+      </div>
+    </Card.Body>
+  </Card>
+));
+
+// Componente memoizado para filas de tabla
+const ClienteRow = memo(({ cliente, membership, progreso, isDarkMode, onSelect, onDelete }) => (
+  <tr 
+    onClick={() => onSelect(cliente)} 
+    style={{ cursor: "pointer" }}
+    className="align-middle"
+  >
+    <td>
+      <div 
+        className="rounded-circle d-flex align-items-center justify-content-center bg-primary text-white shadow-sm" 
+        style={{ width: 48, height: 48, fontWeight: 700 }}
+      >
+        {cliente.nombre ? cliente.nombre.charAt(0).toUpperCase() : <FaUser />}
+      </div>
+    </td>
+    <td>
+      <div className={`fw-bold ${isDarkMode ? 'text-white' : 'text-dark'}`}>
+        {cliente.nombre}
+      </div>
+      <div className={`small ${isDarkMode ? 'text-light opacity-75' : 'text-muted'}`}>
+        DNI: {cliente.dni}
+      </div>
+    </td>
+    <td className="d-none d-lg-table-cell" style={{ minWidth: 200 }}>
+      <div className={`small mb-1 ${isDarkMode ? 'text-light opacity-75' : 'text-muted'}`}>
+        Vence: {cliente.vencimiento || "—"}
+      </div>
+      {/* Barra de progreso eliminada */}
+      {/* 
+      {!progreso.vencido && (
+        <div>
+          <ProgressBar 
+            now={progreso.pct} 
+            variant={progreso.pct > 70 ? "danger" : progreso.pct > 40 ? "warning" : "success"}
+            style={{ height: '4px' }}
+          />
+          <small className={`${isDarkMode ? 'text-light opacity-75' : 'text-muted'}`}>
+            {progreso.diasRestantes} días restantes
+          </small>
+        </div>
+      )}
+      */}
+    </td>
+    <td>
+      <Badge 
+        bg={membership === "Activo" ? "success" : "danger"} 
+        className="d-inline-flex align-items-center px-3 py-2"
+        style={{ borderRadius: '8px' }}
+      >
+        {membership === "Activo" ? 
+          <FaCheckCircle className="me-2" /> : 
+          <FaTimesCircle className="me-2" />
+        }
+        {membership}
+      </Badge>
+    </td>
+    <td>
+      <div className="fw-bold text-success fs-5">
+        ${(Number(cliente.precio) || 0).toLocaleString()}
+      </div>
+      <small className={isDarkMode ? 'text-light opacity-75' : 'text-muted'}>
+        mensual
+      </small>
+    </td>
+    <td>
+      <Button 
+        variant="outline-danger" 
+        size="sm" 
+        onClick={(e) => { e.stopPropagation(); onDelete(cliente, e); }}
+        className="border-0"
+      >
+        <FaTrash />
+      </Button>
+    </td>
+  </tr>
+));
+
+// Hook de debounce optimizado
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
 };
 
 const AdminClientes = () => {
@@ -84,6 +216,7 @@ const AdminClientes = () => {
     }
   }, [navigate]);
 
+  // Estados optimizados
   const [searchTerm, setSearchTerm] = useState("");
   const [filtroActivo, setFiltroActivo] = useState("todos");
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
@@ -96,11 +229,14 @@ const AdminClientes = () => {
   const [showModalEliminar, setShowModalEliminar] = useState(false);
   const [clienteAEliminar, setClienteAEliminar] = useState(null);
 
-  // Cargar clientes de localStorage o inicializar vacío
+  // Cargar clientes con lazy loading
   const [clientes, setClientes] = useState(() => {
     const savedClientes = localStorage.getItem('clientes');
     return savedClientes ? JSON.parse(savedClientes) : [];
   });
+
+  // Debounce para búsqueda
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   // Form para nuevo/editar cliente
   const [formData, setFormData] = useState({
@@ -108,22 +244,20 @@ const AdminClientes = () => {
     dni: "",
     fechaInicio: "",
     vencimiento: "",
-    estado: "Activo", // estado de la membresía (Activo / Vencida)
-    estadoCuenta: "Activo", // nuevo: estado de la cuenta (Activo / Suspendida / Bloqueada)
+    estado: "Activo",
+    estadoCuenta: "Activo",
     precio: 10000,
   });
 
-  // Guardar clientes en localStorage cada vez que cambian
-  useEffect(() => {
-    localStorage.setItem('clientes', JSON.stringify(clientes));
-  }, [clientes]);
+  // Estados del gráfico
+  const [hoveredBar, setHoveredBar] = useState(null);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
 
-  // Calcular datos del dashboard basados en la lista de clientes actual
-  // Derivar estado de membresía a partir de la fecha de vencimiento
-  const getEstadoMembresia = (cliente) => {
+  // Función memoizada para calcular estado de membresía
+  const getEstadoMembresia = useCallback((cliente) => {
     try {
       const partes = (cliente?.vencimiento || "").split("/");
-      if (partes.length !== 3) return "Activo"; // fallback
+      if (partes.length !== 3) return "Activo";
       const d = Number(partes[0]), m = Number(partes[1]) - 1, y = Number(partes[2]);
       const venc = new Date(y, m, d);
       if (isNaN(venc.getTime())) return "Activo";
@@ -131,69 +265,44 @@ const AdminClientes = () => {
     } catch (e) {
       return "Activo";
     }
-  };
+  }, []);
 
-  const clientesActivos = clientes.filter(
-    (cliente) => getEstadoMembresia(cliente) === "Activo"
-  ).length;
-  const membresiasVencidas = clientes.filter(
-    (cliente) => getEstadoMembresia(cliente) === "Vencida"
-  ).length;
+  // Estadísticas memoizadas
+  const estadisticas = useMemo(() => {
+    const activos = clientes.filter(cliente => getEstadoMembresia(cliente) === "Activo").length;
+    const vencidas = clientes.filter(cliente => getEstadoMembresia(cliente) === "Vencida").length;
+    const ingresos = clientes
+      .filter(cliente => getEstadoMembresia(cliente) === "Activo")
+      .reduce((total, cliente) => total + (cliente.precio || 0), 0);
+    
+    return {
+      clientesActivos: activos,
+      membresiasVencidas: vencidas,
+      ingresosMes: `$${ingresos.toLocaleString()}`,
+      totalClientes: clientes.length
+    };
+  }, [clientes, getEstadoMembresia]);
 
-  // Simular ingresos basados en clientes (usando el precio real de cada cliente)
-  const ingresosMes = `$${clientes
-    .filter((cliente) => getEstadoMembresia(cliente) === "Activo")
-    .reduce((total, cliente) => total + (cliente.precio || 0), 0)
-    .toLocaleString()}`;
-
-  // Número de clases hoy (simulado - en un caso real podrías tener una lista de clases)
-  const clasesHoy = 5;
-
-  // Generar datos de ingresos basados en los clientes registrados
-  const calcularIngresosAnuales = (clientesParam = clientes) => {
+  // Datos del gráfico memoizados
+  const datosIngresos = useMemo(() => {
     const currentYear = new Date().getFullYear();
-    const meses = [
-      "Ene",
-      "Feb",
-      "Mar",
-      "Abr",
-      "May",
-      "Jun",
-      "Jul",
-      "Ago",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dic",
-    ];
-
-    // Inicializar array de ingresos mensuales
+    const meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
     const ingresosMensuales = Array(12).fill(0);
 
-    // Calcular ingresos por cliente según su fecha de inicio
-    clientesParam.forEach((cliente) => {
+    clientes.forEach((cliente) => {
       try {
-        // Convertir la fecha de formato DD/MM/YYYY a un objeto Date
         if (!cliente.fechaInicio) return;
-
         const partes = cliente.fechaInicio.split("/");
         if (partes.length !== 3) return;
 
         const dia = parseInt(partes[0], 10);
-        const mes = parseInt(partes[1], 10) - 1; // Los meses en JS son 0-11
+        const mes = parseInt(partes[1], 10) - 1;
         const año = parseInt(partes[2], 10);
 
-        // Verificación más segura para fechas
         if (isNaN(dia) || isNaN(mes) || isNaN(año)) return;
-
-        // Solo considerar clientes activos
         if (cliente.estado !== "Activo") return;
 
-        // Considerar todos los clientes, no solo los del año actual
-        // Esto es para que el gráfico muestre datos históricos también
         const precio = Number(cliente.precio) || 0;
-
-        // Agregar ingreso al mes correspondiente
         if (año === currentYear) {
           ingresosMensuales[mes] += precio;
         }
@@ -202,124 +311,143 @@ const AdminClientes = () => {
       }
     });
 
-    // Añadir logs para depuración
-    // console.log("Ingresos mensuales calculados:", ingresosMensuales);
-
-    // Crear el array de objetos para el gráfico
     return meses.map((mes, index) => ({
       mes,
       valor: ingresosMensuales[index],
     }));
-  };
+  }, [clientes]);
 
-  // Cuando se monta el componente, calcular los datos del gráfico
-  useEffect(() => {
-    const datos = calcularIngresosAnuales();
-    // console.log("Datos iniciales del gráfico:", datos);
-    setDatosIngresos(datos);
-  }, []); // Solo se ejecuta al montar el componente
+  // Valor máximo del gráfico memoizado
+  const valorMaximo = useMemo(() => 
+    Math.max(...(datosIngresos.length > 0 ? datosIngresos.map((item) => item.valor) : [0])) || 10000
+  , [datosIngresos]);
 
-  // Cambiar de useState con valor inicial a useState mutable:
-  const [datosIngresos, setDatosIngresos] = useState([]);
-  const [hoveredBar, setHoveredBar] = useState(null); // <-- nuevo estado
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  // Filtrado y búsqueda optimizados con debounce
+  const clientesFiltrados = useMemo(() => {
+    return clientes.filter((cliente) => {
+      const nombre = (cliente.nombre || "").toLowerCase();
+      const dni = String(cliente.dni || "");
+      const termino = debouncedSearchTerm || "";
+      const coincideTermino = nombre.includes(termino.toLowerCase()) || dni.includes(termino);
 
-  // listener para detectar cambios de tamaño y adaptar vista móvil
-  useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+      if (filtroActivo === "activos") {
+        return coincideTermino && getEstadoMembresia(cliente) === "Activo";
+      } else if (filtroActivo === "vencidos") {
+        return coincideTermino && getEstadoMembresia(cliente) === "Vencida";
+      }
+
+      return coincideTermino;
+    });
+  }, [clientes, debouncedSearchTerm, filtroActivo, getEstadoMembresia]);
+
+  // Paginación optimizada
+  const clientesPaginados = useMemo(() => {
+    const clientesPorPagina = 10;
+    const indiceInicial = (paginaActual - 1) * clientesPorPagina;
+    return {
+      clientes: clientesFiltrados.slice(indiceInicial, indiceInicial + clientesPorPagina),
+      totalPaginas: Math.ceil(clientesFiltrados.length / clientesPorPagina)
+    };
+  }, [clientesFiltrados, paginaActual]);
+
+  // Función de progreso memoizada
+  const calcularProgresoMembresia = useCallback((cliente) => {
+    const parseFecha = (fechaString) => {
+      if (!fechaString) return null;
+      const partes = fechaString.split('/');
+      if (partes.length !== 3) return null;
+      const d = Number(partes[0]), m = Number(partes[1]) - 1, y = Number(partes[2]);
+      const fecha = new Date(y, m, d);
+      return isNaN(fecha.getTime()) ? null : fecha;
+    };
+
+    const inicio = parseFecha(cliente.fechaInicio);
+    const venc = parseFecha(cliente.vencimiento);
+    const ahora = new Date();
+    
+    if (!inicio || !venc) return { pct: 0, diasRestantes: null, vencido: false };
+
+    const totalMs = venc - inicio;
+    const restanteMs = venc - ahora;
+    const vencido = restanteMs <= 0;
+    const transcurridoMs = ahora > inicio ? Math.min(Math.max(0, ahora - inicio), totalMs) : 0;
+    const pct = totalMs > 0 ? Math.round((transcurridoMs / totalMs) * 100) : 100;
+    const diasRestantes = vencido ? 0 : Math.ceil(Math.max(0, restanteMs) / (1000 * 60 * 60 * 24));
+    
+    return { pct: Math.max(0, Math.min(100, pct)), diasRestantes, vencido };
   }, []);
 
-  const valorMaximo =
-    Math.max(...(datosIngresos.length > 0 ? datosIngresos.map((item) => item.valor) : [0])) || 10000;
+  // Optimizar listeners
+  useEffect(() => {
+    let timeoutId;
+    const onResize = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        setIsMobile(window.innerWidth < 768);
+      }, 100);
+    };
 
-  // Manejo del formulario
-  const handleFormChange = (e) => {
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      clearTimeout(timeoutId);
+    };
+  }, []);
+
+  // Guardar clientes optimizado con debounce
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      localStorage.setItem('clientes', JSON.stringify(clientes));
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [clientes]);
+
+  // Callbacks optimizados
+  const handleFormChange = useCallback((e) => {
     const { name, value } = e.target;
 
-    // Si la fecha de inicio cambia, calcular automáticamente la fecha de vencimiento (30 días después)
     if (name === "fechaInicio" && value) {
-      // Convertir la fecha YYYY-MM-DD del selector a un objeto Date
       const fechaInicio = new Date(value);
       const fechaVencimiento = new Date(fechaInicio);
       fechaVencimiento.setDate(fechaVencimiento.getDate() + 30);
       
-      // Formatear la fecha para guardar en estado como DD/MM/YYYY
       const inicioFormateado = `${fechaInicio.getDate().toString().padStart(2, '0')}/${(fechaInicio.getMonth() + 1).toString().padStart(2, '0')}/${fechaInicio.getFullYear()}`;
       const vencimientoFormateado = `${fechaVencimiento.getDate().toString().padStart(2, '0')}/${(fechaVencimiento.getMonth() + 1).toString().padStart(2, '0')}/${fechaVencimiento.getFullYear()}`;
       
-      setFormData({
-        ...formData,
+      setFormData(prev => ({
+        ...prev,
         fechaInicio: inicioFormateado,
         vencimiento: vencimientoFormateado,
-      });
+      }));
     } else {
-      setFormData({
-        ...formData,
+      setFormData(prev => ({
+        ...prev,
         [name]: value,
-      });
+      }));
     }
-  };
+  }, []);
 
-  // Filtrar y buscar clientes (usa estado derivado por fecha)
-  const clientesFiltrados = clientes.filter((cliente) => {
-    // Búsqueda segura
-    const nombre = (cliente.nombre || "").toLowerCase();
-    const dni = String(cliente.dni || "");
-    const termino = searchTerm || "";
-    const coincideTermino =
-      nombre.includes(termino.toLowerCase()) || dni.includes(termino);
-
-    // Filtro por estado usando la función derivada
-    if (filtroActivo === "activos") {
-      return coincideTermino && getEstadoMembresia(cliente) === "Activo";
-    } else if (filtroActivo === "vencidos") {
-      return coincideTermino && getEstadoMembresia(cliente) === "Vencida";
-    }
-
-    return coincideTermino;
-  });
-
-  // Paginación
-  const clientesPorPagina = 10;
-  const totalPaginas = Math.ceil(clientesFiltrados.length / clientesPorPagina);
-  const indiceInicial = (paginaActual - 1) * clientesPorPagina;
-  const clientesPaginados = clientesFiltrados.slice(
-    indiceInicial,
-    indiceInicial + clientesPorPagina
-  );
-
-  const seleccionarCliente = (cliente) => {
+  const seleccionarCliente = useCallback((cliente) => {
     setClienteSeleccionado(cliente);
-  };
+  }, []);
 
-  const handleSearch = (e) => {
+  const handleSearch = useCallback((e) => {
     e.preventDefault();
-    setPaginaActual(1); // Volver a la primera página al buscar
-  };
+    setPaginaActual(1);
+  }, []);
 
-  // Función para cancelar la selección del cliente
-  const cancelarSeleccion = () => {
+  const cancelarSeleccion = useCallback(() => {
     setClienteSeleccionado(null);
-  };
+  }, []);
 
-  // Funciones para manejar modal nuevo cliente
-  const abrirModalNuevo = () => {
+  const abrirModalNuevo = useCallback(() => {
     const fechaHoy = new Date();
-    const fechaHoyFormateada = `${fechaHoy.getDate()
-      .toString()
-      .padStart(2, "0")}/${(fechaHoy.getMonth() + 1)
-      .toString()
-      .padStart(2, "0")}/${fechaHoy.getFullYear()}`;
+    const fechaHoyFormateada = `${fechaHoy.getDate().toString().padStart(2, "0")}/${(fechaHoy.getMonth() + 1).toString().padStart(2, "0")}/${fechaHoy.getFullYear()}`;
 
     const fechaVencimiento = new Date(fechaHoy);
     fechaVencimiento.setDate(fechaVencimiento.getDate() + 30);
-    const vencimientoFormateado = `${fechaVencimiento.getDate()
-      .toString()
-      .padStart(2, "0")}/${(fechaVencimiento.getMonth() + 1)
-      .toString()
-      .padStart(2, "0")}/${fechaVencimiento.getFullYear()}`;
+    const vencimientoFormateado = `${fechaVencimiento.getDate().toString().padStart(2, "0")}/${(fechaVencimiento.getMonth() + 1).toString().padStart(2, "0")}/${fechaVencimiento.getFullYear()}`;
 
     setFormData({
       nombre: "",
@@ -331,33 +459,22 @@ const AdminClientes = () => {
       precio: 10000,
     });
     setShowModalNuevo(true);
-  };
+  }, []);
 
-  const guardarNuevoCliente = () => {
-    // Asegurarse de que precio sea un número
+  const guardarNuevoCliente = useCallback(() => {
     const nuevoCliente = {
       id: clientes.length > 0 ? Math.max(...clientes.map((c) => c.id)) + 1 : 1,
       ...formData,
       precio: Number(formData.precio)
     };
 
-    // Compatibilidad: si un cliente anterior no trae estadoCuenta, asignarlo
     if (!nuevoCliente.estadoCuenta) nuevoCliente.estadoCuenta = "Activo";
 
-    // Actualizar la lista de clientes
-    const nuevosClientes = [...clientes, nuevoCliente];
-    setClientes(nuevosClientes);
-
-    // Recalcular los datos del gráfico con el nuevo cliente
-    // console.log("Guardando nuevo cliente:", nuevoCliente);
-    const nuevosIngresos = calcularIngresosAnuales(nuevosClientes);
-    setDatosIngresos(nuevosIngresos);
-
+    setClientes(prev => [...prev, nuevoCliente]);
     setShowModalNuevo(false);
-  };
+  }, [clientes.length, formData]);
 
-  // Funciones para manejar modal editar cliente
-  const abrirModalEditar = (cliente, e) => {
+  const abrirModalEditar = useCallback((cliente, e) => {
     if (e) e.stopPropagation();
     setFormData({
       id: cliente.id,
@@ -365,71 +482,56 @@ const AdminClientes = () => {
       dni: cliente.dni,
       fechaInicio: cliente.fechaInicio,
       vencimiento: cliente.vencimiento,
-      // Nota: la membresía se calcula por fecha; no la almacenamos/edita manualmente aquí.
-      estadoCuenta: cliente.estadoCuenta || "Activo", // estado de la cuenta editable
+      estadoCuenta: cliente.estadoCuenta || "Activo",
       precio: cliente.precio,
     });
     setShowModalEditar(true);
-  };
+  }, []);
 
-  const guardarClienteEditado = () => {
-    // Asegurarse de que precio sea un número
+  const guardarClienteEditado = useCallback(() => {
     const formDataActualizado = {
       ...formData,
       precio: Number(formData.precio)
     };
     
-    // Merge para no eliminar campos que existían (p.ej. estructura antigua con `estado`)
-    const clientesActualizados = clientes.map((c) =>
+    setClientes(prev => prev.map((c) =>
       c.id === formData.id ? { ...c, ...formDataActualizado } : c
-    );
-
-    setClientes(clientesActualizados);
-
-    // Actualizar datos del gráfico
-    // console.log("Cliente editado:", formDataActualizado);
-    const nuevosIngresos = calcularIngresosAnuales(clientesActualizados);
-    setDatosIngresos(nuevosIngresos);
+    ));
 
     if (clienteSeleccionado && clienteSeleccionado.id === formData.id) {
-      // actualizar el seleccionado mezclando los valores nuevos
       setClienteSeleccionado(prev => prev ? { ...prev, ...formDataActualizado } : formDataActualizado);
     }
 
     setShowModalEditar(false);
-  };
+  }, [formData, clienteSeleccionado]);
 
-  // Funciones para manejar eliminación
-  const abrirModalEliminar = (cliente, e) => {
+  const abrirModalEliminar = useCallback((cliente, e) => {
     if (e) e.stopPropagation();
     setClienteAEliminar(cliente);
     setShowModalEliminar(true);
-  };
+  }, []);
 
-  const confirmarEliminarCliente = () => {
-    const clientesActualizados = clientes.filter(
-      (c) => c.id !== clienteAEliminar.id
-    );
-
-    setClientes(clientesActualizados);
-
-    // Actualizar datos del gráfico
-    setDatosIngresos(calcularIngresosAnuales(clientesActualizados));
+  const confirmarEliminarCliente = useCallback(() => {
+    setClientes(prev => prev.filter((c) => c.id !== clienteAEliminar.id));
 
     if (clienteSeleccionado && clienteSeleccionado.id === clienteAEliminar.id) {
       setClienteSeleccionado(null);
     }
 
     setShowModalEliminar(false);
-  };
+  }, [clienteAEliminar, clienteSeleccionado]);
 
-  // Función para cerrar sesión
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     localStorage.removeItem("userType");
     localStorage.removeItem("userName");
     localStorage.removeItem("userEmail");
     navigate("/login");
-  };
+  }, [navigate]);
+
+  const handleNuevoAdmin = useCallback(() => {
+    localStorage.setItem('creandoAdmin', 'true');
+    navigate('/registro');
+  }, [navigate]);
 
   // Gráfico de barras usando componentes de React Bootstrap
   const renderBarChart = () => {
@@ -528,31 +630,91 @@ const AdminClientes = () => {
  
   // Sidebar para dispositivos móviles
   const renderSidebar = () => (
-    <Navbar bg="dark" variant="dark" className="d-flex flex-column h-100">
-      <Container fluid className="d-flex flex-column h-100">
+    <Navbar 
+      className="d-flex flex-column h-100"
+      style={{
+        background: isDarkMode 
+          ? 'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)'
+          : 'linear-gradient(180deg, #ffffff 0%, #f8faff 100%)',
+        borderRight: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`
+      }}
+    >
+      <Container fluid className="d-flex flex-column h-100 p-0">
         <Navbar.Brand className="p-3 w-100">
-          <Card.Title as="h3" className="fw-bold text-success">
-            HULK GYM
-          </Card.Title>
-          <Nav className="flex-column w-100 mt-4">
-            <Nav.Link className="d-flex align-items-center px-0 text-primary">
+          <h3 className={`fw-bold text-center ${isDarkMode ? 'text-success' : 'text-primary'}`} style={{
+            background: isDarkMode 
+              ? 'linear-gradient(45deg, #60a5fa, #34d399)'
+              : undefined, // Solo degradado en modo oscuro
+          WebkitBackgroundClip: isDarkMode ? 'text' : undefined,
+          WebkitTextFillColor: isDarkMode ? 'transparent' : undefined,
+          color: isDarkMode ? undefined : '#222', // Texto oscuro en modo claro
+          fontFamily: '"Fjalla One", sans-serif'
+          }}>HULK GYM</h3>
+          <p className={`text-center small mb-4 ${isDarkMode ? 'text-light opacity-75' : 'text-muted'}`} style={{
+            color: isDarkMode ? undefined : '#222', // Texto oscuro en modo claro
+            fontWeight: 500
+          }}>
+            Panel Administrativo
+          </p>
+          
+          <Nav className="flex-column w-100">
+            <Nav.Link 
+              className={`d-flex align-items-center mb-2 ${isDarkMode ? 'text-info' : 'text-primary'}`}
+              style={{
+                transition: 'all 0.3s ease',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                backgroundColor: isDarkMode ? 'rgba(13, 202, 240, 0.1)' : 'rgba(0, 123, 255, 0.1)'
+              }}
+            >
               <FaUsers className="me-2" />
-              <span>Todos los Clientes</span>
+              <span>Gestión de Clientes</span>
             </Nav.Link>
 
             <Nav.Link 
-              className="d-flex align-items-center px-0 text-warning"
+              className={`d-flex align-items-center mb-2 ${isDarkMode ? 'text-light' : 'text-dark'}`}
               onClick={() => navigate('/rutinas')}
-              style={{ cursor: 'pointer' }}
+              style={{
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                borderRadius: '8px',
+                padding: '12px 16px'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+                e.target.style.transform = 'translateX(5px)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.transform = 'translateX(0)';
+              }}
             >
               <FaDumbbell className="me-2" />
               <span>Rutinas</span>
             </Nav.Link>
 
-            {/* Botón cerrar sesión en el sidebar */}
+            <hr style={{
+              borderColor: isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
+              margin: '20px 0'
+            }} />
+
             <Nav.Link
-              className="d-flex align-items-center px-0 text-danger mt-3"
+              className="d-flex align-items-center text-danger mt-auto mb-3"
               onClick={handleLogout}
+              style={{
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                borderRadius: '8px',
+                padding: '12px 16px'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = 'rgba(220, 53, 69, 0.1)';
+                e.target.style.transform = 'translateX(5px)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.transform = 'translateX(0)';
+              }}
             >
               <FaTimes className="me-2" />
               <span>Cerrar Sesión</span>
@@ -575,50 +737,25 @@ const AdminClientes = () => {
     return `${año}-${mes}-${dia}`;
   };
 
-  const parseFecha = (fechaString) => {
-    if (!fechaString) return null;
-    const partes = fechaString.split('/');
-    if (partes.length !== 3) return null;
-    const d = Number(partes[0]), m = Number(partes[1]) - 1, y = Number(partes[2]);
-    const fecha = new Date(y, m, d);
-    return isNaN(fecha.getTime()) ? null : fecha;
-  };
-
-  const calcularProgresoMembresia = (cliente) => {
-    const inicio = parseFecha(cliente.fechaInicio);
-    const venc = parseFecha(cliente.vencimiento);
-    const ahora = new Date();
-    if (!inicio || !venc) return { pct: 0, diasRestantes: null, vencido: false };
-
-    const totalMs = venc - inicio;
-    const restanteMs = venc - ahora;
-    const vencido = restanteMs <= 0;
-    // Si inicio en el futuro, mostrar 0% cumplido
-    const transcurridoMs = ahora > inicio ? Math.min(Math.max(0, ahora - inicio), totalMs) : 0;
-    const pct = totalMs > 0 ? Math.round((transcurridoMs / totalMs) * 100) : 100;
-    const diasRestantes = vencido ? 0 : Math.ceil(remainingOrZero(restanteMs) / (1000 * 60 * 60 * 24));
-    return { pct: Math.max(0, Math.min(100, pct)), diasRestantes, vencido };
-  };
-
-  const remainingOrZero = (ms) => (ms > 0 ? ms : 0);
-
-  // Función para redirigir al formulario de registro con permisos de admin
-  const handleNuevoAdmin = () => {
-    // Guardar en localStorage que estamos creando un admin para que el formulario lo detecte
-    localStorage.setItem('creandoAdmin', 'true');
-    navigate('/registro');
-  };
-
   return (
-    <Container fluid className="vh-100 d-flex flex-column p-0">
-      <Row className="flex-grow-1 m-0">
+    <Container fluid className="min-vh-100 d-flex flex-column p-0" style={{
+      background: isDarkMode 
+        ? 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)'
+        : 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 25%, #90caf9 50%, #64b5f6 75%, #42a5f5 100%)',
+      minHeight: '100vh'
+    }}>
+      <Row className="flex-grow-1 g-0">
         {/* Sidebar para pantallas medianas y grandes */}
         <Col
           xs={2}
-          md={3}
+          md={2}
           lg={2}
-          xl={2}
-          className="d-none d-md-block p-0 h-100"
+          className="d-none d-md-block p-0"
+          style={{
+            minHeight: '100vh',
+            backdropFilter: 'blur(10px)',
+            borderRight: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`
+          }}
         >
           {renderSidebar()}
         </Col>
@@ -628,39 +765,83 @@ const AdminClientes = () => {
           show={showSidebar}
           onHide={() => setShowSidebar(false)}
           className="w-75"
+          style={{
+            background: isDarkMode 
+              ? 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)'
+              : 'linear-gradient(135deg, #ffffff 0%, #f8faff 100%)',
+            backdropFilter: 'blur(15px)'
+          }}
           placement="start"
         >
-          <Offcanvas.Header closeButton className="bg-dark text-white">
+          <Offcanvas.Header closeButton style={{
+            background: 'transparent',
+            borderBottom: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+            color: isDarkMode ? 'white' : 'dark'
+          }}>
             <Offcanvas.Title>Menú</Offcanvas.Title>
           </Offcanvas.Header>
           <Offcanvas.Body className="p-0">{renderSidebar()}</Offcanvas.Body>
         </Offcanvas>
 
         {/* Contenedor principal */}
-        <Col xs={12} md={9} lg={10} xl={10} className="h-100 p-0">
+        <Col xs={12} md={10} lg={10} className="p-0">
           {/* Navbar para móviles */}
-          <Navbar bg="dark" variant="dark" className="d-md-none">
+          <Navbar className="d-md-none" style={{
+            background: isDarkMode 
+              ? 'linear-gradient(90deg, #1a1a2e 0%, #16213e 100%)'
+              : 'linear-gradient(90deg, #ffffff 0%, #f8faff 100%)',
+            backdropFilter: 'blur(10px)',
+            borderBottom: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+            boxShadow: isDarkMode 
+              ? '0 2px 20px rgba(0,0,0,0.3)' 
+              : '0 2px 20px rgba(0,0,0,0.1)'
+          }} variant={isDarkMode ? "dark" : "light"}>
             <Container fluid>
               <Button
-                variant="outline-light"
+                variant={isDarkMode ? "outline-light" : "outline-dark"}
                 onClick={() => setShowSidebar(true)}
-                className="me-2"
+                className="me-2 border-0"
+                style={{
+                  borderRadius: '12px',
+                  transition: 'all 0.3s ease',
+                  backdropFilter: 'blur(10px)'
+                }}
               >
                 <FaBars />
               </Button>
-              <Navbar.Brand className="fw-bold text-success">
+              <Navbar.Brand className="fw-bold" style={{
+                background: 'linear-gradient(45deg, #28a745, #20c997)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                fontSize: '1.8rem',
+                fontFamily: '"Fjalla One", sans-serif'
+              }}>
                 HULK GYM
               </Navbar.Brand>
 
               <div className="d-flex align-items-center gap-2">
                 <Button 
-                  variant="outline-info" 
+                  variant={isDarkMode ? "outline-info" : "outline-primary"}
                   onClick={alternarTema} 
                   size="sm"
+                  style={{
+                    borderRadius: '12px',
+                    transition: 'all 0.3s ease',
+                    backdropFilter: 'blur(10px)'
+                  }}
                 >
                   {isDarkMode ? <FaSun /> : <FaMoon />}
                 </Button>
-                <Button variant="outline-danger" onClick={handleLogout} size="sm">
+                <Button 
+                  variant="outline-danger" 
+                  onClick={handleLogout} 
+                  size="sm"
+                  style={{
+                    borderRadius: '12px',
+                    transition: 'all 0.3s ease',
+                    backdropFilter: 'blur(10px)'
+                  }}
+                >
                   <FaTimes /> Salir
                 </Button>
               </div>
@@ -668,342 +849,448 @@ const AdminClientes = () => {
           </Navbar>
 
           {/* Contenido de la página */}
-          <Container fluid className="p-3">
-            {/* Header con botón de tema */}
-            <Row className="mb-3">
-              <Col className="d-flex justify-content-end d-none d-md-flex">
-                <Button 
-                  variant="outline-secondary" 
-                  size="sm"
-                  onClick={alternarTema}
-                  className="d-flex align-items-center"
-                >
-                  {isDarkMode ? <FaSun size={14} /> : <FaMoon size={14} />}
-                </Button>
-              </Col>
-            </Row>
-
-            {/* Tarjetas de resumen */}
-            <Row className="mb-4 d-flex justify-content-center">
-              <Col xs={6} md={3} className="mb-3 mb-md-0">
-                <Card className="h-100 shadow-sm">
-                  <Card.Body className="d-flex flex-column">
-                    <Card.Title as="h2" className="mb-0">
-                      {clientesActivos}
-                    </Card.Title>
-                    <Card.Text className="text-muted mb-0 small">
-                      Clientes activos
-                    </Card.Text>
-                  </Card.Body>
-                </Card>
-              </Col>
-              <Col xs={6} md={3} className="mb-3 mb-md-0">
-                <Card className="h-100 shadow-sm">
-                  <Card.Body className="d-flex flex-column">
-                    <Card.Title as="h2" className="mb-0">
-                      {membresiasVencidas}
-                    </Card.Title>
-                    <Card.Text className="text-muted mb-0 small">
-                      Membresías vencidas
-                    </Card.Text>
-                  </Card.Body>
-                </Card>
-              </Col>
-              <Col xs={6} md={3}>
-                <Card className="h-100 shadow-sm">
-                  <Card.Body className="d-flex flex-column">
-                    <Card.Title as="h2" className="mb-0">
-                      {ingresosMes}
-                    </Card.Title>
-                    <Card.Text className="text-muted mb-0 small">
-                      Ingresos anuales
-                    </Card.Text>
-                  </Card.Body>
-                </Card>
-              </Col>
-            </Row>
-
-            {/* Gráfico de ingresos usando componentes de React Bootstrap */}
-            <Row className="mb-4">
-              <Col xs={12}>{renderBarChart()}</Col>
-            </Row>
-
-            {/* Botones de acción */}
-            <Row className="mb-4">
-              <Col>
-                <Button
-                  variant="primary"
-                  onClick={abrirModalNuevo}
-                  className="me-2"
-                >
-                  <FaPlus className="me-2" /> Agregar Cliente
-                </Button>
-                <Button 
-                  variant="outline-success"
-                  onClick={handleNuevoAdmin}
-                >
-                  <FaUser className="me-2" /> Nuevo Admin
-                </Button>
-              </Col>
-            </Row>
-
-            {/* Título sección de administración de clientes */}
-            <Row className="mb-3">
-              <Col>
-                <h2>Administración de Clientes</h2>
-              </Col>
-            </Row>
-
-            {/* Barra de filtros y búsqueda */}
-            <Row className="mb-3">
-              <Col sm={12} lg={6} className="mb-2 mb-lg-0">
-                <Form onSubmit={handleSearch}>
-                  <InputGroup>
-                    <Form.Control
-                      type="text"
-                      placeholder="Buscar por nombre o DNI"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                    <Button variant="primary" type="submit">
-                      <FaSearch />
-                    </Button>
-                  </InputGroup>
-                </Form>
-              </Col>
-              <Col sm={12} lg={6}>
-                <div className="d-flex">
-                  <Button
-                    variant={
-                      filtroActivo === "todos" ? "primary" : "outline-primary"
-                    }
-                    onClick={() => setFiltroActivo("todos")}
-                    size="sm"
-                    className="flex-grow-1 me-2"
-                  >
-                    Todos
-                  </Button>
-                  <Button
-                    variant={
-                      filtroActivo === "activos" ? "success" : "outline-success"
-                    }
-                    onClick={() => setFiltroActivo("activos")}
-                    size="sm"
-                    className="flex-grow-1 me-2"
-                  >
-                    Activos
-                  </Button>
-                  <Button
-                    variant={
-                      filtroActivo === "vencidos" ? "danger" : "outline-danger"
-                    }
-                    onClick={() => setFiltroActivo("vencidos")}
-                    size="sm"
-                    className="flex-grow-1"
-                  >
-                    Vencidos
-                  </Button>
-                </div>
-              </Col>
-            </Row>
-
-            {/* Tarjetas de clientes para móvil (sin scroll horizontal) */}
-            {isMobile ? (
-              <div className="d-flex flex-column gap-2 mb-3">
-                {clientesPaginados.length > 0 ? clientesPaginados.map(cliente => {
-                  const membership = getEstadoMembresia(cliente);
-                  return (
-                    <Card key={cliente.id} className="shadow-sm" role="button" onClick={() => seleccionarCliente(cliente)}>
-                      <Card.Body className="p-2">
-                        <div className="d-flex align-items-center">
-                          <div className="rounded-circle d-inline-flex align-items-center justify-content-center bg-secondary text-white me-3" style={{ width: 46, height: 46, fontWeight: 700 }}>
-                            {cliente.nombre ? cliente.nombre.charAt(0).toUpperCase() : <FaUser />}
-                          </div>
-                          <div>
-                            <div className="fw-bold" style={{ fontSize: 14 }}>{cliente.nombre}</div>
-                            <div className="text-muted small">DNI: {cliente.dni}</div>
-                            <div className="small mt-1">
-                              <Badge bg={membership === "Activo" ? "success" : "danger"} className="me-2">
-                                {membership}
-                              </Badge>
-                              <span className="text-success fw-bold">${(Number(cliente.precio) || 0).toLocaleString()}</span>
-                            </div>
-                          </div>
-                        </div>
-                        {/* Botón de borrar centrado debajo de la info (no interfiere con el click en la tarjeta) */}
-                        <div className="d-flex justify-content-center mt-2">
-                          <Button aria-label={`Eliminar ${cliente.nombre}`} size="sm" variant="danger" onClick={(e) => { e.stopPropagation(); abrirModalEliminar(cliente, e); }}>
-                            <FaTrash />
-                          </Button>
-                        </div>
-                      </Card.Body>
-                    </Card>
-                  );
-                }) : (
-                  <div className="text-center text-muted py-3">No se encontraron clientes con los criterios de búsqueda.</div>
-                )}
+          <div className="p-4" style={{ minHeight: '100vh' }}>
+            {/* Header con saludo y botón de tema */}
+            <div className="d-flex justify-content-between align-items-center mb-4">
+              <div className="text-center mb-4" style={{ flexGrow: 1 }}>
+                <h1 className="display-4 fw-bold mb-2" style={{
+                  background: isDarkMode 
+                    ? 'linear-gradient(45deg, #60a5fa, #34d399, #fbbf24)'
+                    : undefined, // Solo degradado en modo oscuro
+                  WebkitBackgroundClip: isDarkMode ? 'text' : undefined,
+                  WebkitTextFillColor: isDarkMode ? 'transparent' : undefined,
+                  color: isDarkMode ? undefined : '#222', // Texto oscuro en modo claro
+                  fontFamily: '"Fjalla One", sans-serif',
+                  letterSpacing: '2px',
+                  transition: 'all 0.3s ease'
+                }}>
+                  PANEL DE ADMINISTRACIÓN
+                </h1>
+                <p className={`lead ${isDarkMode ? 'text-light' : 'text-muted'}`} style={{
+                  fontSize: '1.1rem',
+                  fontWeight: '300',
+                  transition: 'color 0.3s ease'
+                }}>
+                  Gestiona tu gimnasio de manera eficiente
+                </p>
               </div>
-            ) : (
-              // Tabla de clientes para escritorio
-              <Table responsive hover size="sm" className="mb-3">
-                <thead>
-                  <tr>
-                    <th style={{ width: 60 }}></th>
-                    <th>Cliente</th>
-                    <th className="d-none d-md-table-cell">Membresía</th>
-                    <th>Estado</th>
-                    <th>Precio</th>
-                    <th style={{ width: "110px" }}>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {clientesPaginados.length > 0 ? clientesPaginados.map((cliente) => {
-                    const membership = getEstadoMembresia(cliente);
-                    const variant = membership === "Activo" ? "success" : "danger";
-                    return (
-                      <tr key={cliente.id} onClick={() => seleccionarCliente(cliente)} style={{ cursor: "pointer" }}>
-                        <td className="align-middle">
-                          <div className="rounded-circle d-inline-flex align-items-center justify-content-center bg-secondary text-white" style={{ width: 44, height: 44, fontWeight: 700 }}>
-                            {cliente.nombre ? cliente.nombre.charAt(0).toUpperCase() : <FaUser />}
-                          </div>
-                        </td>
-                        <td className="align-middle">
-                          <div className="fw-bold">{cliente.nombre}</div>
-                          <div className="text-muted small">DNI: {cliente.dni}</div>
-                        </td>
-                        <td className="align-middle d-none d-md-table-cell" style={{ minWidth: 220 }}>
-                          <div className="mb-1 small text-muted">Vence: {cliente.vencimiento || "—"}</div>
-                          <div className={`small fw-bold ${membership === 'Activo' ? 'text-success' : 'text-danger'}`}>{membership}</div>
-                        </td>
-                        <td className="align-middle">
-                          <Badge bg={variant} pill className="d-inline-flex align-items-center" title={`Membresía: ${membership}`} style={{ padding: "0.28rem 0.6rem", fontSize: 13 }}>
-                            {membership === "Activo" ? <FaCheckCircle className="me-1" /> : <FaTimesCircle className="me-1" />}
-                            <span style={{ marginLeft: 4 }}>Membresía: {membership}</span>
-                          </Badge>
-                        </td>
-                        <td className="align-middle">
-                          <div className="fw-bold text-success">${(Number(cliente.precio) || 0).toLocaleString()}</div>
-                          <div className="small text-muted">mensual</div>
-                        </td>
-                        <td className="align-middle">
-                          {/* centrar botón de borrar en la celda de acciones */}
-                          <div className="d-flex justify-content-center">
-                            <Button variant="danger" size="sm" onClick={(e) => { e.stopPropagation(); abrirModalEliminar(cliente, e); }}><FaTrash /></Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  }) : (
-                    <tr>
-                      <td colSpan="6" className="text-center py-3">No se encontraron clientes con los criterios de búsqueda.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </Table>
-            )}
- 
-            {/* Paginación */}
-            {clientesFiltrados.length > clientesPorPagina && (
-              <Row className="mb-3">
-                <Col className="d-flex justify-content-center">
-                  <Pagination>
-                    <Pagination.Prev
-                      onClick={() => setPaginaActual(paginaActual - 1)}
-                      disabled={paginaActual === 1}
-                    />
+              <Button 
+                variant={isDarkMode ? 'outline-light' : 'outline-dark'} 
+                onClick={alternarTema}
+                className="d-none d-md-flex align-items-center border-0"
+                style={{
+                  borderRadius: '12px',
+                  transition: 'all 0.3s ease',
+                  backdropFilter: 'blur(10px)',
+                  boxShadow: isDarkMode 
+                    ? '0 4px 15px rgba(255,255,255,0.1)' 
+                    : '0 4px 15px rgba(0,0,0,0.1)'
+                }}
+              >
+                {isDarkMode ? <FaSun size={14} /> : <FaMoon size={14} />}
+              </Button>
+            </div>
 
-                    {[...Array(totalPaginas).keys()].map((numero) => (
-                      <Pagination.Item
-                        key={numero + 1}
-                        active={numero + 1 === paginaActual}
-                        onClick={() => setPaginaActual(numero + 1)}
+            {/* Tarjetas de resumen optimizadas */}
+            <Row className="g-4 mb-5">
+              <Col xs={12} sm={6} lg={3}>
+                <StatCard 
+                  title="Clientes Activos"
+                  value={estadisticas.clientesActivos}
+                  icon={FaUsers}
+                  color="success"
+                  isDarkMode={isDarkMode}
+                />
+              </Col>
+              <Col xs={12} sm={6} lg={3}>
+                <StatCard 
+                  title="Membresías Vencidas"
+                  value={estadisticas.membresiasVencidas}
+                  icon={FaTimesCircle}
+                  color={estadisticas.membresiasVencidas > 0 ? "warning" : "secondary"}
+                  isDarkMode={isDarkMode}
+                />
+              </Col>
+              <Col xs={12} sm={6} lg={3}>
+                <StatCard 
+                  title="Ingresos Anuales"
+                  value={estadisticas.ingresosMes}
+                  icon={FaDollarSign}
+                  color={isDarkMode ? "info" : "primary"}
+                  isDarkMode={isDarkMode}
+                />
+              </Col>
+              <Col xs={12} sm={6} lg={3}>
+                <StatCard 
+                  title="Total Clientes"
+                  value={estadisticas.totalClientes}
+                  icon={FaChartLine}
+                  color="secondary"
+                  isDarkMode={isDarkMode}
+                />
+              </Col>
+            </Row>
+
+            {/* Gráfico de ingresos mejorado */}
+            <Card className="shadow-lg border-0 mb-5" style={{
+              background: isDarkMode 
+                ? 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)'
+                : 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%)',
+              backdropFilter: 'blur(15px)',
+              borderRadius: '20px'
+            }}>
+              <Card.Body className="p-4">
+                <div className="d-flex align-items-center mb-4">
+                  <div 
+                    className={`rounded-circle me-3 d-flex align-items-center justify-content-center ${
+                      isDarkMode ? 'bg-info bg-opacity-10' : 'bg-primary bg-opacity-10'
+                    }`}
+                    style={{ width: '50px', height: '50px' }}
+                  >
+                    <FaChartLine className={isDarkMode ? 'text-info' : 'text-primary'} />
+                  </div>
+                  <div>
+                    <h4 className={`mb-0 fw-bold ${isDarkMode ? 'text-white' : 'text-dark'}`}>
+                      Análisis de Ingresos
+                    </h4>
+                    <p className={`mb-0 small ${isDarkMode ? 'text-light opacity-75' : 'text-muted'}`}>
+                      Ingresos mensuales basados en clientes registrados
+                    </p>
+                  </div>
+                </div>
+                {renderBarChart()}
+              </Card.Body>
+            </Card>
+
+            {/* Botones de acción mejorados */}
+            <div className="d-flex flex-wrap gap-3 mb-4 ">
+              <Button
+                variant="primary"
+                size="md" // Cambiado de "lg" a "md"
+                onClick={abrirModalNuevo}
+                className="d-flex align-items-center px-3 py-2 shadow-sm border-0" // padding reducido
+                style={{ borderRadius: '10px', fontSize: '1rem' }} // radio y fuente más pequeños
+              >
+                <FaPlus className="me-2" />
+                <div className="text-start">
+                  <div className="fw-bold">Agregar Cliente</div>
+                  <small className="opacity-75">Registrar nuevo miembro</small>
+                </div>
+              </Button>
+              
+              <Button 
+                variant="outline-success"
+                size="md" // Cambiado de "lg" a "md"
+                onClick={handleNuevoAdmin}
+                className="d-flex align-items-center px-3 py-2 border-2"
+                style={{ borderRadius: '10px', fontSize: '1rem' }} // radio y fuente más pequeños
+              >
+                <FaUserShield className="me-2" />
+                <div className="text-start">
+                  <div className="fw-bold">Nuevo Admin</div>
+                  <small className="opacity-75">Crear administrador</small>
+                </div>
+              </Button>
+            </div>
+
+            {/* Sección de gestión de clientes optimizada */}
+            <Card className="border-0 shadow-lg" style={{
+              background: isDarkMode 
+                ? 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)'
+                : 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%)',
+              backdropFilter: 'blur(15px)',
+              borderRadius: '20px'
+            }}>
+              <Card.Header className="border-0 bg-transparent py-4">
+                <div className="d-flex align-items-center">
+                  <div 
+                    className={`rounded-circle me-3 d-flex align-items-center justify-content-center ${
+                      isDarkMode ? 'bg-success bg-opacity-10' : 'bg-success bg-opacity-10'
+                    }`}
+                    style={{ width: '50px', height: '50px' }}
+                  >
+                    <FaUsers className="text-success" />
+                  </div>
+                  <div>
+                    <h3 className={`mb-0 fw-bold ${isDarkMode ? 'text-white' : 'text-dark'}`}>
+                      Gestión de Clientes
+                    </h3>
+                    <p className={`mb-0 small ${isDarkMode ? 'text-light opacity-75' : 'text-muted'}`}>
+                      Administra la información de todos los miembros
+                    </p>
+                  </div>
+                </div>
+              </Card.Header>
+              
+              <Card.Body className="p-4">
+                {/* Barra de filtros y búsqueda mejorada */}
+                <Row className="g-3 mb-4">
+                  <Col md={8}>
+                    <Form onSubmit={handleSearch}>
+                      <InputGroup size="md">
+                        <InputGroup.Text className={isDarkMode ? 'bg-secondary border-secondary' : 'bg-light border-light'}>
+                          <FaSearch className={isDarkMode ? 'text-light' : 'text-muted'} />
+                        </InputGroup.Text>
+                        <Form.Control
+                          type="text"
+                          placeholder="Buscar por DNI..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className={`border-start-0 ${isDarkMode ? 'bg-dark text-white' : ''}`}
+                          style={{ borderRadius: '0 8px 8px 0' }}
+                        />
+                      </InputGroup>
+                    </Form>
+                  </Col>
+                  
+                  <Col md={4}>
+                    <ButtonGroup size="md" className="w-100">
+                      <Button
+                        variant={filtroActivo === "todos" ? "primary" : "outline-primary"}
+                        onClick={() => setFiltroActivo("todos")}
+                        className="flex-fill"
                       >
-                        {numero + 1}
-                      </Pagination.Item>
-                    ))}
+                        Todos
+                      </Button>
+                      <Button
+                        variant={filtroActivo === "activos" ? "success" : "outline-success"}
+                        onClick={() => setFiltroActivo("activos")}
+                        className="flex-fill"
+                      >
+                        Activos
+                      </Button>
+                      <Button
+                        variant={filtroActivo === "vencidos" ? "danger" : "outline-danger"}
+                        onClick={() => setFiltroActivo("vencidos")}
+                        className="flex-fill"
+                      >
+                        Vencidos
+                      </Button>
+                    </ButtonGroup>
+                  </Col>
+                </Row>
 
-                    <Pagination.Next
-                      onClick={() => setPaginaActual(paginaActual + 1)}
-                      disabled={paginaActual === totalPaginas}
-                    />
-                  </Pagination>
-                </Col>
-              </Row>
-            )}
+                {/* Tabla optimizada con componentes memoizados */}
+                {!isMobile ? (
+                  <div className="table-responsive">
+                    <Table hover className={`mb-4 ${isDarkMode ? 'table-dark' : ''}`}>
+                      <thead className={isDarkMode ? 'table-secondary' : 'table-light'}>
+                        <tr>
+                          <th style={{ width: 60 }}></th>
+                          <th>Cliente</th>
+                          <th className="d-none d-lg-table-cell">Membresía</th>
+                          <th>Estado</th>
+                          <th>Precio</th>
+                          <th style={{ width: "100px" }}>Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {clientesPaginados.clientes.length > 0 ? clientesPaginados.clientes.map((cliente) => (
+                          <ClienteRow
+                            key={cliente.id}
+                            cliente={cliente}
+                            membership={getEstadoMembresia(cliente)}
+                            progreso={calcularProgresoMembresia(cliente)}
+                            isDarkMode={isDarkMode}
+                            onSelect={seleccionarCliente}
+                            onDelete={abrirModalEliminar}
+                          />
+                        )) : (
+                          <tr>
+                            <td colSpan="6" className="text-center py-5">
+                              <div className={isDarkMode ? 'text-light opacity-50' : 'text-muted'}>
+                                <FaUsers size={48} className="mb-3 d-block mx-auto" />
+                                <p>No se encontraron clientes con los criterios de búsqueda</p>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </Table>
+                  </div>
+                ) : (
+                  /* Vista móvil optimizada */
+                  <div className="d-flex flex-column gap-3 mb-4">
+                    {clientesPaginados.clientes.length > 0 ? clientesPaginados.clientes.map(cliente => {
+                      const membership = getEstadoMembresia(cliente);
+                      const progreso = calcularProgresoMembresia(cliente);
+                      
+                      return (
+                        <Card 
+                          key={cliente.id} 
+                          className={`border-0 shadow-sm ${isDarkMode ? 'bg-secondary' : 'bg-white'}`}
+                          role="button" 
+                          onClick={() => seleccionarCliente(cliente)}
+                          style={{ 
+                            transition: 'all 0.3s ease',
+                            borderRadius: '12px'
+                          }}
+                        >
+                          <Card.Body className="p-3">
+                            <div className="d-flex align-items-center mb-3">
+                              <div 
+                                className="rounded-circle d-flex align-items-center justify-content-center bg-primary text-white me-3 shadow-sm" 
+                                style={{ width: '50px', height: '50px', fontWeight: 700 }}
+                              >
+                                {cliente.nombre ? cliente.nombre.charAt(0).toUpperCase() : <FaUser />}
+                              </div>
+                              <div className="flex-grow-1">
+                                <div className={`fw-bold mb-1 ${isDarkMode ? 'text-white' : 'text-dark'}`}>
+                                  {cliente.nombre}
+                                </div>
+                                <div className={`small ${isDarkMode ? 'text-light opacity-75' : 'text-muted'}`}>
+                                  DNI: {cliente.dni}
+                                </div>
+                                <div className="mt-2">
+                                  <Badge 
+                                    bg={membership === "Activo" ? "success" : "danger"} 
+                                    className="me-2 px-3 py-2"
+                                    style={{ borderRadius: '8px' }}
+                                  >
+                                    {membership}
+                                  </Badge>
+                                  <span className="text-success fw-bold">
+                                    ${(Number(cliente.precio) || 0).toLocaleString()}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {!progreso.vencido && (
+                              <div className="mb-3">
+                                <div className="d-flex justify-content-between align-items-center mb-1">
+                                  <small className={isDarkMode ? 'text-light opacity-75' : 'text-muted'}>
+                                    Progreso de membresía
+                                  </small>
+                                  <small className={isDarkMode ? 'text-light opacity-75' : 'text-muted'}>
+                                    {progreso.diasRestantes} días restantes
+                                  </small>
+                                </div>
+                                <ProgressBar 
+                                  now={progreso.pct} 
+                                  variant={progreso.pct > 70 ? "danger" : progreso.pct > 40 ? "warning" : "success"}
+                                  style={{ height: '6px', borderRadius: '3px' }}
+                                />
+                              </div>
+                            )}
+                            
+                            <div className="d-flex justify-content-end">
+                              <Button 
+                                size="sm" 
+                                variant="danger"
+                                onClick={(e) => { e.stopPropagation(); abrirModalEliminar(cliente, e); }}
+                                className="border-0 px-3"
+                                style={{ borderRadius: '8px' }}
+                              >
+                                <FaTrash />
+                              </Button>
+                            </div>
+                          </Card.Body>
+                        </Card>
+                      );
+                    }) : (
+                      <Alert variant={isDarkMode ? "dark" : "light"} className="text-center py-4 border-0 shadow-sm">
+                        <FaUsers size={48} className={`mb-3 ${isDarkMode ? 'text-light opacity-50' : 'text-muted'}`} />
+                        <p className={`mb-0 ${isDarkMode ? 'text-light' : 'text-muted'}`}>
+                          No se encontraron clientes con los criterios de búsqueda
+                        </p>
+                      </Alert>
+                    )}
+                  </div>
+                )}
+
+                {/* Paginación optimizada */}
+                {clientesFiltrados.length > 10 && (
+                  <div className="d-flex justify-content-center">
+                    <Pagination className="mb-0">
+                      <Pagination.Prev
+                        onClick={() => setPaginaActual(prev => Math.max(1, prev - 1))}
+                        disabled={paginaActual === 1}
+                      />
+                      {[...Array(clientesPaginados.totalPaginas).keys()].map((numero) => (
+                        <Pagination.Item
+                          key={numero + 1}
+                          active={numero + 1 === paginaActual}
+                          onClick={() => setPaginaActual(numero + 1)}
+                        >
+                          {numero + 1}
+                        </Pagination.Item>
+                      ))}
+                      <Pagination.Next
+                        onClick={() => setPaginaActual(prev => Math.min(clientesPaginados.totalPaginas, prev + 1))}
+                        disabled={paginaActual === clientesPaginados.totalPaginas}
+                      />
+                    </Pagination>
+                  </div>
+                )}
+              </Card.Body>
+            </Card>
 
             {/* Información detallada del cliente seleccionado */}
             {clienteSeleccionado && (
-              <Card className="mb-4 shadow-lg border-0 overflow-hidden">
-                {/* Cabecera con degradado */}
+              <Card className={`mt-5 border-0 shadow-lg overflow-hidden ${isDarkMode ? 'bg-dark' : 'bg-white'}`}>
+                {/* Cabecera con degradado mejorado */}
                 <div 
-                  className="position-relative py-4 px-4" 
+                  className="position-relative py-5 px-4" 
                   style={{
                     background: isDarkMode 
-                      ? 'linear-gradient(45deg, #1e3a8a 0%, #1e40af 100%)' 
-                      : 'linear-gradient(45deg, #3b82f6 0%, #2563eb 100%)',
-                    minHeight: '140px'
+                      ? 'linear-gradient(135deg, #1e40af 0%, #3730a3 100%)' 
+                      : 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                    minHeight: '180px'
                   }}
                 >
-                  {/* Botones de acción reposicionados debajo del contenido principal */}
                   <Row className="align-items-center">
                     <Col xs={12} md={8} className="text-white">
-                      <div className="d-flex align-items-center">
+                      <div className="d-flex align-items-center mb-4">
                         <div 
-                          className="rounded-circle bg-white d-flex align-items-center justify-content-center me-3"
-                          style={{width: "60px", height: "60px"}}
+                          className="rounded-circle bg-white d-flex align-items-center justify-content-center me-4 shadow-lg"
+                          style={{width: "80px", height: "80px"}}
                         >
-                          <FaUser size={30} color="#3b82f6" />
+                          <FaUser size={40} color="#3b82f6" />
                         </div>
                         <div>
-                          <h3 className="mb-0 fw-bold">{clienteSeleccionado.nombre}</h3>
-                          <p className="mb-0 text-white text-opacity-75">Cliente #{clienteSeleccionado.id}</p>
+                          <h2 className="mb-2 fw-bold">{clienteSeleccionado.nombre}</h2>
+                          <p className="mb-0 text-white text-opacity-75 fs-5">
+                            Cliente #{clienteSeleccionado.id} • DNI: {clienteSeleccionado.dni}
+                          </p>
                         </div>
                       </div>
                     </Col>
-                    <Col xs={12} md={4} className="text-md-end mt-3 mt-md-0">
-                      <div className="d-flex justify-content-end align-items-end">
-                        {/* Badge de membresía más compacta */}
-                        <Badge
-                          bg={getEstadoMembresia(clienteSeleccionado) === "Activo" ? "success" : "danger"}
-                          className="d-inline-flex align-items-center"
-                          title={getEstadoMembresia(clienteSeleccionado) === "Activo" ? "Membresía: Activa" : "Membresía: Vencida"}
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            padding: "0.28rem 0.6rem",
-                            fontSize: 13,
-                            maxWidth: 220,
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                        >
-                          {getEstadoMembresia(clienteSeleccionado) === "Activo" ? <FaCheckCircle className="me-1" /> : <FaTimesCircle className="me-1" />}
-                          <span style={{ marginLeft: 4 }}>
-                            Membresía: {getEstadoMembresia(clienteSeleccionado)}
-                          </span>
-                        </Badge>
-                      </div>
+                    <Col xs={12} md={4} className="text-md-end">
+                      <Badge
+                        bg={getEstadoMembresia(clienteSeleccionado) === "Activo" ? "success" : "danger"}
+                        className="d-inline-flex align-items-center fs-6 px-4 py-2 mb-3"
+                        style={{ borderRadius: '12px' }}
+                      >
+                        {getEstadoMembresia(clienteSeleccionado) === "Activo" ? 
+                          <FaCheckCircle className="me-2" /> : 
+                          <FaTimesCircle className="me-2" />
+                        }
+                        Membresía: {getEstadoMembresia(clienteSeleccionado)}
+                      </Badge>
                     </Col>
                   </Row>
                   
-                  {/* Botones reposicionados debajo del resto del contenido con mayor tamaño */}
                   <Row className="mt-4">
                     <Col xs={12} className="d-flex justify-content-end">
                       <ButtonGroup>
                         <Button
                           variant="light"
-                          className="d-flex align-items-center fs-6"
+                          size="lg"
+                          className="d-flex align-items-center px-4 fw-bold"
                           onClick={() => abrirModalEditar(clienteSeleccionado)}
+                          style={{ borderRadius: '12px 0 0 12px' }}
                         >
-                          <FaEdit className="me-2" /> <span>Editar</span>
+                          <FaEdit className="me-2" /> Editar
                         </Button>
                         <Button
                           variant="outline-light"
-                          className="d-flex align-items-center fs-6"
+                          size="lg"
+                          className="d-flex align-items-center px-4 fw-bold"
                           onClick={cancelarSeleccion}
+                          style={{ borderRadius: '0 12px 12px 0' }}
                         >
-                          <FaTimes className="me-2" /> <span>Cerrar</span>
+                          <FaTimes className="me-2" /> Cerrar
                         </Button>
                       </ButtonGroup>
                     </Col>
@@ -1152,7 +1439,7 @@ const AdminClientes = () => {
                 </Card.Body>
               </Card>
             )}
-          </Container>
+          </div>
         </Col>
       </Row>
 

@@ -52,15 +52,6 @@ const PagePrincipal = () => {
     return savedClientes ? JSON.parse(savedClientes) : [];
   });
 
-  // Estado para manejar la vista actual
-  const [vistaActual, setVistaActual] = useState('clientes'); // 'clientes' o 'rutinas'
-
-  // Obtener rutinas desde localStorage (del componente de rutinas)
-  const [rutinas, setRutinas] = useState(() => {
-    const savedRutinas = localStorage.getItem('rutinas');
-    return savedRutinas ? JSON.parse(savedRutinas) : [];
-  });
-
   const [searchDNI, setSearchDNI] = useState("");
   const [clienteEncontrado, setClienteEncontrado] = useState(null);
   const [busquedaRealizada, setBusquedaRealizada] = useState(false);
@@ -104,15 +95,6 @@ const PagePrincipal = () => {
     navigate('/login');
   };
 
-  // Función para cambiar entre vistas
-  const cambiarVista = (vista) => {
-    setVistaActual(vista);
-    // Limpiar búsqueda al cambiar de vista
-    setSearchDNI("");
-    setClienteEncontrado(null);
-    setBusquedaRealizada(false);
-  };
-
   // Sidebar para dispositivos móviles
   const renderSidebar = () => (
     <Navbar 
@@ -130,39 +112,32 @@ const PagePrincipal = () => {
           <Nav className="flex-column w-100 mt-4">
             {/* Opciones de navegación */}
             <Nav.Link 
-              className={`d-flex align-items-center text-center mb-2 ${vistaActual === 'clientes' ? (isDarkMode ? 'text-info' : 'text-primary') : (isDarkMode ? 'text-light' : 'text-dark')}`}
+              className={`d-flex align-items-center text-center mb-2 ${isDarkMode ? 'text-info' : 'text-primary'}`}
               style={{
                 transition: 'all 0.3s ease',
                 borderRadius: '8px',
                 padding: '12px 16px',
-                backgroundColor: vistaActual === 'clientes' ? (isDarkMode ? 'rgba(13, 202, 240, 0.1)' : 'rgba(0, 123, 255, 0.1)') : 'transparent'
+                backgroundColor: isDarkMode ? 'rgba(13, 202, 240, 0.1)' : 'rgba(0, 123, 255, 0.1)'
               }}
-              onClick={() => cambiarVista('clientes')}
             >
               <FaUsers className="me-2" />
               <span>Gestión de Clientes</span>
             </Nav.Link>
             
             <Nav.Link 
-              className={`d-flex align-items-center text-center mb-2 ${vistaActual === 'rutinas' ? (isDarkMode ? 'text-info' : 'text-primary') : (isDarkMode ? 'text-light' : 'text-dark')}`}
+              className={`d-flex align-items-center text-center mb-2 ${isDarkMode ? 'text-light' : 'text-dark'}`}
               style={{
                 transition: 'all 0.3s ease',
                 borderRadius: '8px',
-                padding: '12px 16px',
-                backgroundColor: vistaActual === 'rutinas' ? (isDarkMode ? 'rgba(13, 202, 240, 0.1)' : 'rgba(0, 123, 255, 0.1)') : 'transparent'
+                padding: '12px 16px'
               }}
-              onClick={() => cambiarVista('rutinas')}
               onMouseEnter={(e) => {
-                if (vistaActual !== 'rutinas') {
-                  e.target.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
-                  e.target.style.transform = 'translateX(5px)';
-                }
+                e.target.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+                e.target.style.transform = 'translateX(5px)';
               }}
               onMouseLeave={(e) => {
-                if (vistaActual !== 'rutinas') {
-                  e.target.style.backgroundColor = 'transparent';
-                  e.target.style.transform = 'translateX(0)';
-                }
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.transform = 'translateX(0)';
               }}
             >
               <FaDumbbell className="me-2" />
@@ -200,484 +175,6 @@ const PagePrincipal = () => {
         </Navbar.Brand>
       </Container>
     </Navbar>
-  );
-
-  // Función para renderizar la vista de rutinas
-  const renderVistaRutinas = () => (
-    <>
-      <Row>
-        <Col xs={12}>
-          <div className="text-center mb-5" key={isDarkMode ? 'dark' : 'light'}>
-            <h1 className="display-4 fw-bold mb-2" style={{
-              background: isDarkMode 
-                ? 'linear-gradient(45deg, #60a5fa, #34d399, #fbbf24)'
-                : 'linear-gradient(45deg, #1e40af, #059669, #d97706)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              fontFamily: '"Fjalla One", sans-serif',
-              letterSpacing: '2px',
-              transition: 'all 0.3s ease'
-            }}>
-              RUTINAS DE ENTRENAMIENTO
-            </h1>
-            <p className={`lead ${isDarkMode ? 'text-light' : 'text-muted'}`} style={{
-              fontSize: '1.1rem',
-              fontWeight: '300',
-              transition: 'color 0.3s ease'
-            }}>
-              Explora nuestras rutinas diseñadas para todos los niveles
-            </p>
-          </div>
-        </Col>
-
-        {/* Grid de rutinas */}
-        <Col xs={12}>
-          {rutinas.length > 0 ? (
-            <Row className="g-4">
-              {rutinas.map((rutina) => (
-                <Col xs={12} md={6} lg={6} xl={3} key={rutina.id}>
-                  <Card className="border-0 shadow-lg h-100" style={{
-                    background: isDarkMode 
-                      ? 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)'
-                      : 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%)',
-                    backdropFilter: 'blur(15px)',
-                    borderRadius: '20px',
-                    transition: 'transform 0.3s ease, box-shadow 0.3s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-10px)';
-                    e.currentTarget.style.boxShadow = isDarkMode 
-                      ? '0 20px 40px rgba(0,0,0,0.3)' 
-                      : '0 20px 40px rgba(0,0,0,0.15)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '';
-                  }}>
-                    <Card.Header className="border-0 bg-transparent text-center py-3">
-                      <FaDumbbell className="text-primary mb-2" size={35} />
-                      <Card.Title className={`${isDarkMode ? 'text-light' : 'text-dark'}`} style={{
-                        fontSize: '1.3rem',
-                        fontWeight: '600'
-                      }}>
-                        {rutina.nombre}
-                      </Card.Title>
-                    </Card.Header>
-                    <Card.Body className="d-flex flex-column">
-                      <div>
-                        <Badge 
-                          bg={rutina.categoria === 'Principiante' ? 'success' : rutina.categoria === 'Intermedio' ? 'warning' : rutina.categoria === 'Avanzado' ? 'danger' : 'info'} 
-                        >
-                          {rutina.categoria}
-                        </Badge>
-                        <p className={`${isDarkMode ? 'text-light' : 'text-dark'} mb-3`} style={{ fontSize: '0.9rem' }}>
-                          {rutina.descripcion}
-                        </p>
-                      </div>
-                      <div className="">
-                        <h5 className={`${isDarkMode ? 'text-light' : 'text-dark'} mb-2`}>Ejercicios:</h5>
-                        <ul className={`list-unstyled ${isDarkMode ? 'text-light' : 'text-muted'}`} style={{ fontSize: '0.85rem' }}>
-                          {rutina.ejercicios && rutina.ejercicios.map((ejercicio, index) => (
-                            <li key={index} className="mb-1 fs-5">
-                              <FaCheckCircle className="text-success me-2" size={18} />
-                              {ejercicio.ejercicio}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </Card.Body>
-                  </Card>
-                </Col>
-              ))}
-            </Row>
-          ) : (
-            <div className="d-flex justify-content-center">
-              <Card className="border-0 shadow-lg" style={{
-                background: isDarkMode 
-                  ? 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)'
-                  : 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%)',
-                backdropFilter: 'blur(15px)',
-                borderRadius: '20px',
-                maxWidth: '600px'
-              }}>
-                <Card.Body className="text-center py-5">
-                  <FaDumbbell className="text-muted mb-3" size={48} />
-                  <h5 className={`${isDarkMode ? 'text-light' : 'text-dark'} mb-3`}>
-                    No hay rutinas disponibles
-                  </h5>
-                  <p className={`${isDarkMode ? 'text-light' : 'text-muted'}`}>
-                    Las rutinas se mostrarán aquí cuando sean creadas desde el panel de administración.
-                  </p>
-                </Card.Body>
-              </Card>
-            </div>
-          )}
-        </Col>
-      </Row>
-    </>
-  );
-
-  // Función para renderizar la vista de clientes
-  const renderVistaClientes = () => (
-    <>
-      <Row>
-        <Col xs={12}>
-          <div className="text-center mb-5" key={isDarkMode ? 'dark' : 'light'}>
-            <h1 className="display-4 fw-bold mb-2" style={{
-              background: isDarkMode 
-                ? 'linear-gradient(45deg, #60a5fa, #34d399, #fbbf24)'
-                : 'linear-gradient(45deg, #1e40af, #059669, #d97706)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              fontFamily: '"Fjalla One", sans-serif',
-              letterSpacing: '2px',
-              transition: 'all 0.3s ease'
-            }}>
-              GESTIÓN DE CLIENTES
-            </h1>
-            <p className={`lead ${isDarkMode ? 'text-light' : 'text-muted'}`} style={{
-              fontSize: '1.1rem',
-              fontWeight: '300',
-              transition: 'color 0.3s ease'
-            }}>
-              Busca y consulta el estado de las membresías
-            </p>
-          </div>
-        </Col>
-
-        {/* Sección de búsqueda */}
-        <Col xs={12} className="mb-4">
-          <Card className="border-0 shadow-lg h-100" style={{
-            background: isDarkMode 
-              ? 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)'
-              : 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%)',
-            backdropFilter: 'blur(15px)',
-            borderRadius: '20px'
-          }}>
-            <Card.Header className="border-0 bg-transparent">
-              <h5 className={`mb-0 d-flex align-items-center ${isDarkMode ? 'text-light' : 'text-dark'}`}>
-                <FaSearch className="me-2 text-primary" />
-                Buscar Cliente
-              </h5>
-            </Card.Header>
-            <Card.Body>
-              <Form onSubmit={handleSearch}>
-                <InputGroup size="lg" style={{ borderRadius: '15px' }}>
-                  <Form.Control
-                    type="text"
-                    placeholder="Ingresa el DNI del cliente..."
-                    value={searchDNI}
-                    onChange={handleSearchInputChange}
-                    style={{
-                      borderRadius: '15px 0 0 15px',
-                      border: 'none',
-                      background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.8)',
-                      color: isDarkMode ? 'white' : 'dark',
-                      fontSize: '1.1rem',
-                      padding: '12px 20px'
-                    }}
-                  />
-                  <Button 
-                    variant="primary" 
-                    type="submit"
-                    style={{
-                      borderRadius: '0 15px 15px 0',
-                      background: 'linear-gradient(45deg, #007bff, #0056b3)',
-                      border: 'none',
-                      padding: '12px 25px',
-                      transition: 'all 0.3s ease'
-                    }}
-                  >
-                    <FaSearch size={18} />
-                  </Button>
-                </InputGroup>
-              </Form>
-            </Card.Body>
-          </Card>
-         </Col>
-
-         {/* Tabla de resultados */}
-         <Col xs={12} className="mb-5 d-flex justify-content-center">
-          <Card className="border-0 shadow-lg w-100" style={{
-            background: isDarkMode 
-              ? 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)'
-              : 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%)',
-            backdropFilter: 'blur(15px)',
-            borderRadius: '20px',
-            maxWidth: '1000px'
-          }}>
-            <Card.Header className="border-0 bg-transparent">
-              <h5 className={`mb-0 d-flex align-items-center justify-content-center ${isDarkMode ? 'text-light' : 'text-dark'}`}>
-                <FaUserCheck className="me-2 text-success" />
-                Resultados de Búsqueda
-              </h5>
-            </Card.Header>
-            <Card.Body>
-              <div className="table-responsive">
-                <Table hover className="mb-0" style={{
-                  borderRadius: '15px',
-                  overflow: 'hidden'
-                }}>
-                  <thead style={{
-                    background: isDarkMode 
-                      ? 'linear-gradient(90deg, #374151, #4b5563)'
-                      : 'linear-gradient(90deg, #f8fafc, #e2e8f0)'
-                  }}>
-                    <tr>
-                      <th style={{ 
-                        padding: '20px', 
-                        fontWeight: '600',
-                        color: isDarkMode ? '#e5e7eb' : '#374151',
-                        fontSize: '1rem'
-                      }}>Nombre</th>
-                      <th style={{ 
-                        padding: '20px', 
-                        fontWeight: '600',
-                        color: isDarkMode ? '#e5e7eb' : '#374151',
-                        fontSize: '1rem'
-                      }}>DNI</th>
-                      <th style={{ 
-                        padding: '20px', 
-                        fontWeight: '600',
-                        color: isDarkMode ? '#e5e7eb' : '#374151',
-                        fontSize: '1rem'
-                      }}>Vencimiento</th>
-                      <th style={{ 
-                        padding: '20px', 
-                        fontWeight: '600',
-                        color: isDarkMode ? '#e5e7eb' : '#374151',
-                        fontSize: '1rem'
-                      }}>Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                     {busquedaRealizada ? (
-                       clienteEncontrado ? (
-                        <tr style={{
-                          background: isDarkMode ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.5)',
-                          transition: 'all 0.3s ease'
-                        }}>
-                          <td style={{ 
-                            padding: '20px', 
-                            fontWeight: '500',
-                            color: isDarkMode ? '#f3f4f6' : '#374151',
-                            fontSize: '1rem'
-                          }}>{clienteEncontrado.nombre}</td>
-                          <td style={{ 
-                            padding: '20px',
-                            color: isDarkMode ? '#f3f4f6' : '#374151',
-                            fontSize: '1rem'
-                          }}>{clienteEncontrado.dni}</td>
-                          <td style={{ 
-                            padding: '20px',
-                            color: isDarkMode ? '#f3f4f6' : '#374151',
-                            fontSize: '1rem'
-                          }}>
-                            <FaCalendarAlt className="me-2 text-muted" />
-                            {clienteEncontrado.vencimiento}
-                          </td>
-                          <td style={{ padding: '20px' }}>
-                             {clienteEncontrado.estado === "Activo" ? (
-                              <Badge 
-                                bg="success" 
-                                pill 
-                                style={{ 
-                                  fontSize: '0.9rem',
-                                  padding: '8px 15px',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  maxWidth: '120px'
-                                }}
-                               >
-                                <FaCheckCircle className="me-1" /> Activo
-                              </Badge>
-                              ) : (
-                              <Badge 
-                                bg="danger" 
-                                pill 
-                                style={{ 
-                                  fontSize: '0.9rem',
-                                  padding: '8px 15px',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  maxWidth: '120px'
-                                }}
-                               >
-                                <FaTimesCircle className="me-1" /> Vencida
-                              </Badge>
-                              )}
-                            </td>
-                          </tr>
-                        ) : (
-                          <tr style={{
-                            background: isDarkMode ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.5)'
-                          }}>
-                            <td colSpan="4" className="text-center" style={{ 
-                              padding: '40px 20px',
-                              color: isDarkMode ? '#9ca3af' : '#6b7280',
-                              fontSize: '1.1rem'
-                            }}>
-                              <FaTimesCircle className="me-2 text-danger" size={20} />
-                              No se encontraron resultados para el DNI ingresado
-                             </td>
-                           </tr>
-                         )
-                       ) : (
-                        <tr style={{
-                          background: isDarkMode ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.5)'
-                        }}>
-                          <td colSpan="4" className="text-center" style={{ 
-                            padding: '40px 20px',
-                            color: isDarkMode ? '#9ca3af' : '#6b7280',
-                            fontSize: '1.1rem'
-                          }}>
-                            <FaSearch className="me-2 text-info" size={20} />
-                            Ingresa un DNI para conocer el estado de cuenta
-                           </td>
-                         </tr>
-                       )}
-                  </tbody>
-                </Table>
-              </div>
-            </Card.Body>
-          </Card>
-         </Col>
-
-         {/* Información del cliente */}
-         {clienteEncontrado && (
-           <Col xs={12} className="d-flex justify-content-center">
-            <Card className="border-0 shadow-lg w-100" style={{
-              background: isDarkMode 
-                ? 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)'
-                : 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%)',
-              backdropFilter: 'blur(15px)',
-              borderRadius: '20px',
-              maxWidth: '1000px'
-            }}>
-              <Card.Header className="border-0 bg-transparent text-center py-4">
-                <h3 className={`mb-0 ${isDarkMode ? 'text-light' : 'text-dark'}`} style={{
-                  fontFamily: '"Fjalla One", sans-serif',
-                  letterSpacing: '1px'
-                }}>
-                  INFORMACIÓN DETALLADA DEL CLIENTE
-                </h3>
-              </Card.Header>
-              <Card.Body className="p-4 p-md-5">
-                 <Row className="mb-4">
-                   <Col xs={12} className="text-center mb-4">
-                    <Card.Title as="h4" className={isDarkMode ? 'text-light' : 'text-dark'} style={{
-                      fontWeight: '600',
-                      fontSize: '1.8rem'
-                    }}>
-                      <FaUser className="me-3 text-primary" />
-                       {clienteEncontrado.nombre}
-                     </Card.Title>
-                   </Col>
-                 </Row>
-                  
-                 <Row className="justify-content-center">
-                   <Col xs={12} md={5} className="mb-3">
-                     <Form.Group className="mb-4">
-                      <Form.Label className={`fw-semibold ${isDarkMode ? 'text-light' : 'text-dark'} d-flex align-items-center justify-content-center`} style={{
-                        fontSize: '1.1rem',
-                        marginBottom: '15px'
-                      }}>
-                        <FaUser className="me-2 text-primary" />
-                         Nombre Completo
-                       </Form.Label>
-                       <Form.Control
-                         plaintext
-                         readOnly
-                         defaultValue={clienteEncontrado.nombre}
-                         className="text-center"
-                        style={{
-                          background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.8)',
-                          border: 'none',
-                          borderRadius: '15px',
-                          padding: '15px 20px',
-                          color: isDarkMode ? 'white' : 'dark',
-                          fontSize: '1.2rem',
-                          fontWeight: '500'
-                        }}
-                       />
-                     </Form.Group>
-                   </Col>
-                    
-                   <Col xs={12} md={2} className="d-none d-md-flex align-items-center justify-content-center mb-3">
-                     <div style={{
-                       width: '2px',
-                       height: '80px',
-                       background: isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
-                       borderRadius: '1px'
-                     }}></div>
-                   </Col>
-                    
-                   <Col xs={12} md={5} className="mb-3">
-                     <Form.Group className="mb-4">
-                      <Form.Label className={`fw-semibold ${isDarkMode ? 'text-light' : 'text-dark'} d-flex align-items-center justify-content-center`} style={{
-                        fontSize: '1.1rem',
-                        marginBottom: '15px'
-                      }}>
-                        <FaIdCard className="me-2 text-info" />
-                         DNI
-                       </Form.Label>
-                       <Form.Control
-                         plaintext
-                         readOnly
-                         defaultValue={clienteEncontrado.dni}
-                         className="text-center"
-                        style={{
-                          background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.8)',
-                          border: 'none',
-                          borderRadius: '15px',
-                          padding: '15px 20px',
-                          color: isDarkMode ? 'white' : 'dark',
-                          fontSize: '1.2rem',
-                          fontWeight: '500'
-                        }}
-                       />
-                     </Form.Group>
-                   </Col>
-                 </Row>
-                 <Row className="justify-content-center mt-4">
-                   <Col xs={12} md={6}>
-                     <Form.Group className="text-center">
-                      <Form.Label className={`fw-semibold ${isDarkMode ? 'text-light' : 'text-dark'} d-flex align-items-center justify-content-center`} style={{
-                        fontSize: '1.1rem',
-                        marginBottom: '15px'
-                      }}>
-                        <FaCalendarAlt className="me-2 text-warning" />
-                         Fecha de Inicio
-                       </Form.Label>
-                       <Form.Control
-                         plaintext
-                         readOnly
-                         defaultValue={
-                           clienteEncontrado.fechaInicio ||
-                           "No disponible"
-                         }
-                         className="text-center"
-                        style={{
-                          background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.8)',
-                          border: 'none',
-                          borderRadius: '15px',
-                          padding: '15px 20px',
-                          color: isDarkMode ? 'white' : 'dark',
-                          fontSize: '1.2rem',
-                          fontWeight: '500'
-                        }}
-                       />
-                     </Form.Group>
-                   </Col>
-                 </Row>
-               </Card.Body>
-             </Card>
-           </Col>
-         )}
-       </Row>
-     </>
   );
 
   return (
@@ -811,9 +308,364 @@ const PagePrincipal = () => {
                </Col>
             </Row>
 
-            {/* Renderizar vista según el estado */}
-            {vistaActual === 'clientes' ? renderVistaClientes() : renderVistaRutinas()}
-          </Container>
+            <Row>
+              <Col xs={12}>
+                <div className="text-center mb-5" key={isDarkMode ? 'dark' : 'light'}>
+                  <h1 className="display-4 fw-bold mb-2" style={{
+                    background: isDarkMode 
+                      ? 'linear-gradient(45deg, #60a5fa, #34d399, #fbbf24)'
+                      : 'linear-gradient(45deg, #1e40af, #059669, #d97706)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    fontFamily: '"Fjalla One", sans-serif',
+                    letterSpacing: '2px',
+                    transition: 'all 0.3s ease'
+                  }}>
+                    GESTIÓN DE CLIENTES
+                  </h1>
+                  <p className={`lead ${isDarkMode ? 'text-light' : 'text-muted'}`} style={{
+                    fontSize: '1.1rem',
+                    fontWeight: '300',
+                    transition: 'color 0.3s ease'
+                  }}>
+                    Busca y consulta el estado de las membresías
+                  </p>
+                </div>
+               </Col>
+
+               {/* Sección de búsqueda */}
+               <Col xs={12} className="mb-4">
+                <Card className="border-0 shadow-lg h-100" style={{
+                  background: isDarkMode 
+                    ? 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)'
+                    : 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%)',
+                  backdropFilter: 'blur(15px)',
+                  borderRadius: '20px'
+                }}>
+                  <Card.Header className="border-0 bg-transparent">
+                    <h5 className={`mb-0 d-flex align-items-center ${isDarkMode ? 'text-light' : 'text-dark'}`}>
+                      <FaSearch className="me-2 text-primary" />
+                      Buscar Cliente
+                    </h5>
+                  </Card.Header>
+                  <Card.Body>
+                    <Form onSubmit={handleSearch}>
+                      <InputGroup size="lg" style={{ borderRadius: '15px' }}>
+                        <Form.Control
+                          type="text"
+                          placeholder="Ingresa el DNI del cliente..."
+                          value={searchDNI}
+                          onChange={handleSearchInputChange}
+                          style={{
+                            borderRadius: '15px 0 0 15px',
+                            border: 'none',
+                            background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.8)',
+                            color: isDarkMode ? 'white' : 'dark',
+                            fontSize: '1.1rem',
+                            padding: '12px 20px'
+                          }}
+                        />
+                        <Button 
+                          variant="primary" 
+                          type="submit"
+                          style={{
+                            borderRadius: '0 15px 15px 0',
+                            background: 'linear-gradient(45deg, #007bff, #0056b3)',
+                            border: 'none',
+                            padding: '12px 25px',
+                            transition: 'all 0.3s ease'
+                          }}
+                        >
+                          <FaSearch size={18} />
+                        </Button>
+                      </InputGroup>
+                    </Form>
+                  </Card.Body>
+                </Card>
+               </Col>
+
+               {/* Tabla de resultados */}
+               <Col xs={12} className="mb-5 d-flex justify-content-center">
+                <Card className="border-0 shadow-lg w-100" style={{
+                  background: isDarkMode 
+                    ? 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)'
+                    : 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%)',
+                  backdropFilter: 'blur(15px)',
+                  borderRadius: '20px',
+                  maxWidth: '1000px'
+                }}>
+                  <Card.Header className="border-0 bg-transparent">
+                    <h5 className={`mb-0 d-flex align-items-center justify-content-center ${isDarkMode ? 'text-light' : 'text-dark'}`}>
+                      <FaUserCheck className="me-2 text-success" />
+                      Resultados de Búsqueda
+                    </h5>
+                  </Card.Header>
+                  <Card.Body>
+                    <div className="table-responsive">
+                      <Table hover className="mb-0" style={{
+                        borderRadius: '15px',
+                        overflow: 'hidden'
+                      }}>
+                        <thead style={{
+                          background: isDarkMode 
+                            ? 'linear-gradient(90deg, #374151, #4b5563)'
+                            : 'linear-gradient(90deg, #f8fafc, #e2e8f0)'
+                        }}>
+                          <tr>
+                            <th style={{ 
+                              padding: '20px', 
+                              fontWeight: '600',
+                              color: isDarkMode ? '#e5e7eb' : '#374151',
+                              fontSize: '1rem'
+                            }}>Nombre</th>
+                            <th style={{ 
+                              padding: '20px', 
+                              fontWeight: '600',
+                              color: isDarkMode ? '#e5e7eb' : '#374151',
+                              fontSize: '1rem'
+                            }}>DNI</th>
+                            <th style={{ 
+                              padding: '20px', 
+                              fontWeight: '600',
+                              color: isDarkMode ? '#e5e7eb' : '#374151',
+                              fontSize: '1rem'
+                            }}>Vencimiento</th>
+                            <th style={{ 
+                              padding: '20px', 
+                              fontWeight: '600',
+                              color: isDarkMode ? '#e5e7eb' : '#374151',
+                              fontSize: '1rem'
+                            }}>Estado</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                           {busquedaRealizada ? (
+                             clienteEncontrado ? (
+                              <tr style={{
+                                background: isDarkMode ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.5)',
+                                transition: 'all 0.3s ease'
+                              }}>
+                                <td style={{ 
+                                  padding: '20px', 
+                                  fontWeight: '500',
+                                  color: isDarkMode ? '#f3f4f6' : '#374151',
+                                  fontSize: '1rem'
+                                }}>{clienteEncontrado.nombre}</td>
+                                <td style={{ 
+                                  padding: '20px',
+                                  color: isDarkMode ? '#f3f4f6' : '#374151',
+                                  fontSize: '1rem'
+                                }}>{clienteEncontrado.dni}</td>
+                                <td style={{ 
+                                  padding: '20px',
+                                  color: isDarkMode ? '#f3f4f6' : '#374151',
+                                  fontSize: '1rem'
+                                }}>
+                                  <FaCalendarAlt className="me-2 text-muted" />
+                                  {clienteEncontrado.vencimiento}
+                                </td>
+                                <td style={{ padding: '20px' }}>
+                                   {clienteEncontrado.estado === "Activo" ? (
+                                    <Badge 
+                                      bg="success" 
+                                      pill 
+                                      style={{ 
+                                        fontSize: '0.9rem',
+                                        padding: '8px 15px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        maxWidth: '120px'
+                                      }}
+                                     >
+                                      <FaCheckCircle className="me-1" /> Activo
+                                    </Badge>
+                                    ) : (
+                                    <Badge 
+                                      bg="danger" 
+                                      pill 
+                                      style={{ 
+                                        fontSize: '0.9rem',
+                                        padding: '8px 15px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        maxWidth: '120px'
+                                      }}
+                                     >
+                                      <FaTimesCircle className="me-1" /> Vencida
+                                    </Badge>
+                                    )}
+                                  </td>
+                                </tr>
+                              ) : (
+                                <tr style={{
+                                  background: isDarkMode ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.5)'
+                                }}>
+                                  <td colSpan="4" className="text-center" style={{ 
+                                    padding: '40px 20px',
+                                    color: isDarkMode ? '#9ca3af' : '#6b7280',
+                                    fontSize: '1.1rem'
+                                  }}>
+                                    <FaTimesCircle className="me-2 text-danger" size={20} />
+                                    No se encontraron resultados para el DNI ingresado
+                                   </td>
+                                 </tr>
+                               )
+                             ) : (
+                              <tr style={{
+                                background: isDarkMode ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.5)'
+                              }}>
+                                <td colSpan="4" className="text-center" style={{ 
+                                  padding: '40px 20px',
+                                  color: isDarkMode ? '#9ca3af' : '#6b7280',
+                                  fontSize: '1.1rem'
+                                }}>
+                                  <FaSearch className="me-2 text-info" size={20} />
+                                  Ingresa un DNI para conocer el estado de cuenta
+                                 </td>
+                               </tr>
+                             )}
+                        </tbody>
+                      </Table>
+                    </div>
+                  </Card.Body>
+                </Card>
+               </Col>
+
+               {/* Información del cliente */}
+               {clienteEncontrado && (
+                 <Col xs={12} className="d-flex justify-content-center">
+                  <Card className="border-0 shadow-lg w-100" style={{
+                    background: isDarkMode 
+                      ? 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)'
+                      : 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%)',
+                    backdropFilter: 'blur(15px)',
+                    borderRadius: '20px',
+                    maxWidth: '1000px'
+                  }}>
+                    <Card.Header className="border-0 bg-transparent text-center py-4">
+                      <h3 className={`mb-0 ${isDarkMode ? 'text-light' : 'text-dark'}`} style={{
+                        fontFamily: '"Fjalla One", sans-serif',
+                        letterSpacing: '1px'
+                      }}>
+                        INFORMACIÓN DETALLADA DEL CLIENTE
+                      </h3>
+                    </Card.Header>
+                    <Card.Body className="p-4 p-md-5">
+                       <Row className="mb-4">
+                         <Col xs={12} className="text-center mb-4">
+                          <Card.Title as="h4" className={isDarkMode ? 'text-light' : 'text-dark'} style={{
+                            fontWeight: '600',
+                            fontSize: '1.8rem'
+                          }}>
+                            <FaUser className="me-3 text-primary" />
+                             {clienteEncontrado.nombre}
+                           </Card.Title>
+                         </Col>
+                       </Row>
+                        
+                       <Row className="justify-content-center">
+                         <Col xs={12} md={5} className="mb-3">
+                           <Form.Group className="mb-4">
+                            <Form.Label className={`fw-semibold ${isDarkMode ? 'text-light' : 'text-dark'} d-flex align-items-center justify-content-center`} style={{
+                              fontSize: '1.1rem',
+                              marginBottom: '15px'
+                            }}>
+                              <FaUser className="me-2 text-primary" />
+                               Nombre Completo
+                             </Form.Label>
+                             <Form.Control
+                               plaintext
+                               readOnly
+                               defaultValue={clienteEncontrado.nombre}
+                               className="text-center"
+                              style={{
+                                background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.8)',
+                                border: 'none',
+                                borderRadius: '15px',
+                                padding: '15px 20px',
+                                color: isDarkMode ? 'white' : 'dark',
+                                fontSize: '1.2rem',
+                                fontWeight: '500'
+                              }}
+                             />
+                           </Form.Group>
+                         </Col>
+                         
+                         <Col xs={12} md={2} className="d-none d-md-flex align-items-center justify-content-center mb-3">
+                           <div style={{
+                             width: '2px',
+                             height: '80px',
+                             background: isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
+                             borderRadius: '1px'
+                           }}></div>
+                         </Col>
+                         
+                         <Col xs={12} md={5} className="mb-3">
+                           <Form.Group className="mb-4">
+                            <Form.Label className={`fw-semibold ${isDarkMode ? 'text-light' : 'text-dark'} d-flex align-items-center justify-content-center`} style={{
+                              fontSize: '1.1rem',
+                              marginBottom: '15px'
+                            }}>
+                              <FaIdCard className="me-2 text-info" />
+                               DNI
+                             </Form.Label>
+                             <Form.Control
+                               plaintext
+                               readOnly
+                               defaultValue={clienteEncontrado.dni}
+                               className="text-center"
+                              style={{
+                                background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.8)',
+                                border: 'none',
+                                borderRadius: '15px',
+                                padding: '15px 20px',
+                                color: isDarkMode ? 'white' : 'dark',
+                                fontSize: '1.2rem',
+                                fontWeight: '500'
+                              }}
+                             />
+                           </Form.Group>
+                         </Col>
+                       </Row>
+                       <Row className="justify-content-center mt-4">
+                         <Col xs={12} md={6}>
+                           <Form.Group className="text-center">
+                            <Form.Label className={`fw-semibold ${isDarkMode ? 'text-light' : 'text-dark'} d-flex align-items-center justify-content-center`} style={{
+                              fontSize: '1.1rem',
+                              marginBottom: '15px'
+                            }}>
+                              <FaCalendarAlt className="me-2 text-warning" />
+                               Fecha de Inicio
+                             </Form.Label>
+                             <Form.Control
+                               plaintext
+                               readOnly
+                               defaultValue={
+                                 clienteEncontrado.fechaInicio ||
+                                 "No disponible"
+                               }
+                               className="text-center"
+                              style={{
+                                background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.8)',
+                                border: 'none',
+                                borderRadius: '15px',
+                                padding: '15px 20px',
+                                color: isDarkMode ? 'white' : 'dark',
+                                fontSize: '1.2rem',
+                                fontWeight: '500'
+                              }}
+                             />
+                           </Form.Group>
+                         </Col>
+                       </Row>
+                     </Card.Body>
+                   </Card>
+                 </Col>
+               )}
+             </Row>
+           </Container>
         </Col>
       </Row>
     </Container>
