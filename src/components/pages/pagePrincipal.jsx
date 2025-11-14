@@ -57,6 +57,16 @@ const PagePrincipal = () => {
   const [busquedaRealizada, setBusquedaRealizada] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
 
+  // Función para determinar si la membresía está vencida
+  const calcularEstado = (vencimiento) => {
+    if (!vencimiento) return "Vencida";
+    const hoy = new Date();
+    // Suponiendo formato DD/MM/YYYY
+    const [dia, mes, anio] = vencimiento.split("/");
+    const fechaVencimiento = new Date(`${anio}-${mes}-${dia}T23:59:59`);
+    return fechaVencimiento >= hoy ? "Activo" : "Vencida";
+  };
+
   const handleSearch = (e) => {
     e.preventDefault();
     
@@ -69,9 +79,17 @@ const PagePrincipal = () => {
     
     const cliente = clientes.find(
       (cliente) => cliente.dni === searchDNI.trim()
-     );
-    
-    setClienteEncontrado(cliente || null);
+    );
+
+    // Si se encuentra, calcular el estado actualizado
+    if (cliente) {
+      setClienteEncontrado({
+        ...cliente,
+        estado: calcularEstado(cliente.vencimiento)
+      });
+    } else {
+      setClienteEncontrado(null);
+    }
     setBusquedaRealizada(true);
    };
 
@@ -564,7 +582,26 @@ const PagePrincipal = () => {
                            </Card.Title>
                          </Col>
                        </Row>
-                        
+                       {/* Mostrar estado de la cuenta */}
+                       <Row className="justify-content-center mb-4">
+                         <Col xs={12} className="text-center">
+                           {clienteEncontrado.estado === "Activo" ? (
+                             <Badge bg="success" pill style={{
+                               fontSize: '1.1rem',
+                               padding: '10px 20px'
+                             }}>
+                               <FaCheckCircle className="me-2" /> Cuenta Activa
+                             </Badge>
+                           ) : (
+                             <Badge bg="danger" pill style={{
+                               fontSize: '1.1rem',
+                               padding: '10px 20px'
+                             }}>
+                               <FaTimesCircle className="me-2" /> Cuenta Vencida
+                             </Badge>
+                           )}
+                         </Col>
+                       </Row>
                        <Row className="justify-content-center">
                          <Col xs={12} md={5} className="mb-3">
                            <Form.Group className="mb-4">
