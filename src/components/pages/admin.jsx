@@ -1411,19 +1411,19 @@ const AdminClientes = () => {
                               <div className={`p-3 rounded-3 mb-3 ${isDarkMode ? 'bg-dark bg-opacity-50' : 'bg-light'}`}>
                                 <div className="d-flex justify-content-between align-items-center">
                                   <div>
-                                    <p className="mb-1 text-muted">Estado</p>
-                                    <h4 className={`fw-bold mb-0 ${clienteSeleccionado.estado === "Activo" ? "text-success" : "text-danger"}`}>
-                                      {clienteSeleccionado.estado}
+                                    <p className="mb-1 text-muted">Estado de Membresía</p>
+                                    <h4 className={`fw-bold mb-0 ${getEstadoMembresia(clienteSeleccionado) === "Activo" ? "text-success" : "text-danger"}`}>
+                                      {getEstadoMembresia(clienteSeleccionado)}
                                     </h4>
                                   </div>
                                   <div 
                                     className={`rounded-circle d-flex align-items-center justify-content-center ${
-                                      clienteSeleccionado.estado === "Activo" ? 
+                                      getEstadoMembresia(clienteSeleccionado) === "Activo" ? 
                                       (isDarkMode ? 'bg-success bg-opacity-25' : 'bg-success bg-opacity-10') : 
                                       (isDarkMode ? 'bg-danger bg-opacity-25' : 'bg-danger bg-opacity-10')
                                     } p-3`}
                                   >
-                                    {clienteSeleccionado.estado === "Activo" ? 
+                                    {getEstadoMembresia(clienteSeleccionado) === "Activo" ? 
                                       <FaCheckCircle size={24} className="text-success" /> : 
                                       <FaTimesCircle size={24} className="text-danger" />
                                     }
