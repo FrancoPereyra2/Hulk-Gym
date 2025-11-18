@@ -23,14 +23,18 @@ const PagePrincipal = () => {
   const navigate = useNavigate();
   const { isDarkMode, alternarTema } = useTheme();
 
+  // Obtener tipo de usuario
+  const [userType, setUserType] = useState(() => localStorage.getItem('userType'));
+
   // Verificación más robusta de usuario
   useEffect(() => {
-    const userType = localStorage.getItem('userType');
+    const storedUserType = localStorage.getItem('userType');
     const userEmail = localStorage.getItem('userEmail');
     
-    if (!userType) {
+    if (!storedUserType) {
       navigate('/login');
     } else {
+      setUserType(storedUserType);
       // Verificación adicional contra la base de usuarios
       const savedUsers = localStorage.getItem('users');
       if (savedUsers) {
@@ -137,6 +141,7 @@ const PagePrincipal = () => {
                 padding: '12px 16px',
                 backgroundColor: isDarkMode ? 'rgba(13, 202, 240, 0.1)' : 'rgba(0, 123, 255, 0.1)'
               }}
+              onClick={() => navigate(userType === 'admin' ? '/admin' : '/principal')}
             >
               <FaUsers className="me-2" />
               <span>Gestión de Clientes</span>
@@ -147,8 +152,10 @@ const PagePrincipal = () => {
               style={{
                 transition: 'all 0.3s ease',
                 borderRadius: '8px',
-                padding: '12px 16px'
+                padding: '12px 16px',
+                cursor: 'pointer'
               }}
+              onClick={() => navigate('/rutinas')}
               onMouseEnter={(e) => {
                 e.target.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
                 e.target.style.transform = 'translateX(5px)';
@@ -196,15 +203,15 @@ const PagePrincipal = () => {
   );
 
   return (
-    <Container fluid className="vh-100 d-flex flex-column p-0" style={{
+    <Container fluid className="d-flex flex-column p-0" style={{
       background: isDarkMode 
         ? 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)'
         : 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 25%, #90caf9 50%, #64b5f6 75%, #42a5f5 100%)',
       minHeight: '100vh'
     }}>
-      <Row className="flex-grow-1 m-0">
+      <Row className="flex-grow-1 m-0" style={{ minHeight: '100vh' }}>
         {/* Sidebar para pantallas medianas y grandes */}
-        <Col xs={2} md={2} lg={2} className="d-none d-md-block p-0 h-100" style={{
+        <Col xs={2} md={2} lg={2} className="d-none d-md-block p-0" style={{
           backdropFilter: 'blur(10px)',
           borderRight: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`
         }}>
@@ -237,7 +244,7 @@ const PagePrincipal = () => {
         </Offcanvas>
 
         {/* Contenedor principal */}
-        <Col xs={12} md={10} lg={10} className="h-100 p-0">
+        <Col xs={12} md={10} lg={10} className="p-0 d-flex flex-column" style={{ minHeight: '100vh' }}>
           {/* Navbar para móviles */}
           <Navbar className="d-md-none" style={{
             background: isDarkMode 
@@ -302,7 +309,7 @@ const PagePrincipal = () => {
           </Navbar>
 
           {/* Contenido de la página */}
-          <Container fluid className="p-3 p-md-4" style={{ minHeight: '100vh' }}>
+          <Container fluid className="p-3 flex-grow-1">
             {/* Header con botón de tema */}
             <Row className="mb-3">
               <Col className="d-flex justify-content-end">

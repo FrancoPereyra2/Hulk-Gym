@@ -1276,7 +1276,7 @@ const AdminClientes = () => {
                       <ButtonGroup>
                         <Button
                           variant="light"
-                          size="lg"
+                          size="md"
                           className="d-flex align-items-center px-4 fw-bold"
                           onClick={() => abrirModalEditar(clienteSeleccionado)}
                           style={{ borderRadius: '12px 0 0 12px' }}
@@ -1285,7 +1285,7 @@ const AdminClientes = () => {
                         </Button>
                         <Button
                           variant="outline-light"
-                          size="lg"
+                          size="md"
                           className="d-flex align-items-center px-4 fw-bold"
                           onClick={cancelarSeleccion}
                           style={{ borderRadius: '0 12px 12px 0' }}
