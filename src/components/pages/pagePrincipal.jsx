@@ -14,10 +14,14 @@ import {
   Stack,
   Offcanvas,
   Badge,
+  Modal,
+  Alert,
+  ListGroup,
 } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
-import { FaUser, FaSearch, FaCheckCircle, FaTimesCircle, FaBars, FaTimes, FaDumbbell, FaMoon, FaSun, FaUserCheck, FaCalendarAlt, FaIdCard, FaHome, FaUsers, FaCog, FaChartBar } from "react-icons/fa";
+import { FaUser, FaSearch, FaCheckCircle, FaTimesCircle, FaBars, FaTimes, FaDumbbell, FaMoon, FaSun, FaUserCheck, FaCalendarAlt, FaIdCard, FaHome, FaUsers, FaCog, FaChartBar, FaEnvelope, FaBell, FaHistory, FaExclamationTriangle } from "react-icons/fa";
 import { useTheme } from './admin.jsx';
+import { enviarEmailReal, isEmailConfigured } from '../../services/emailService.js';
 
 const PagePrincipal = () => {
   const navigate = useNavigate();
@@ -61,14 +65,23 @@ const PagePrincipal = () => {
   const [busquedaRealizada, setBusquedaRealizada] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
 
+  // Nuevos estados para el sistema de notificaciones
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailHistory, setEmailHistory] = useState(() => {
+    const savedHistory = localStorage.getItem('emailHistory');
+    return savedHistory ? JSON.parse(savedHistory) : [];
+  });
+  const [cuentasVencidas, setCuentasVencidas] = useState([]);
+  const [showNotificationAlert, setShowNotificationAlert] = useState(false);
+
   // Función para determinar si la membresía está vencida
   const calcularEstado = (vencimiento) => {
-    if (!vencimiento) return "Vencida";
+    if (!vencimiento) return "Expirada";
     const hoy = new Date();
     // Suponiendo formato DD/MM/YYYY
     const [dia, mes, anio] = vencimiento.split("/");
     const fechaVencimiento = new Date(`${anio}-${mes}-${dia}T23:59:59`);
-    return fechaVencimiento >= hoy ? "Activo" : "Vencida";
+    return fechaVencimiento >= hoy ? "Activo" : "Expirada";
   };
 
   const handleSearch = (e) => {
@@ -116,6 +129,164 @@ const PagePrincipal = () => {
     localStorage.removeItem('userEmail');
     navigate('/login');
   };
+
+  // Función mejorada para envío de email real
+  const enviarEmail = async (cliente, tipo = 'vencimiento') => {
+    try {
+      console.log('🚀 Iniciando envío de email REAL a:', cliente.nombre);
+      const resultadoReal = await enviarEmailReal(cliente, tipo);
+      
+      const nuevoEmail = {
+        id: Date.now(),
+        clienteNombre: cliente.nombre,
+        clienteDNI: cliente.dni,
+        clienteEmail: cliente.email || `${cliente.dni}@gmail.com`,
+        tipo: tipo,
+        fechaEnvio: new Date().toLocaleString('es-AR'),
+        estado: resultadoReal.success ? 'Enviado' : 'Error',
+        error: resultadoReal.error || null,
+        asunto: tipo === 'vencimiento' ? 'Membresía Vencida - HULK GYM' : 'Recordatorio de Vencimiento - HULK GYM',
+        metodo: resultadoReal.success ? 'EmailJS-Real' : 'Error',
+        messageId: resultadoReal.messageId || null
+      };
+
+      const nuevoHistorial = [...emailHistory, nuevoEmail];
+      setEmailHistory(nuevoHistorial);
+      localStorage.setItem('emailHistory', JSON.stringify(nuevoHistorial));
+      
+      return nuevoEmail;
+    } catch (error) {
+      console.error('❌ Error en envío de email:', error);
+      
+      const emailError = {
+        id: Date.now(),
+        clienteNombre: cliente.nombre,
+        clienteDNI: cliente.dni,
+        clienteEmail: cliente.email || `${cliente.dni}@gmail.com`,
+        tipo: tipo,
+        fechaEnvio: new Date().toLocaleString('es-AR'),
+        estado: 'Error',
+        error: error.message,
+        asunto: tipo === 'vencimiento' ? 'Membresía Vencida - HULK GYM' : 'Recordatorio de Vencimiento - HULK GYM',
+        metodo: 'Error'
+      };
+
+      const nuevoHistorial = [...emailHistory, emailError];
+      setEmailHistory(nuevoHistorial);
+      localStorage.setItem('emailHistory', JSON.stringify(nuevoHistorial));
+      
+      return emailError;
+    }
+  };
+
+  // Función para verificar cuentas vencidas
+  const verificarCuentasVencidas = () => {
+    const hoy = new Date();
+    const vencidas = clientes.filter(cliente => {
+      if (!cliente.vencimiento) return true;
+      const [dia, mes, anio] = cliente.vencimiento.split("/");
+      const fechaVencimiento = new Date(`${anio}-${mes}-${dia}T23:59:59`);
+      return fechaVencimiento < hoy;
+    });
+    
+    setCuentasVencidas(vencidas);
+    return vencidas;
+  };
+
+  // Función mejorada para enviar notificaciones masivas REALES
+  const enviarNotificacionesMasivas = async () => {
+    const vencidas = verificarCuentasVencidas();
+    
+    if (vencidas.length === 0) {
+      alert('No hay cuentas vencidas para notificar.');
+      return;
+    }
+
+    // Verificar configuración
+    const configured = isEmailConfigured();
+    if (!configured) {
+      alert('⚠️ EmailJS NO está configurado.\n\nPara enviar emails REALES:\n1. Ejecuta: npm install @emailjs/browser\n2. Crea cuenta en emailjs.com\n3. Configura tus credenciales en src/services/emailService.js');
+      return;
+    }
+
+    const confirmar = window.confirm(
+      `📧 ¿Enviar emails REALES a ${vencidas.length} clientes con cuentas vencidas?\n\n⚠️ Esto enviará emails reales a las direcciones de correo registradas.`
+    );
+
+    if (!confirmar) return;
+
+    alert('🚀 Iniciando envío de emails REALES...\nEsto puede tomar varios minutos. Revisa la consola para ver el progreso.');
+
+    setShowNotificationAlert(true);
+    
+    try {
+      // Filtrar clientes que no han recibido email en 24h
+      const clientesParaNotificar = [];
+      const ahora = new Date();
+      const hace24h = new Date(ahora.getTime() - 24 * 60 * 60 * 1000);
+      
+      for (const cliente of vencidas) {
+        const ultimoEmail = emailHistory
+          .filter(email => email.clienteDNI === cliente.dni && (email.estado === 'Enviado' || email.estado === 'Simulado'))
+          .sort((a, b) => new Date(b.fechaEnvio) - new Date(a.fechaEnvio))[0];
+        
+        if (!ultimoEmail || new Date(ultimoEmail.fechaEnvio) < hace24h) {
+          clientesParaNotificar.push(cliente);
+        }
+      }
+
+      if (clientesParaNotificar.length === 0) {
+        alert('Todos los clientes ya fueron notificados en las últimas 24 horas.');
+        setShowNotificationAlert(false);
+        return;
+      }
+
+      let exitosos = 0;
+      let errores = 0;
+
+      // Enviar emails REALES con progreso
+      for (let i = 0; i < clientesParaNotificar.length; i++) {
+        const cliente = clientesParaNotificar[i];
+        try {
+          console.log(`📧 Enviando ${i + 1}/${clientesParaNotificar.length}: ${cliente.nombre}`);
+          
+          const resultado = await enviarEmail(cliente, 'vencimiento');
+          
+          if (resultado.estado === 'Enviado') {
+            exitosos++;
+            console.log(`✅ Enviado a ${cliente.nombre}`);
+          } else {
+            errores++;
+            console.log(`❌ Error enviando a ${cliente.nombre}`);
+          }
+          
+          // Delay más largo para emails reales
+          if (i < clientesParaNotificar.length - 1) {
+            console.log('⏳ Esperando 4 segundos antes del siguiente email...');
+            await new Promise(resolve => setTimeout(resolve, 4000));
+          }
+        } catch (error) {
+          console.error('❌ Error enviando a:', cliente.nombre, error);
+          errores++;
+        }
+      }
+      
+      const mensaje = `🎉 PROCESO COMPLETADO:\n\n✅ ${exitosos} emails REALES enviados\n❌ ${errores} errores\n\nRevisa la bandeja de entrada de los clientes y tu consola EmailJS para confirmar la entrega.`;
+      
+      alert(mensaje);
+      
+    } catch (error) {
+      console.error('❌ Error en notificaciones masivas:', error);
+      alert('❌ Error en el proceso. Ver consola para detalles.');
+    }
+    
+    setTimeout(() => setShowNotificationAlert(false), 2000);
+  };
+
+  // Verificar cuentas vencidas al cargar el componente
+  useEffect(() => {
+    verificarCuentasVencidas();
+  }, [clientes]);
 
   // Sidebar para dispositivos móviles
   const renderSidebar = () => (
@@ -169,6 +340,31 @@ const PagePrincipal = () => {
               <span>Rutinas</span>
             </Nav.Link>
 
+            <Nav.Link 
+              className={`d-flex align-items-center text-center mb-2 ${isDarkMode ? 'text-light' : 'text-dark'}`}
+              style={{
+                transition: 'all 0.3s ease',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                cursor: 'pointer'
+              }}
+              onClick={() => setShowEmailModal(true)}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+                e.target.style.transform = 'translateX(5px)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.transform = 'translateX(0)';
+              }}
+            >
+              <FaEnvelope className="me-2" />
+              <span>Historial de Emails</span>
+              {cuentasVencidas.length > 0 && (
+                <Badge bg="danger" className="ms-2">{cuentasVencidas.length}</Badge>
+              )}
+            </Nav.Link>
+
             {/* Separador */}
             <hr style={{
               borderColor: isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
@@ -209,6 +405,163 @@ const PagePrincipal = () => {
         : 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 25%, #90caf9 50%, #64b5f6 75%, #42a5f5 100%)',
       minHeight: '100vh'
     }}>
+      {/* Alerta de notificaciones */}
+      {showNotificationAlert && (
+        <Alert 
+          variant="success" 
+          className="position-fixed top-0 start-50 translate-middle-x mt-3"
+          style={{ zIndex: 9999, width: 'auto' }}
+        >
+          <FaBell className="me-2" />
+          Enviando notificaciones a cuentas vencidas...
+        </Alert>
+      )}
+
+      {/* Modal para historial de emails */}
+      <Modal 
+        show={showEmailModal} 
+        onHide={() => setShowEmailModal(false)} 
+        size="lg"
+        centered
+      >
+        <Modal.Header 
+          closeButton 
+          style={{
+            background: isDarkMode 
+              ? 'linear-gradient(90deg, #1a1a2e 0%, #16213e 100%)'
+              : 'linear-gradient(90deg, #ffffff 0%, #f8faff 100%)',
+            color: isDarkMode ? 'white' : 'dark'
+          }}
+        >
+          <Modal.Title>
+            <FaHistory className="me-2" />
+            Historial de Emails Enviados
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{
+          background: isDarkMode 
+            ? 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)'
+            : 'linear-gradient(135deg, #ffffff 0%, #f8faff 100%)',
+          color: isDarkMode ? 'white' : 'dark'
+        }}>
+          <Row className="mb-3">
+            <Col className="d-flex justify-content-between align-items-center">
+              <h6 className="mb-0">
+                <FaExclamationTriangle className="me-2 text-warning" />
+                Cuentas Vencidas Actuales: <Badge bg="danger">{cuentasVencidas.length}</Badge>
+              </h6>
+              <Button 
+                variant="warning" 
+                size="sm" 
+                onClick={enviarNotificacionesMasivas}
+                disabled={cuentasVencidas.length === 0}
+              >
+                <FaBell className="me-1" />
+                Notificar Vencidas
+              </Button>
+            </Col>
+          </Row>
+          
+          {emailHistory.length === 0 ? (
+            <Alert variant="info" className="text-center">
+              <FaEnvelope size={40} className="mb-2" />
+              <p className="mb-0">No se han enviado emails aún</p>
+            </Alert>
+          ) : (
+            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              <ListGroup>
+                {emailHistory
+                  .sort((a, b) => new Date(b.fechaEnvio) - new Date(a.fechaEnvio))
+                  .map((email) => (
+                    <ListGroup.Item 
+                      key={email.id}
+                      style={{
+                        background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.8)',
+                        color: isDarkMode ? 'white' : 'dark',
+                        border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`
+                      }}
+                    >
+                      <div className="d-flex justify-content-between align-items-start">
+                        <div>
+                          <h6 className="mb-1">
+                            <FaUser className="me-2 text-primary" />
+                            {email.clienteNombre}
+                          </h6>
+                          <p className="mb-1 small">
+                            <FaIdCard className="me-1 text-muted" />
+                            DNI: {email.clienteDNI}
+                          </p>
+                          <p className="mb-1 small">
+                            <FaEnvelope className="me-1 text-muted" />
+                            {email.clienteEmail}
+                          </p>
+                          <p className="mb-0 small text-muted">
+                            <FaCalendarAlt className="me-1" />
+                            {email.fechaEnvio}
+                          </p>
+                        </div>
+                        <div className="text-end">
+                          <Badge 
+                            bg={email.tipo === 'vencimiento' ? 'danger' : 'warning'}
+                            className="mb-2"
+                          >
+                            {email.tipo === 'vencimiento' ? 'Vencida' : 'Recordatorio'}
+                          </Badge>
+                          <br />
+                          <Badge bg={
+                            email.estado === 'Enviado' ? 'success' : 
+                            email.estado === 'Simulado' ? 'warning' : 'danger'
+                          }>
+                            {email.estado === 'Enviado' ? (
+                              <>
+                                <FaCheckCircle className="me-1" />
+                                Enviado
+                              </>
+                            ) : email.estado === 'Simulado' ? (
+                              <>
+                                <FaBell className="me-1" />
+                                Simulado
+                              </>
+                            ) : (
+                              <>
+                                <FaTimesCircle className="me-1" />
+                                Error
+                              </>
+                            )}
+                          </Badge>
+                          {email.metodo && (
+                            <div className="mt-1">
+                              <small className="text-muted">
+                                Método: {email.metodo}
+                              </small>
+                            </div>
+                          )}
+                          {email.error && (
+                            <div className="mt-1">
+                              <small className="text-muted" title={email.error}>
+                                {email.error.substring(0, 30)}...
+                              </small>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </ListGroup.Item>
+                  ))}
+              </ListGroup>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer style={{
+          background: isDarkMode 
+            ? 'linear-gradient(90deg, #1a1a2e 0%, #16213e 100%)'
+            : 'linear-gradient(90deg, #ffffff 0%, #f8faff 100%)'
+        }}>
+          <Button variant="secondary" onClick={() => setShowEmailModal(false)}>
+            Cerrar
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
       <Row className="flex-grow-1 m-0" style={{ minHeight: '100vh' }}>
         {/* Sidebar para pantallas medianas y grandes */}
         <Col xs={2} md={2} lg={2} className="d-none d-md-block p-0" style={{
@@ -281,28 +634,41 @@ const PagePrincipal = () => {
               
               <div className="d-flex align-items-center gap-2">
                 <Button 
-                  variant={isDarkMode ? "outline-info" : "outline-primary"}
-                   onClick={alternarTema} 
+                  variant="outline-warning"
                   size="sm"
+                  onClick={() => setShowEmailModal(true)}
+                  className="d-none d-md-flex align-items-center border-0"
                   style={{
                     borderRadius: '12px',
                     transition: 'all 0.3s ease',
-                    backdropFilter: 'blur(10px)'
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: isDarkMode 
+                      ? '0 4px 15px rgba(255,255,255,0.1)' 
+                      : '0 4px 15px rgba(0,0,0,0.1)'
+                  }}
+                >
+                  <FaEnvelope size={14} className="me-1" />
+                  Emails
+                  {cuentasVencidas.length > 0 && (
+                    <Badge bg="danger" className="ms-1">{cuentasVencidas.length}</Badge>
+                  )}
+                </Button>
+                
+                <Button 
+                  variant={isDarkMode ? "outline-light" : "outline-dark"}
+                   size="sm"
+                   onClick={alternarTema}
+                  className="d-none d-md-flex align-items-center border-0"
+                  style={{
+                    borderRadius: '12px',
+                    transition: 'all 0.3s ease',
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: isDarkMode 
+                      ? '0 4px 15px rgba(255,255,255,0.1)' 
+                      : '0 4px 15px rgba(0,0,0,0.1)'
                   }}
                  >
-                   {isDarkMode ? <FaSun /> : <FaMoon />}
-                 </Button>
-                 <Button
-                   variant="outline-danger"
-                   onClick={handleLogout}
-                   size="sm"
-                   style={{
-                     borderRadius: '12px',
-                     transition: 'all 0.3s ease',
-                     backdropFilter: 'blur(10px)'
-                   }}
-                 >
-                   <FaTimes /> Salir
+                   {isDarkMode ? <FaSun size={14} /> : <FaMoon size={14} />}
                  </Button>
                </div>
             </Container>
@@ -518,7 +884,7 @@ const PagePrincipal = () => {
                                         maxWidth: '120px'
                                       }}
                                      >
-                                      <FaTimesCircle className="me-1" /> Vencida
+                                      <FaTimesCircle className="me-1" /> Expirada
                                     </Badge>
                                     )}
                                   </td>
@@ -604,7 +970,7 @@ const PagePrincipal = () => {
                                fontSize: '1.1rem',
                                padding: '10px 20px'
                              }}>
-                               <FaTimesCircle className="me-2" /> Cuenta Vencida
+                               <FaTimesCircle className="me-2" /> Cuenta Expirada
                              </Badge>
                            )}
                          </Col>

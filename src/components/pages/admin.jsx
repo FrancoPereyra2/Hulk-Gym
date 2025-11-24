@@ -40,7 +40,9 @@ import {
   FaChartLine,
   FaUserShield,
   FaCrown,
+  FaEnvelope,
 } from "react-icons/fa";
+import { verificarYNotificarExpiraciones } from '../../services/emailService';
 
 // Hook personalizado para el tema
 export const useTheme = () => {
@@ -242,6 +244,7 @@ const AdminClientes = () => {
   const [formData, setFormData] = useState({
     nombre: "",
     dni: "",
+    email: "", // Nuevo campo
     fechaInicio: "",
     vencimiento: "",
     estado: "Activo",
@@ -253,6 +256,13 @@ const AdminClientes = () => {
   const [hoveredBar, setHoveredBar] = useState(null);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
 
+  // Nuevo estado para el sistema de emails
+  const [verificandoEmails, setVerificandoEmails] = useState(false);
+  const [ultimaVerificacion, setUltimaVerificacion] = useState(() => {
+    const saved = localStorage.getItem('ultimaVerificacionEmails');
+    return saved ? new Date(saved) : null;
+  });
+
   // Función memoizada para calcular estado de membresía
   const getEstadoMembresia = useCallback((cliente) => {
     try {
@@ -261,7 +271,7 @@ const AdminClientes = () => {
       const d = Number(partes[0]), m = Number(partes[1]) - 1, y = Number(partes[2]);
       const venc = new Date(y, m, d);
       if (isNaN(venc.getTime())) return "Activo";
-      return venc < new Date() ? "Vencida" : "Activo";
+      return venc < new Date() ? "Expirada" : "Activo";
     } catch (e) {
       return "Activo";
     }
@@ -269,17 +279,23 @@ const AdminClientes = () => {
 
   // Estadísticas memoizadas
   const estadisticas = useMemo(() => {
-    const activos = clientes.filter(cliente => getEstadoMembresia(cliente) === "Activo").length;
-    const vencidas = clientes.filter(cliente => getEstadoMembresia(cliente) === "Vencida").length;
-    const ingresos = clientes
+    // Filtrar solo clientes con email
+    const clientesConEmail = clientes.filter(cliente => {
+      const email = cliente.email || '';
+      return email.trim() !== '';
+    });
+    
+    const activos = clientesConEmail.filter(cliente => getEstadoMembresia(cliente) === "Activo").length;
+    const expiradas = clientesConEmail.filter(cliente => getEstadoMembresia(cliente) === "Expirada").length;
+    const ingresos = clientesConEmail
       .filter(cliente => getEstadoMembresia(cliente) === "Activo")
       .reduce((total, cliente) => total + (cliente.precio || 0), 0);
     
     return {
       clientesActivos: activos,
-      membresiasVencidas: vencidas,
+      membresiasVencidas: expiradas,
       ingresosMes: `$${ingresos.toLocaleString()}`,
-      totalClientes: clientes.length
+      totalClientes: clientesConEmail.length
     };
   }, [clientes, getEstadoMembresia]);
 
@@ -289,7 +305,13 @@ const AdminClientes = () => {
     const meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
     const ingresosMensuales = Array(12).fill(0);
 
-    clientes.forEach((cliente) => {
+    // Solo procesar clientes con email
+    const clientesConEmail = clientes.filter(cliente => {
+      const email = cliente.email || '';
+      return email.trim() !== '';
+    });
+
+    clientesConEmail.forEach((cliente) => {
       try {
         if (!cliente.fechaInicio) return;
         const partes = cliente.fechaInicio.split("/");
@@ -324,7 +346,19 @@ const AdminClientes = () => {
 
   // Filtrado y búsqueda optimizados con debounce
   const clientesFiltrados = useMemo(() => {
-    return clientes.filter((cliente) => {
+    console.log('Todos los clientes:', clientes);
+    
+    // Primero filtrar solo clientes con email válido
+    const clientesConEmail = clientes.filter(cliente => {
+      const email = cliente.email || '';
+      const tieneEmail = email.trim() !== '';
+      console.log(`Cliente ${cliente.nombre}: email="${email}", tieneEmail=${tieneEmail}`);
+      return tieneEmail;
+    });
+
+    console.log('Clientes con email:', clientesConEmail);
+
+    const clientesFiltradosFinales = clientesConEmail.filter((cliente) => {
       const nombre = (cliente.nombre || "").toLowerCase();
       const dni = String(cliente.dni || "");
       const termino = debouncedSearchTerm || "";
@@ -333,11 +367,14 @@ const AdminClientes = () => {
       if (filtroActivo === "activos") {
         return coincideTermino && getEstadoMembresia(cliente) === "Activo";
       } else if (filtroActivo === "vencidos") {
-        return coincideTermino && getEstadoMembresia(cliente) === "Vencida";
+        return coincideTermino && getEstadoMembresia(cliente) === "Expirada";
       }
 
       return coincideTermino;
     });
+
+    console.log('Clientes filtrados finales:', clientesFiltradosFinales);
+    return clientesFiltradosFinales;
   }, [clientes, debouncedSearchTerm, filtroActivo, getEstadoMembresia]);
 
   // Paginación optimizada
@@ -452,6 +489,7 @@ const AdminClientes = () => {
     setFormData({
       nombre: "",
       dni: "",
+      email: "",
       fechaInicio: fechaHoyFormateada,
       vencimiento: vencimientoFormateado,
       estado: "Activo",
@@ -462,16 +500,50 @@ const AdminClientes = () => {
   }, []);
 
   const guardarNuevoCliente = useCallback(() => {
+    // Validar que el email esté presente antes de guardar
+    if (!formData.email || formData.email.trim() === '') {
+      alert('El email es obligatorio para registrar un cliente.');
+      return;
+    }
+
+    console.log('Datos del formulario antes de guardar:', formData);
+
     const nuevoCliente = {
       id: clientes.length > 0 ? Math.max(...clientes.map((c) => c.id)) + 1 : 1,
       ...formData,
+      email: formData.email.trim(), // Asegurar que se guarde el email sin espacios
       precio: Number(formData.precio)
     };
 
     if (!nuevoCliente.estadoCuenta) nuevoCliente.estadoCuenta = "Activo";
 
-    setClientes(prev => [...prev, nuevoCliente]);
+    console.log('Nuevo cliente a guardar:', nuevoCliente);
+
+    setClientes(prev => {
+      const nuevaLista = [...prev, nuevoCliente];
+      console.log('Nueva lista de clientes:', nuevaLista);
+      return nuevaLista;
+    });
+    
     setShowModalNuevo(false);
+    
+    // Limpiar el formulario
+    setFormData({
+      nombre: "",
+      dni: "",
+      email: "",
+      fechaInicio: "",
+      vencimiento: "",
+      estado: "Activo",
+      estadoCuenta: "Activo",
+      precio: 10000,
+    });
+
+    // Forzar actualización inmediata del localStorage
+    setTimeout(() => {
+      const clientesActualizados = JSON.parse(localStorage.getItem('clientes') || '[]');
+      console.log('Clientes en localStorage después de guardar:', clientesActualizados);
+    }, 100);
   }, [clientes.length, formData]);
 
   const abrirModalEditar = useCallback((cliente, e) => {
@@ -480,6 +552,7 @@ const AdminClientes = () => {
       id: cliente.id,
       nombre: cliente.nombre,
       dni: cliente.dni,
+      email: cliente.email,
       fechaInicio: cliente.fechaInicio,
       vencimiento: cliente.vencimiento,
       estadoCuenta: cliente.estadoCuenta || "Activo",
@@ -489,8 +562,15 @@ const AdminClientes = () => {
   }, []);
 
   const guardarClienteEditado = useCallback(() => {
+    // Validar que el email esté presente antes de guardar
+    if (!formData.email || formData.email.trim() === '') {
+      alert('El email es obligatorio para el cliente.');
+      return;
+    }
+
     const formDataActualizado = {
       ...formData,
+      email: formData.email.trim(), // Asegurar que se guarde el email sin espacios
       precio: Number(formData.precio)
     };
     
@@ -737,6 +817,56 @@ const AdminClientes = () => {
     return `${año}-${mes}-${dia}`;
   };
 
+  // Nueva función para verificar emails manualmente
+  const handleVerificarEmails = useCallback(async () => {
+    setVerificandoEmails(true);
+    
+    try {
+      const resultado = await verificarYNotificarExpiraciones();
+      
+      if (resultado.error) {
+        alert('Error al verificar emails: ' + resultado.error.message);
+      } else {
+        const mensaje = `Verificación completada:
+        - Clientes verificados: ${resultado.totalVerificados}
+        - Emails enviados: ${resultado.emailsEnviados}
+        - Errores: ${resultado.errores}`;
+        
+        alert(mensaje);
+        
+        // Actualizar última verificación
+        const ahora = new Date();
+        setUltimaVerificacion(ahora);
+        localStorage.setItem('ultimaVerificacionEmails', ahora.toISOString());
+      }
+    } catch (error) {
+      alert('Error inesperado: ' + error.message);
+    } finally {
+      setVerificandoEmails(false);
+    }
+  }, []);
+
+  // Verificación automática al cargar el componente
+  useEffect(() => {
+    const verificacionAutomatica = async () => {
+      const ahora = new Date();
+      const unDiaEnMs = 24 * 60 * 60 * 1000;
+      
+      // Verificar si han pasado más de 24 horas desde la última verificación
+      if (!ultimaVerificacion || (ahora - ultimaVerificacion) > unDiaEnMs) {
+        console.log('Ejecutando verificación automática de emails...');
+        await verificarYNotificarExpiraciones();
+        
+        setUltimaVerificacion(ahora);
+        localStorage.setItem('ultimaVerificacionEmails', ahora.toISOString());
+      }
+    };
+
+    // Ejecutar verificación automática después de 5 segundos de cargar la página
+    const timer = setTimeout(verificacionAutomatica, 5000);
+    return () => clearTimeout(timer);
+  }, [ultimaVerificacion]);
+
   return (
     <Container fluid className="min-vh-100 d-flex flex-column p-0" style={{
       background: isDarkMode 
@@ -904,7 +1034,7 @@ const AdminClientes = () => {
               </Col>
               <Col xs={12} sm={6} lg={3}>
                 <StatCard 
-                  title="Membresías Vencidas"
+                  title="Membresías Expiradas"
                   value={estadisticas.membresiasVencidas}
                   icon={FaTimesCircle}
                   color={estadisticas.membresiasVencidas > 0 ? "warning" : "secondary"}
@@ -963,7 +1093,7 @@ const AdminClientes = () => {
             </Card>
 
             {/* Botones de acción mejorados */}
-            <div className="d-flex flex-wrap gap-3 mb-4 ">
+            <div className="d-flex flex-wrap gap-3 mb-4">
               <Button
                 variant="primary"
                 size="md" // Cambiado de "lg" a "md"
@@ -991,7 +1121,33 @@ const AdminClientes = () => {
                   <small className="opacity-75">Crear administrador</small>
                 </div>
               </Button>
+
+              <Button 
+                variant="outline-warning"
+                size="md"
+                onClick={handleVerificarEmails}
+                disabled={verificandoEmails}
+                className="d-flex align-items-center px-3 py-2 border-2"
+                style={{ borderRadius: '10px', fontSize: '1rem' }}
+              >
+                <FaEnvelope className="me-2" />
+                <div className="text-start">
+                  <div className="fw-bold">
+                    {verificandoEmails ? 'Verificando...' : 'Verificar Emails'}
+                  </div>
+                  <small className="opacity-75">Notificar membresías expiradas</small>
+                </div>
+              </Button>
             </div>
+
+            {/* Mostrar información de última verificación */}
+            {ultimaVerificacion && (
+              <Alert variant="info" className="mb-4">
+                <small>
+                  Última verificación de emails: {ultimaVerificacion.toLocaleString()}
+                </small>
+              </Alert>
+            )}
 
             {/* Sección de gestión de clientes optimizada */}
             <Card className="border-0 shadow-lg" style={{
@@ -1064,7 +1220,7 @@ const AdminClientes = () => {
                         onClick={() => setFiltroActivo("vencidos")}
                         className="flex-fill"
                       >
-                        Vencidos
+                        Expirados
                       </Button>
                     </ButtonGroup>
                   </Col>
@@ -1073,6 +1229,16 @@ const AdminClientes = () => {
                 {/* Tabla optimizada con componentes memoizados */}
                 {!isMobile ? (
                   <div className="table-responsive">
+                    {/* Debug info temporal */
+                    /* <div className="mb-3 p-2 bg-info text-white rounded">
+                      <small>
+                        Debug: Total clientes: {clientes.length} | 
+                        Con email: {clientes.filter(c => c.email && c.email.trim()).length} | 
+                        Filtrados: {clientesFiltrados.length} | 
+                        Paginados: {clientesPaginados.clientes.length}
+                      </small>
+                    </div> */}
+                    
                     <Table hover className={`mb-4 ${isDarkMode ? 'table-dark' : ''}`}>
                       <thead className={isDarkMode ? 'table-secondary' : 'table-light'}>
                         <tr>
@@ -1100,7 +1266,11 @@ const AdminClientes = () => {
                             <td colSpan="6" className="text-center py-5">
                               <div className={isDarkMode ? 'text-light opacity-50' : 'text-muted'}>
                                 <FaUsers size={48} className="mb-3 d-block mx-auto" />
-                                <p>No se encontraron clientes con los criterios de búsqueda</p>
+                                <p>No se encontraron clientes con email registrado</p>
+                                <small>
+                                  Total clientes: {clientes.length} | 
+                                  Con email: {clientes.filter(c => c.email && c.email.trim()).length}
+                                </small>
                               </div>
                             </td>
                           </tr>
@@ -1111,6 +1281,12 @@ const AdminClientes = () => {
                 ) : (
                   /* Vista móvil optimizada */
                   <div className="d-flex flex-column gap-3 mb-4">
+                    {/* Debug info temporal para móvil */}
+                    <div className="p-2 bg-info text-white rounded">
+                      <small>
+                        Debug: Total: {clientes.length} | Con email: {clientes.filter(c => c.email && c.email.trim()).length} | Filtrados: {clientesFiltrados.length}
+                      </small>
+                    </div>
                     {clientesPaginados.clientes.length > 0 ? clientesPaginados.clientes.map(cliente => {
                       const membership = getEstadoMembresia(cliente);
                       const progreso = calcularProgresoMembresia(cliente);
@@ -1473,6 +1649,20 @@ const AdminClientes = () => {
               />
             </Form.Group>
             <Form.Group className="mb-3">
+              <Form.Label>Email *</Form.Label>
+              <Form.Control
+                type="email"
+                name="email"
+                placeholder="cliente@ejemplo.com"
+                value={formData.email}
+                onChange={handleFormChange}
+                required
+              />
+              <Form.Text className="text-muted">
+                <strong>Campo obligatorio</strong> - Necesario para notificaciones y gestión del cliente
+              </Form.Text>
+            </Form.Group>
+            <Form.Group className="mb-3">
               <Form.Label>Fecha de Inicio</Form.Label>
               <Form.Control
                 type="date"
@@ -1505,7 +1695,6 @@ const AdminClientes = () => {
                 />
               </InputGroup>
             </Form.Group>
-            {/* Campo de estado eliminado en el formulario de nuevo cliente */}
           </Form>
         </Modal.Body>
         <Modal.Footer>
@@ -1548,6 +1737,20 @@ const AdminClientes = () => {
               />
             </Form.Group>
             <Form.Group className="mb-3">
+              <Form.Label>Email *</Form.Label>
+              <Form.Control
+                type="email"
+                name="email"
+                placeholder="cliente@ejemplo.com"
+                value={formData.email}
+                onChange={handleFormChange}
+                required
+              />
+              <Form.Text className="text-muted">
+                <strong>Campo obligatorio</strong> - Necesario para notificaciones
+              </Form.Text>
+            </Form.Group>
+            <Form.Group className="mb-3">
               <Form.Label>Fecha de Inicio</Form.Label>
               <Form.Control
                 type="date"
@@ -1580,7 +1783,6 @@ const AdminClientes = () => {
                 />
               </InputGroup>
             </Form.Group>
-            {/* Estado de la membresía se calcula por fecha; solo editar estado de la cuenta */}
             <Form.Group className="mb-3">
               <Form.Label>Estado de la Cuenta</Form.Label>
               <Form.Select
@@ -1612,14 +1814,12 @@ const AdminClientes = () => {
           <Modal.Title>Confirmar Eliminación</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          ¿Está seguro que desea eliminar al cliente {clienteAEliminar?.nombre}?
-          Esta acción no se puede deshacer.
+          <p>¿Estás seguro de que deseas eliminar este cliente?</p>
+          <p className="fw-bold">{clienteAEliminar?.nombre}</p>
+          <p className="text-danger">Esta acción no se puede deshacer.</p>
         </Modal.Body>
         <Modal.Footer>
-          <Button
-            variant="secondary"
-            onClick={() => setShowModalEliminar(false)}
-          >
+          <Button variant="secondary" onClick={() => setShowModalEliminar(false)}>
             Cancelar
           </Button>
           <Button variant="danger" onClick={confirmarEliminarCliente}>
