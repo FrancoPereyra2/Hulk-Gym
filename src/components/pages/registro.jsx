@@ -410,8 +410,10 @@ const Registro = () => {
                     />
                     <InputGroup.Text 
                       as="button"
+                      type="button"
                       onClick={togglePasswordVisibility}
                       className="bg-transparent border-0"
+                      style={{ cursor: 'pointer' }}
                     >
                       {showPassword ? <FaEyeSlash /> : <FaEye />}
                     </InputGroup.Text>
@@ -429,8 +431,10 @@ const Registro = () => {
                     />
                     <InputGroup.Text 
                       as="button"
+                      type="button"
                       onClick={toggleConfirmPasswordVisibility}
                       className="bg-transparent border-0"
+                      style={{ cursor: 'pointer' }}
                     >
                       {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
                     </InputGroup.Text>

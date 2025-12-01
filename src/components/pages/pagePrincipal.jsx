@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Container,
@@ -11,7 +11,6 @@ import {
   InputGroup,
   Nav,
   Navbar,
-  Stack,
   Offcanvas,
   Badge,
   Modal,
@@ -19,9 +18,8 @@ import {
   ListGroup,
 } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
-import { FaUser, FaSearch, FaCheckCircle, FaTimesCircle, FaBars, FaTimes, FaDumbbell, FaMoon, FaSun, FaUserCheck, FaCalendarAlt, FaIdCard, FaHome, FaUsers, FaCog, FaChartBar, FaEnvelope, FaBell, FaHistory, FaExclamationTriangle } from "react-icons/fa";
+import { FaUser, FaSearch, FaCheckCircle, FaTimesCircle, FaBars, FaTimes, FaDumbbell, FaMoon, FaSun, FaUserCheck, FaCalendarAlt, FaIdCard, FaUsers, FaEnvelope, FaBell, FaHistory, FaExclamationTriangle, FaDollarSign } from "react-icons/fa";
 import { useTheme } from './admin.jsx';
-import { enviarEmailReal, isEmailConfigured } from '../../services/emailService.js';
 
 const PagePrincipal = () => {
   const navigate = useNavigate();
@@ -73,6 +71,15 @@ const PagePrincipal = () => {
   });
   const [cuentasVencidas, setCuentasVencidas] = useState([]);
   const [showNotificationAlert, setShowNotificationAlert] = useState(false);
+
+  // Nuevo estado para información del cliente logueado
+  const [clienteLogueado, setClienteLogueado] = useState(null);
+
+  // Nuevo estado para tokens de activación
+  const [tokensActivacion, setTokensActivacion] = useState(() => {
+    const savedTokens = localStorage.getItem('tokensActivacion');
+    return savedTokens ? JSON.parse(savedTokens) : [];
+  });
 
   // Función para determinar si la membresía está vencida
   const calcularEstado = (vencimiento) => {
@@ -133,8 +140,10 @@ const PagePrincipal = () => {
   // Función mejorada para envío de email real
   const enviarEmail = async (cliente, tipo = 'vencimiento') => {
     try {
-      console.log('🚀 Iniciando envío de email REAL a:', cliente.nombre);
-      const resultadoReal = await enviarEmailReal(cliente, tipo);
+      console.log('🚀 Iniciando simulación de envío de email a:', cliente.nombre);
+      
+      // Simular envío de email
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       const nuevoEmail = {
         id: Date.now(),
@@ -143,11 +152,10 @@ const PagePrincipal = () => {
         clienteEmail: cliente.email || `${cliente.dni}@gmail.com`,
         tipo: tipo,
         fechaEnvio: new Date().toLocaleString('es-AR'),
-        estado: resultadoReal.success ? 'Enviado' : 'Error',
-        error: resultadoReal.error || null,
+        estado: 'Simulado',
+        error: null,
         asunto: tipo === 'vencimiento' ? 'Membresía Vencida - HULK GYM' : 'Recordatorio de Vencimiento - HULK GYM',
-        metodo: resultadoReal.success ? 'EmailJS-Real' : 'Error',
-        messageId: resultadoReal.messageId || null
+        metodo: 'Simulación'
       };
 
       const nuevoHistorial = [...emailHistory, nuevoEmail];
@@ -202,20 +210,13 @@ const PagePrincipal = () => {
       return;
     }
 
-    // Verificar configuración
-    const configured = isEmailConfigured();
-    if (!configured) {
-      alert('⚠️ EmailJS NO está configurado.\n\nPara enviar emails REALES:\n1. Ejecuta: npm install @emailjs/browser\n2. Crea cuenta en emailjs.com\n3. Configura tus credenciales en src/services/emailService.js');
-      return;
-    }
-
     const confirmar = window.confirm(
-      `📧 ¿Enviar emails REALES a ${vencidas.length} clientes con cuentas vencidas?\n\n⚠️ Esto enviará emails reales a las direcciones de correo registradas.`
+      `📧 ¿Enviar notificaciones a ${vencidas.length} clientes con cuentas vencidas?\n\n⚠️ Esto es una simulación.`
     );
 
     if (!confirmar) return;
 
-    alert('🚀 Iniciando envío de emails REALES...\nEsto puede tomar varios minutos. Revisa la consola para ver el progreso.');
+    alert('🚀 Iniciando envío de notificaciones...');
 
     setShowNotificationAlert(true);
     
@@ -244,7 +245,7 @@ const PagePrincipal = () => {
       let exitosos = 0;
       let errores = 0;
 
-      // Enviar emails REALES con progreso
+      // Enviar emails con progreso
       for (let i = 0; i < clientesParaNotificar.length; i++) {
         const cliente = clientesParaNotificar[i];
         try {
@@ -252,7 +253,7 @@ const PagePrincipal = () => {
           
           const resultado = await enviarEmail(cliente, 'vencimiento');
           
-          if (resultado.estado === 'Enviado') {
+          if (resultado.estado === 'Simulado') {
             exitosos++;
             console.log(`✅ Enviado a ${cliente.nombre}`);
           } else {
@@ -260,10 +261,9 @@ const PagePrincipal = () => {
             console.log(`❌ Error enviando a ${cliente.nombre}`);
           }
           
-          // Delay más largo para emails reales
+          // Delay entre emails
           if (i < clientesParaNotificar.length - 1) {
-            console.log('⏳ Esperando 4 segundos antes del siguiente email...');
-            await new Promise(resolve => setTimeout(resolve, 4000));
+            await new Promise(resolve => setTimeout(resolve, 1000));
           }
         } catch (error) {
           console.error('❌ Error enviando a:', cliente.nombre, error);
@@ -271,7 +271,7 @@ const PagePrincipal = () => {
         }
       }
       
-      const mensaje = `🎉 PROCESO COMPLETADO:\n\n✅ ${exitosos} emails REALES enviados\n❌ ${errores} errores\n\nRevisa la bandeja de entrada de los clientes y tu consola EmailJS para confirmar la entrega.`;
+      const mensaje = `🎉 PROCESO COMPLETADO:\n\n✅ ${exitosos} notificaciones enviadas\n❌ ${errores} errores`;
       
       alert(mensaje);
       
@@ -283,10 +283,67 @@ const PagePrincipal = () => {
     setTimeout(() => setShowNotificationAlert(false), 2000);
   };
 
+  // Función para reenviar email de activación
+  const reenviarEmailActivacion = useCallback(async (cliente) => {
+    if (cliente.cuentaActivada) {
+      alert('Esta cuenta ya está activada.');
+      return;
+    }
+
+    try {
+      // Generar nuevo token simulado
+      const nuevoToken = Math.random().toString(36).substring(2, 15);
+      const tokenData = {
+        token: nuevoToken,
+        clienteId: cliente.id,
+        clienteDNI: cliente.dni,
+        clienteEmail: cliente.email,
+        fechaCreacion: new Date().toISOString(),
+        usado: false,
+        fechaExpiracion: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      };
+
+      // Marcar tokens anteriores como expirados
+      setTokensActivacion(prev => prev.map(t => 
+        t.clienteId === cliente.id ? { ...t, usado: true } : t
+      ));
+
+      // Simular envío de email
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      setTokensActivacion(prev => [...prev, tokenData]);
+      alert(`Email de activación simulado enviado a ${cliente.email}`);
+
+    } catch (error) {
+      console.error('Error al reenviar email:', error);
+      alert('Error al reenviar el email de activación.');
+    }
+  }, []);
+
   // Verificar cuentas vencidas al cargar el componente
   useEffect(() => {
     verificarCuentasVencidas();
   }, [clientes]);
+
+  // Cargar información del cliente si es tipo 'cliente'
+  useEffect(() => {
+    if (userType === 'cliente') {
+      const userEmail = localStorage.getItem('userEmail');
+      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const user = users.find(u => u.username === userEmail && u.role === 'cliente');
+      
+      if (user && user.clienteId) {
+        const savedClientes = localStorage.getItem('clientes');
+        if (savedClientes) {
+          const clientes = JSON.parse(savedClientes);
+          const cliente = clientes.find(c => c.id === user.clienteId && c.cuentaActivada);
+          if (cliente) {
+            setClienteLogueado(cliente);
+          }
+        }
+      }
+    }
+  }, [userType]);
 
   // Sidebar para dispositivos móviles
   const renderSidebar = () => (
@@ -301,11 +358,26 @@ const PagePrincipal = () => {
     >
       <Container fluid className="d-flex flex-column h-100 p-0">
         <Navbar.Brand className="p-3 w-100">
-          <h3 className={`fw-bold text-center ${isDarkMode ? 'text-success' : 'text-primary'}`}>HULK GYM</h3>
-          <Nav className="flex-column w-100 mt-4">
+          <h3 className={`fw-bold text-center ${isDarkMode ? 'text-success' : 'text-primary'}`} style={{
+            background: isDarkMode 
+              ? 'linear-gradient(45deg, #60a5fa, #34d399)'
+              : undefined,
+            WebkitBackgroundClip: isDarkMode ? 'text' : undefined,
+            WebkitTextFillColor: isDarkMode ? 'transparent' : undefined,
+            color: isDarkMode ? undefined : '#222',
+            fontFamily: '"Fjalla One", sans-serif'
+          }}>HULK GYM</h3>
+          <p className={`text-center small mb-4 ${isDarkMode ? 'text-light opacity-75' : 'text-muted'}`} style={{
+            color: isDarkMode ? undefined : '#222',
+            fontWeight: 500
+          }}>
+            {userType === 'cliente' ? 'Panel de Cliente' : 'Panel Administrativo'}
+          </p>
+          
+          <Nav className="flex-column w-100">
             {/* Opciones de navegación */}
             <Nav.Link 
-              className={`d-flex align-items-center text-center mb-2 ${isDarkMode ? 'text-info' : 'text-primary'}`}
+              className={`d-flex align-items-center mb-2 ${isDarkMode ? 'text-info' : 'text-primary'}`}
               style={{
                 transition: 'all 0.3s ease',
                 borderRadius: '8px',
@@ -315,11 +387,11 @@ const PagePrincipal = () => {
               onClick={() => navigate(userType === 'admin' ? '/admin' : '/principal')}
             >
               <FaUsers className="me-2" />
-              <span>Gestión de Clientes</span>
+              <span>{userType === 'cliente' ? 'Mi Estado de Cuenta' : 'Consultar Clientes'}</span>
             </Nav.Link>
             
             <Nav.Link 
-              className={`d-flex align-items-center text-center mb-2 ${isDarkMode ? 'text-light' : 'text-dark'}`}
+              className={`d-flex align-items-center mb-2 ${isDarkMode ? 'text-light' : 'text-dark'}`}
               style={{
                 transition: 'all 0.3s ease',
                 borderRadius: '8px',
@@ -340,31 +412,6 @@ const PagePrincipal = () => {
               <span>Rutinas</span>
             </Nav.Link>
 
-            <Nav.Link 
-              className={`d-flex align-items-center text-center mb-2 ${isDarkMode ? 'text-light' : 'text-dark'}`}
-              style={{
-                transition: 'all 0.3s ease',
-                borderRadius: '8px',
-                padding: '12px 16px',
-                cursor: 'pointer'
-              }}
-              onClick={() => setShowEmailModal(true)}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
-                e.target.style.transform = 'translateX(5px)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = 'transparent';
-                e.target.style.transform = 'translateX(0)';
-              }}
-            >
-              <FaEnvelope className="me-2" />
-              <span>Historial de Emails</span>
-              {cuentasVencidas.length > 0 && (
-                <Badge bg="danger" className="ms-2">{cuentasVencidas.length}</Badge>
-              )}
-            </Nav.Link>
-
             {/* Separador */}
             <hr style={{
               borderColor: isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
@@ -373,9 +420,10 @@ const PagePrincipal = () => {
 
             {/* Botón de Cerrar Sesión */}
             <Nav.Link 
-              className="d-flex align-items-center text-center text-danger mt-auto mb-3"
+              className="d-flex align-items-center text-danger mt-auto mb-3"
               onClick={handleLogout}
               style={{
+                cursor: 'pointer',
                 transition: 'all 0.3s ease',
                 borderRadius: '8px',
                 padding: '12px 16px'
@@ -619,9 +667,9 @@ const PagePrincipal = () => {
                   transition: 'all 0.3s ease',
                   backdropFilter: 'blur(10px)'
                 }}
-               >
-                 <FaBars />
-               </Button>
+              >
+                <FaBars />
+              </Button>
               <Navbar.Brand className="fw-bold" style={{
                 background: 'linear-gradient(45deg, #28a745, #20c997)',
                 WebkitBackgroundClip: 'text',
@@ -634,9 +682,9 @@ const PagePrincipal = () => {
               
               <div className="d-flex align-items-center gap-2">
                 <Button 
-                  variant="outline-warning"
+                  variant={isDarkMode ? "outline-light" : "outline-dark"}
                   size="sm"
-                  onClick={() => setShowEmailModal(true)}
+                  onClick={alternarTema}
                   className="d-none d-md-flex align-items-center border-0"
                   style={{
                     borderRadius: '12px',
@@ -647,439 +695,549 @@ const PagePrincipal = () => {
                       : '0 4px 15px rgba(0,0,0,0.1)'
                   }}
                 >
-                  <FaEnvelope size={14} className="me-1" />
-                  Emails
-                  {cuentasVencidas.length > 0 && (
-                    <Badge bg="danger" className="ms-1">{cuentasVencidas.length}</Badge>
-                  )}
+                  {isDarkMode ? <FaSun size={14} /> : <FaMoon size={14} />}
                 </Button>
-                
-                <Button 
-                  variant={isDarkMode ? "outline-light" : "outline-dark"}
-                   size="sm"
-                   onClick={alternarTema}
-                  className="d-none d-md-flex align-items-center border-0"
-                  style={{
-                    borderRadius: '12px',
-                    transition: 'all 0.3s ease',
-                    backdropFilter: 'blur(10px)',
-                    boxShadow: isDarkMode 
-                      ? '0 4px 15px rgba(255,255,255,0.1)' 
-                      : '0 4px 15px rgba(0,0,0,0.1)'
-                  }}
-                 >
-                   {isDarkMode ? <FaSun size={14} /> : <FaMoon size={14} />}
-                 </Button>
-               </div>
+              </div>
             </Container>
           </Navbar>
 
           {/* Contenido de la página */}
-          <Container fluid className="p-3 flex-grow-1">
-            {/* Header con botón de tema */}
-            <Row className="mb-3">
+          <Container fluid className="p-3 p-lg-5" style={{ minHeight: '100vh' }}> {/* Más padding en desktop */}
+            {/* Header con botón de tema - MÁS GRANDE EN DESKTOP */}
+            <Row className="mb-3 mb-lg-4">
               <Col className="d-flex justify-content-end">
-                {/* Oculto en móviles: ya existe el botón de tema en la navbar móvil */}
                 <Button 
                   variant={isDarkMode ? "outline-light" : "outline-dark"}
-                   size="sm"
-                   onClick={alternarTema}
+                  size="sm"
+                  onClick={alternarTema}
                   className="d-none d-md-flex align-items-center border-0"
                   style={{
                     borderRadius: '12px',
                     transition: 'all 0.3s ease',
                     backdropFilter: 'blur(10px)',
-                    boxShadow: isDarkMode 
-                      ? '0 4px 15px rgba(255,255,255,0.1)' 
-                      : '0 4px 15px rgba(0,0,0,0.1)'
+                    padding: '10px 20px' // Más padding en desktop
                   }}
-                 >
-                   {isDarkMode ? <FaSun size={14} /> : <FaMoon size={14} />}
-                 </Button>
-               </Col>
+                >
+                  {isDarkMode ? <FaSun size={16} /> : <FaMoon size={16} />}
+                </Button>
+              </Col>
             </Row>
 
             <Row>
               <Col xs={12}>
-                <div className="text-center mb-5" key={isDarkMode ? 'dark' : 'light'}>
-                  <h1 className="display-4 fw-bold mb-2" style={{
+                {/* HEADER MÁS GRANDE EN DESKTOP */}
+                <div className="text-center mb-4 mb-lg-5">
+                  <h1 className="fw-bold mb-2 mb-lg-3" style={{
                     background: isDarkMode 
                       ? 'linear-gradient(45deg, #60a5fa, #34d399, #fbbf24)'
                       : 'linear-gradient(45deg, #1e40af, #059669, #d97706)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     fontFamily: '"Fjalla One", sans-serif',
-                    letterSpacing: '2px',
-                    transition: 'all 0.3s ease'
+                    fontSize: 'clamp(1.5rem, 4vw, 2.5rem)' // Responsivo
                   }}>
-                    GESTIÓN DE CLIENTES
+                    {userType === 'cliente' && clienteLogueado ? 'MI ESTADO DE CUENTA' : 'GESTIÓN DE CLIENTES'}
                   </h1>
-                  <p className={`lead ${isDarkMode ? 'text-light' : 'text-muted'}`} style={{
-                    fontSize: '1.1rem',
-                    fontWeight: '300',
-                    transition: 'color 0.3s ease'
+                  <p className={`mb-0 ${isDarkMode ? 'text-light opacity-75' : 'text-muted'}`} style={{
+                    fontSize: 'clamp(0.9rem, 2vw, 1.2rem)' // Responsivo
                   }}>
-                    Busca y consulta el estado de las membresías
+                    {userType === 'cliente' && clienteLogueado 
+                      ? `Bienvenido ${clienteLogueado.nombre}` 
+                      : 'Busca y consulta el estado de las membresías'}
                   </p>
                 </div>
-               </Col>
+              </Col>
 
-               {/* Sección de búsqueda */}
-               <Col xs={12} className="mb-4">
-                <Card className="border-0 shadow-lg h-100" style={{
-                  background: isDarkMode 
-                    ? 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)'
-                    : 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%)',
-                  backdropFilter: 'blur(15px)',
-                  borderRadius: '20px'
-                }}>
-                  <Card.Header className="border-0 bg-transparent">
-                    <h5 className={`mb-0 d-flex align-items-center ${isDarkMode ? 'text-light' : 'text-dark'}`}>
-                      <FaSearch className="me-2 text-primary" />
-                      Buscar Cliente
-                    </h5>
-                  </Card.Header>
-                  <Card.Body>
-                    <Form onSubmit={handleSearch}>
-                      <InputGroup size="lg" style={{ borderRadius: '15px' }}>
-                        <Form.Control
-                          type="text"
-                          placeholder="Ingresa el DNI del cliente..."
-                          value={searchDNI}
-                          onChange={handleSearchInputChange}
-                          style={{
-                            borderRadius: '15px 0 0 15px',
-                            border: 'none',
-                            background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.8)',
-                            color: isDarkMode ? 'white' : 'dark',
-                            fontSize: '1.1rem',
-                            padding: '12px 20px'
-                          }}
-                        />
-                        <Button 
-                          variant="primary" 
-                          type="submit"
-                          style={{
-                            borderRadius: '0 15px 15px 0',
-                            background: 'linear-gradient(45deg, #007bff, #0056b3)',
-                            border: 'none',
-                            padding: '12px 25px',
-                            transition: 'all 0.3s ease'
-                          }}
-                        >
-                          <FaSearch size={18} />
-                        </Button>
-                      </InputGroup>
-                    </Form>
-                  </Card.Body>
-                </Card>
-               </Col>
-
-               {/* Tabla de resultados */}
-               <Col xs={12} className="mb-5 d-flex justify-content-center">
-                <Card className="border-0 shadow-lg w-100" style={{
-                  background: isDarkMode 
-                    ? 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)'
-                    : 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%)',
-                  backdropFilter: 'blur(15px)',
-                  borderRadius: '20px',
-                  maxWidth: '1000px'
-                }}>
-                  <Card.Header className="border-0 bg-transparent">
-                    <h5 className={`mb-0 d-flex align-items-center justify-content-center ${isDarkMode ? 'text-light' : 'text-dark'}`}>
-                      <FaUserCheck className="me-2 text-success" />
-                      Resultados de Búsqueda
-                    </h5>
-                  </Card.Header>
-                  <Card.Body>
-                    <div className="table-responsive">
-                      <Table hover className="mb-0" style={{
-                        borderRadius: '15px',
-                        overflow: 'hidden'
-                      }}>
-                        <thead style={{
-                          background: isDarkMode 
-                            ? 'linear-gradient(90deg, #374151, #4b5563)'
-                            : 'linear-gradient(90deg, #f8fafc, #e2e8f0)'
-                        }}>
-                          <tr>
-                            <th style={{ 
-                              padding: '20px', 
-                              fontWeight: '600',
-                              color: isDarkMode ? '#e5e7eb' : '#374151',
-                              fontSize: '1rem'
-                            }}>Nombre</th>
-                            <th style={{ 
-                              padding: '20px', 
-                              fontWeight: '600',
-                              color: isDarkMode ? '#e5e7eb' : '#374151',
-                              fontSize: '1rem'
-                            }}>DNI</th>
-                            <th style={{ 
-                              padding: '20px', 
-                              fontWeight: '600',
-                              color: isDarkMode ? '#e5e7eb' : '#374151',
-                              fontSize: '1rem'
-                            }}>Vencimiento</th>
-                            <th style={{ 
-                              padding: '20px', 
-                              fontWeight: '600',
-                              color: isDarkMode ? '#e5e7eb' : '#374151',
-                              fontSize: '1rem'
-                            }}>Estado</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                           {busquedaRealizada ? (
-                             clienteEncontrado ? (
-                              <tr style={{
-                                background: isDarkMode ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.5)',
-                                transition: 'all 0.3s ease'
+              {/* Vista para cliente logueado - DISEÑO MEJORADO */}
+              {userType === 'cliente' && clienteLogueado ? (
+                <Col xs={12} lg={10} xl={9} className="mx-auto mb-4">
+                  <Card className="border-0 shadow-lg overflow-hidden" style={{
+                    background: isDarkMode 
+                      ? 'rgba(255,255,255,0.05)'
+                      : 'rgba(255,255,255,0.98)',
+                    backdropFilter: 'blur(20px)',
+                    borderRadius: '24px'
+                  }}>
+                    {/* Header sin gradiente violeta - diseño limpio */}
+                    <div style={{
+                      background: isDarkMode
+                        ? 'rgba(255,255,255,0.05)'
+                        : 'rgba(0,0,0,0.02)',
+                      padding: '3rem 2rem',
+                      borderBottom: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`
+                    }}>
+                      <Row className="align-items-center">
+                        <Col xs={12} md={8}>
+                          <div className="d-flex align-items-center">
+                            <div 
+                              className="rounded-circle d-inline-flex align-items-center justify-content-center bg-primary text-white shadow-lg" 
+                              style={{ 
+                                width: "100px",
+                                height: "100px",
+                                fontWeight: 700, 
+                                fontSize: '2.5rem'
+                              }}
+                            >
+                              {clienteLogueado.nombre ? clienteLogueado.nombre.charAt(0).toUpperCase() : <FaUser />}
+                            </div>
+                            <div className="ms-4">
+                              <h2 className={`${isDarkMode ? 'text-light' : 'text-dark'} fw-bold mb-2`} style={{
+                                fontSize: 'clamp(1.8rem, 3vw, 2.5rem)'
                               }}>
-                                <td style={{ 
-                                  padding: '20px', 
-                                  fontWeight: '500',
-                                  color: isDarkMode ? '#f3f4f6' : '#374151',
-                                  fontSize: '1rem'
-                                }}>{clienteEncontrado.nombre}</td>
-                                <td style={{ 
-                                  padding: '20px',
-                                  color: isDarkMode ? '#f3f4f6' : '#374151',
-                                  fontSize: '1rem'
-                                }}>{clienteEncontrado.dni}</td>
-                                <td style={{ 
-                                  padding: '20px',
-                                  color: isDarkMode ? '#f3f4f6' : '#374151',
-                                  fontSize: '1rem'
-                                }}>
-                                  <FaCalendarAlt className="me-2 text-muted" />
-                                  {clienteEncontrado.vencimiento}
-                                </td>
-                                <td style={{ padding: '20px' }}>
-                                   {clienteEncontrado.estado === "Activo" ? (
-                                    <Badge 
-                                      bg="success" 
-                                      pill 
-                                      style={{ 
-                                        fontSize: '0.9rem',
-                                        padding: '8px 15px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        maxWidth: '120px'
-                                      }}
-                                     >
-                                      <FaCheckCircle className="me-1" /> Activo
-                                    </Badge>
-                                    ) : (
-                                    <Badge 
-                                      bg="danger" 
-                                      pill 
-                                      style={{ 
-                                        fontSize: '0.9rem',
-                                        padding: '8px 15px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        maxWidth: '120px'
-                                      }}
-                                     >
-                                      <FaTimesCircle className="me-1" /> Expirada
-                                    </Badge>
-                                    )}
+                                {clienteLogueado.nombre}
+                              </h2>
+                              <p className={`${isDarkMode ? 'text-light' : 'text-muted'} mb-0`} style={{
+                                fontSize: '1.1rem'
+                              }}>
+                                DNI: {clienteLogueado.dni}
+                              </p>
+                            </div>
+                          </div>
+                        </Col>
+                        <Col xs={12} md={4} className="text-md-end mt-3 mt-md-0">
+                          {calcularEstado(clienteLogueado.vencimiento) === "Activo" ? (
+                            <Badge bg="success" pill className="px-4 py-3 shadow" style={{ 
+                              fontSize: '1.1rem',
+                              fontWeight: '600'
+                            }}>
+                              <FaCheckCircle className="me-2" size={18} /> 
+                              Membresía Activa
+                            </Badge>
+                          ) : (
+                            <Badge bg="danger" pill className="px-4 py-3 shadow" style={{ 
+                              fontSize: '1.1rem',
+                              fontWeight: '600'
+                            }}>
+                              <FaTimesCircle className="me-2" size={18} /> 
+                              Membresía Expirada
+                            </Badge>
+                          )}
+                        </Col>
+                      </Row>
+                    </div>
+
+                    <Card.Body className="p-4 p-lg-5">
+                      {/* Grid de información con diseño mejorado y mejor espaciado */}
+                      <Row className="g-3 g-lg-4 mb-4">
+                        {/* Email */}
+                        <Col xs={12} md={6}>
+                          <div 
+                            className={`h-100 p-4 rounded-4 ${isDarkMode ? 'bg-dark' : 'bg-light'}`}
+                            style={{
+                              transition: 'all 0.3s ease',
+                              border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.05)'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'translateY(-8px)';
+                              e.currentTarget.style.boxShadow = isDarkMode 
+                                ? '0 12px 24px rgba(0,0,0,0.4)' 
+                                : '0 12px 24px rgba(0,0,0,0.1)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.boxShadow = 'none';
+                            }}
+                          >
+                            <div className="d-flex align-items-center">
+                              <div className="rounded-circle bg-info bg-opacity-10 p-3 me-3">
+                                <FaEnvelope className="text-info" size={24} />
+                              </div>
+                              <div className="flex-grow-1">
+                                <p className="text-muted mb-1 small">Email</p>
+                                <h6 className="mb-0 fw-bold text-truncate" style={{ fontSize: '0.95rem' }}>
+                                  {clienteLogueado.email || 'No registrado'}
+                                </h6>
+                              </div>
+                            </div>
+                          </div>
+                        </Col>
+
+                        {/* Fecha de Inicio */}
+                        <Col xs={12} md={6}>
+                          <div 
+                            className={`h-100 p-4 rounded-4 ${isDarkMode ? 'bg-dark' : 'bg-light'}`}
+                            style={{
+                              transition: 'all 0.3s ease',
+                              border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.05)'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'translateY(-8px)';
+                              e.currentTarget.style.boxShadow = isDarkMode 
+                                ? '0 12px 24px rgba(0,0,0,0.4)' 
+                                : '0 12px 24px rgba(0,0,0,0.1)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.boxShadow = 'none';
+                            }}
+                          >
+                            <div className="d-flex align-items-center">
+                              <div className="rounded-circle bg-success bg-opacity-10 p-3 me-3">
+                                <FaCalendarAlt className="text-success" size={24} />
+                              </div>
+                              <div className="flex-grow-1">
+                                <p className="text-muted mb-1 small">Fecha de Inicio</p>
+                                <h6 className="mb-0 fw-bold">
+                                  {clienteLogueado.fechaInicio || "N/A"}
+                                </h6>
+                              </div>
+                            </div>
+                          </div>
+                        </Col>
+
+                        {/* Fecha de Vencimiento */}
+                        <Col xs={12} md={6}>
+                          <div 
+                            className={`h-100 p-4 rounded-4 ${isDarkMode ? 'bg-dark' : 'bg-light'}`}
+                            style={{
+                              transition: 'all 0.3s ease',
+                              border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.05)'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'translateY(-8px)';
+                              e.currentTarget.style.boxShadow = isDarkMode 
+                                ? '0 12px 24px rgba(0,0,0,0.4)' 
+                                : '0 12px 24px rgba(0,0,0,0.1)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.boxShadow = 'none';
+                            }}
+                          >
+                            <div className="d-flex align-items-center">
+                              <div className="rounded-circle bg-warning bg-opacity-10 p-3 me-3">
+                                <FaCalendarAlt className="text-warning" size={24} />
+                              </div>
+                              <div className="flex-grow-1">
+                                <p className="text-muted mb-1 small">Vencimiento</p>
+                                <h6 className="mb-0 fw-bold">
+                                  {clienteLogueado.vencimiento || "N/A"}
+                                </h6>
+                              </div>
+                            </div>
+                          </div>
+                        </Col>
+
+                        {/* Estado de Cuenta */}
+                        <Col xs={12} md={6}>
+                          <div 
+                            className={`h-100 p-4 rounded-4 ${isDarkMode ? 'bg-dark' : 'bg-light'}`}
+                            style={{
+                              transition: 'all 0.3s ease',
+                              border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.05)'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'translateY(-8px)';
+                              e.currentTarget.style.boxShadow = isDarkMode 
+                                ? '0 12px 24px rgba(0,0,0,0.4)' 
+                                : '0 12px 24px rgba(0,0,0,0.1)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.boxShadow = 'none';
+                            }}
+                          >
+                            <div className="d-flex align-items-center">
+                              <div className="rounded-circle bg-info bg-opacity-10 p-3 me-3">
+                                <FaUserCheck className="text-info" size={24} />
+                              </div>
+                              <div className="flex-grow-1">
+                                <p className="text-muted mb-1 small">Estado de Cuenta</p>
+                                <h6 className="mb-0 fw-bold">
+                                  {clienteLogueado.estadoCuenta || "Activo"}
+                                </h6>
+                              </div>
+                            </div>
+                          </div>
+                        </Col>
+
+                        {/* Días Restantes */}
+                        <Col xs={12}>
+                          <div 
+                            className={`h-100 p-4 rounded-4 ${isDarkMode ? 'bg-dark' : 'bg-light'}`}
+                            style={{
+                              transition: 'all 0.3s ease',
+                              border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.05)'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'translateY(-8px)';
+                              e.currentTarget.style.boxShadow = isDarkMode 
+                                ? '0 12px 24px rgba(0,0,0,0.4)' 
+                                : '0 12px 24px rgba(0,0,0,0.1)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.boxShadow = 'none';
+                            }}
+                          >
+                            <div className="d-flex align-items-center">
+                              <div className={`rounded-circle ${
+                                (() => {
+                                  if (!clienteLogueado.vencimiento) return 'bg-secondary';
+                                  try {
+                                    const [dia, mes, anio] = clienteLogueado.vencimiento.split("/");
+                                    const fechaVenc = new Date(anio, mes - 1, dia);
+                                    const hoy = new Date();
+                                    const diff = Math.ceil((fechaVenc - hoy) / (1000 * 60 * 60 * 24));
+                                    if (diff > 7) return 'bg-success';
+                                    if (diff > 0) return 'bg-warning';
+                                    return 'bg-danger';
+                                  } catch {
+                                    return 'bg-secondary';
+                                  }
+                                })()
+                              } bg-opacity-10 p-3 me-3`}>
+                                <FaCalendarAlt className={
+                                  (() => {
+                                    if (!clienteLogueado.vencimiento) return 'text-secondary';
+                                    try {
+                                      const [dia, mes, anio] = clienteLogueado.vencimiento.split("/");
+                                      const fechaVenc = new Date(anio, mes - 1, dia);
+                                      const hoy = new Date();
+                                      const diff = Math.ceil((fechaVenc - hoy) / (1000 * 60 * 60 * 24));
+                                      if (diff > 7) return 'text-success';
+                                      if (diff > 0) return 'text-warning';
+                                      return 'text-danger';
+                                    } catch {
+                                      return 'text-secondary';
+                                    }
+                                  })()
+                                } size={24} />
+                              </div>
+                              <div className="flex-grow-1">
+                                <p className="text-muted mb-1 small">Días Restantes</p>
+                                <h6 className="mb-0 fw-bold">
+                                  {(() => {
+                                    if (!clienteLogueado.vencimiento) return 'N/A';
+                                    try {
+                                      const [dia, mes, anio] = clienteLogueado.vencimiento.split("/");
+                                      const fechaVenc = new Date(anio, mes - 1, dia);
+                                      const hoy = new Date();
+                                      const diff = Math.ceil((fechaVenc - hoy) / (1000 * 60 * 60 * 24));
+                                      return diff > 0 ? `${diff} días` : 'Expirada';
+                                    } catch {
+                                      return 'N/A';
+                                    }
+                                  })()}
+                                </h6>
+                              </div>
+                            </div>
+                          </div>
+                        </Col>
+                      </Row>
+
+                      {/* Alerta de estado mejorada */}
+                      <Alert 
+                        variant={calcularEstado(clienteLogueado.vencimiento) === "Activo" ? "success" : "danger"}
+                        className="mb-0 border-0 shadow-sm"
+                        style={{
+                          borderRadius: '16px',
+                          background: calcularEstado(clienteLogueado.vencimiento) === "Activo"
+                            ? isDarkMode ? 'rgba(34, 197, 94, 0.1)' : 'rgba(34, 197, 94, 0.1)'
+                            : isDarkMode ? 'rgba(239, 68, 68, 0.1)' : 'rgba(239, 68, 68, 0.1)'
+                        }}
+                      >
+                        <div className="d-flex align-items-start">
+                          {calcularEstado(clienteLogueado.vencimiento) === "Activo" ? 
+                            <FaCheckCircle size={28} className="me-3 text-success flex-shrink-0" /> : 
+                            <FaTimesCircle size={28} className="me-3 text-danger flex-shrink-0" />
+                          }
+                          <div>
+                            <h5 className="mb-2 fw-bold">
+                              {calcularEstado(clienteLogueado.vencimiento) === "Activo" 
+                                ? "¡Tu membresía está activa!" 
+                                : "Tu membresía ha expirado"}
+                            </h5>
+                            <p className="mb-0">
+                              {calcularEstado(clienteLogueado.vencimiento) === "Activo" 
+                                ? "Continúa disfrutando de todos nuestros servicios y mantente en forma. ¡Sigue así!" 
+                                : "Contacta al gimnasio para renovar tu membresía y seguir entrenando con nosotros."}
+                            </p>
+                          </div>
+                        </div>
+                      </Alert>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              ) : (
+                // Vista original para admin y búsqueda - TAMBIÉN MEJORADA
+                <>
+                  <Col xs={12} lg={10} xl={8} className="mx-auto"> {/* Centrado en desktop */}
+                    {/* Sección de búsqueda - MÁS GRANDE */}
+                    <Card className="border-0 shadow-lg mb-4" style={{
+                      background: isDarkMode 
+                        ? 'rgba(255,255,255,0.05)'
+                        : 'rgba(255,255,255,0.98)',
+                      backdropFilter: 'blur(20px)',
+                      borderRadius: '24px'
+                    }}>
+                      <Card.Body className="p-4 p-lg-5">
+                        <h4 className={`mb-4 ${isDarkMode ? 'text-light' : 'text-dark'}`}>
+                          <FaSearch className="me-2" />
+                          Buscar Cliente
+                        </h4>
+                        <Form onSubmit={handleSearch}>
+                          <InputGroup size="lg">
+                            <InputGroup.Text className={isDarkMode ? 'bg-dark border-0 text-light' : 'bg-white border-0'}>
+                              <FaSearch />
+                            </InputGroup.Text>
+                            <Form.Control
+                              type="text"
+                              placeholder="Ingresa el DNI del cliente..."
+                              value={searchDNI}
+                              onChange={handleSearchInputChange}
+                              className={isDarkMode ? 'bg-dark border-0 text-light' : 'border-0'}
+                              style={{
+                                fontSize: '1.1rem',
+                                padding: '15px'
+                              }}
+                            />
+                            <Button 
+                              variant="primary" 
+                              type="submit"
+                              style={{ 
+                                border: 'none',
+                                padding: '0 30px',
+                                fontSize: '1.1rem'
+                              }}
+                            >
+                              Buscar
+                            </Button>
+                          </InputGroup>
+                        </Form>
+                      </Card.Body>
+                    </Card>
+
+                    {/* Tabla de resultados - MÁS ESPACIOSA */}
+                    <Card className="border-0 shadow-lg mb-4" style={{
+                      background: isDarkMode 
+                        ? 'rgba(255,255,255,0.05)'
+                        : 'rgba(255,255,255,0.98)',
+                      backdropFilter: 'blur(20px)',
+                      borderRadius: '24px'
+                    }}>
+                      <Card.Body className="p-4 p-lg-5">
+                        <h4 className={`mb-4 ${isDarkMode ? 'text-light' : 'text-dark'}`}>
+                          <FaUserCheck className="me-2" />
+                          Resultados
+                        </h4>
+                        <div className="table-responsive">
+                          <Table hover className="mb-0">
+                            <thead style={{
+                              background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)'
+                            }}>
+                              <tr>
+                                <th className="p-3 fs-6">Nombre</th>
+                                <th className="p-3 fs-6">DNI</th>
+                                <th className="p-3 fs-6 d-none d-md-table-cell">Vencimiento</th>
+                                <th className="p-3 fs-6">Estado</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {busquedaRealizada ? (
+                                clienteEncontrado ? (
+                                  <tr>
+                                    <td className="p-3">{clienteEncontrado.nombre}</td>
+                                    <td className="p-3">{clienteEncontrado.dni}</td>
+                                    <td className="p-3 d-none d-md-table-cell">
+                                      {clienteEncontrado.vencimiento}
+                                    </td>
+                                    <td className="p-3">
+                                      <Badge 
+                                        bg={clienteEncontrado.estado === "Activo" ? "success" : "danger"}
+                                        pill
+                                        className="px-3 py-2"
+                                      >
+                                        {clienteEncontrado.estado === "Activo" ? "Activo" : "Expirada"}
+                                      </Badge>
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  <tr>
+                                    <td colSpan="4" className="text-center p-5 text-muted">
+                                      <FaTimesCircle size={48} className="mb-3" />
+                                      <p className="mb-0 fs-5">No se encontraron resultados</p>
+                                    </td>
+                                  </tr>
+                                )
+                              ) : (
+                                <tr>
+                                  <td colSpan="4" className="text-center p-5 text-muted">
+                                    <FaSearch size={48} className="mb-3" />
+                                    <p className="mb-0 fs-5">Ingresa un DNI para buscar</p>
                                   </td>
                                 </tr>
-                              ) : (
-                                <tr style={{
-                                  background: isDarkMode ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.5)'
-                                }}>
-                                  <td colSpan="4" className="text-center" style={{ 
-                                    padding: '40px 20px',
-                                    color: isDarkMode ? '#9ca3af' : '#6b7280',
-                                    fontSize: '1.1rem'
-                                  }}>
-                                    <FaTimesCircle className="me-2 text-danger" size={20} />
-                                    No se encontraron resultados para el DNI ingresado
-                                   </td>
-                                 </tr>
-                               )
-                             ) : (
-                              <tr style={{
-                                background: isDarkMode ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.5)'
-                              }}>
-                                <td colSpan="4" className="text-center" style={{ 
-                                  padding: '40px 20px',
-                                  color: isDarkMode ? '#9ca3af' : '#6b7280',
-                                  fontSize: '1.1rem'
-                                }}>
-                                  <FaSearch className="me-2 text-info" size={20} />
-                                  Ingresa un DNI para conocer el estado de cuenta
-                                 </td>
-                               </tr>
-                             )}
-                        </tbody>
-                      </Table>
-                    </div>
-                  </Card.Body>
-                </Card>
-               </Col>
+                              )}
+                            </tbody>
+                          </Table>
+                        </div>
+                      </Card.Body>
+                    </Card>
 
-               {/* Información del cliente */}
-               {clienteEncontrado && (
-                 <Col xs={12} className="d-flex justify-content-center">
-                  <Card className="border-0 shadow-lg w-100" style={{
-                    background: isDarkMode 
-                      ? 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)'
-                      : 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%)',
-                    backdropFilter: 'blur(15px)',
-                    borderRadius: '20px',
-                    maxWidth: '1000px'
-                  }}>
-                    <Card.Header className="border-0 bg-transparent text-center py-4">
-                      <h3 className={`mb-0 ${isDarkMode ? 'text-light' : 'text-dark'}`} style={{
-                        fontFamily: '"Fjalla One", sans-serif',
-                        letterSpacing: '1px'
+                    {/* Información del cliente encontrado - MÁS ESPACIOSA */}
+                    {clienteEncontrado && (
+                      <Card className="border-0 shadow-lg" style={{
+                        background: isDarkMode 
+                          ? 'rgba(255,255,255,0.05)'
+                          : 'rgba(255,255,255,0.98)',
+                        backdropFilter: 'blur(20px)',
+                        borderRadius: '24px'
                       }}>
-                        INFORMACIÓN DETALLADA DEL CLIENTE
-                      </h3>
-                    </Card.Header>
-                    <Card.Body className="p-4 p-md-5">
-                       <Row className="mb-4">
-                         <Col xs={12} className="text-center mb-4">
-                          <Card.Title as="h4" className={isDarkMode ? 'text-light' : 'text-dark'} style={{
-                            fontWeight: '600',
-                            fontSize: '1.8rem'
-                          }}>
-                            <FaUser className="me-3 text-primary" />
-                             {clienteEncontrado.nombre}
-                           </Card.Title>
-                         </Col>
-                       </Row>
-                       {/* Mostrar estado de la cuenta */}
-                       <Row className="justify-content-center mb-4">
-                         <Col xs={12} className="text-center">
-                           {clienteEncontrado.estado === "Activo" ? (
-                             <Badge bg="success" pill style={{
-                               fontSize: '1.1rem',
-                               padding: '10px 20px'
-                             }}>
-                               <FaCheckCircle className="me-2" /> Cuenta Activa
-                             </Badge>
-                           ) : (
-                             <Badge bg="danger" pill style={{
-                               fontSize: '1.1rem',
-                               padding: '10px 20px'
-                             }}>
-                               <FaTimesCircle className="me-2" /> Cuenta Expirada
-                             </Badge>
-                           )}
-                         </Col>
-                       </Row>
-                       <Row className="justify-content-center">
-                         <Col xs={12} md={5} className="mb-3">
-                           <Form.Group className="mb-4">
-                            <Form.Label className={`fw-semibold ${isDarkMode ? 'text-light' : 'text-dark'} d-flex align-items-center justify-content-center`} style={{
-                              fontSize: '1.1rem',
-                              marginBottom: '15px'
-                            }}>
-                              <FaUser className="me-2 text-primary" />
-                               Nombre Completo
-                             </Form.Label>
-                             <Form.Control
-                               plaintext
-                               readOnly
-                               defaultValue={clienteEncontrado.nombre}
-                               className="text-center"
-                              style={{
-                                background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.8)',
-                                border: 'none',
-                                borderRadius: '15px',
-                                padding: '15px 20px',
-                                color: isDarkMode ? 'white' : 'dark',
-                                fontSize: '1.2rem',
-                                fontWeight: '500'
-                              }}
-                             />
-                           </Form.Group>
-                         </Col>
-                         
-                         <Col xs={12} md={2} className="d-none d-md-flex align-items-center justify-content-center mb-3">
-                           <div style={{
-                             width: '2px',
-                             height: '80px',
-                             background: isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
-                             borderRadius: '1px'
-                           }}></div>
-                         </Col>
-                         
-                         <Col xs={12} md={5} className="mb-3">
-                           <Form.Group className="mb-4">
-                            <Form.Label className={`fw-semibold ${isDarkMode ? 'text-light' : 'text-dark'} d-flex align-items-center justify-content-center`} style={{
-                              fontSize: '1.1rem',
-                              marginBottom: '15px'
-                            }}>
-                              <FaIdCard className="me-2 text-info" />
-                               DNI
-                             </Form.Label>
-                             <Form.Control
-                               plaintext
-                               readOnly
-                               defaultValue={clienteEncontrado.dni}
-                               className="text-center"
-                              style={{
-                                background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.8)',
-                                border: 'none',
-                                borderRadius: '15px',
-                                padding: '15px 20px',
-                                color: isDarkMode ? 'white' : 'dark',
-                                fontSize: '1.2rem',
-                                fontWeight: '500'
-                              }}
-                             />
-                           </Form.Group>
-                         </Col>
-                       </Row>
-                       <Row className="justify-content-center mt-4">
-                         <Col xs={12} md={6}>
-                           <Form.Group className="text-center">
-                            <Form.Label className={`fw-semibold ${isDarkMode ? 'text-light' : 'text-dark'} d-flex align-items-center justify-content-center`} style={{
-                              fontSize: '1.1rem',
-                              marginBottom: '15px'
-                            }}>
-                              <FaCalendarAlt className="me-2 text-warning" />
-                               Fecha de Inicio
-                             </Form.Label>
-                             <Form.Control
-                               plaintext
-                               readOnly
-                               defaultValue={
-                                 clienteEncontrado.fechaInicio ||
-                                 "No disponible"
-                               }
-                               className="text-center"
-                              style={{
-                                background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.8)',
-                                border: 'none',
-                                borderRadius: '15px',
-                                padding: '15px 20px',
-                                color: isDarkMode ? 'white' : 'dark',
-                                fontSize: '1.2rem',
-                                fontWeight: '500'
-                              }}
-                             />
-                           </Form.Group>
-                         </Col>
-                       </Row>
-                     </Card.Body>
-                   </Card>
-                 </Col>
-               )}
-             </Row>
-           </Container>
+                        <Card.Body className="p-4 p-lg-5">
+                          <h3 className={`mb-4 text-center ${isDarkMode ? 'text-light' : 'text-dark'}`}>
+                            {clienteEncontrado.nombre}
+                          </h3>
+                          
+                          <Row className="g-3 g-lg-4">
+                            <Col xs={6} md={4}>
+                              <div className={`p-3 p-lg-4 rounded-3 text-center ${isDarkMode ? 'bg-dark' : 'bg-light'}`}>
+                                <FaIdCard className="text-primary mb-2" size={28} />
+                                <small className="text-muted d-block mb-1">DNI</small>
+                                <strong className="fs-5">{clienteEncontrado.dni}</strong>
+                              </div>
+                            </Col>
+                            <Col xs={6} md={4}>
+                              <div className={`p-3 p-lg-4 rounded-3 text-center ${isDarkMode ? 'bg-dark' : 'bg-light'}`}>
+                                <FaEnvelope className="text-info mb-2" size={28} />
+                                <small className="text-muted d-block mb-1">Email</small>
+                                <strong className="fs-6">{clienteEncontrado.email || 'N/A'}</strong>
+                              </div>
+                            </Col>
+                            <Col xs={6} md={4}>
+                              <div className={`p-3 p-lg-4 rounded-3 text-center ${isDarkMode ? 'bg-dark' : 'bg-light'}`}>
+                                <FaCalendarAlt className="text-success mb-2" size={28} />
+                                <small className="text-muted d-block mb-1">Inicio</small>
+                                <strong className="fs-6">{clienteEncontrado.fechaInicio || 'N/A'}</strong>
+                              </div>
+                            </Col>
+                            <Col xs={6} md={4}>
+                              <div className={`p-3 p-lg-4 rounded-3 text-center ${isDarkMode ? 'bg-dark' : 'bg-light'}`}>
+                                <FaCalendarAlt className="text-warning mb-2" size={28} />
+                                <small className="text-muted d-block mb-1">Vencimiento</small>
+                                <strong className="fs-6">{clienteEncontrado.vencimiento}</strong>
+                              </div>
+                            </Col>
+                            <Col xs={6} md={4}>
+                              <div className={`p-3 p-lg-4 rounded-3 text-center ${isDarkMode ? 'bg-dark' : 'bg-light'}`}>
+                                <small className="text-muted d-block mb-2">Estado</small>
+                                <Badge bg={clienteEncontrado.estado === "Activo" ? "success" : "danger"} className="px-3 py-2 fs-6">
+                                  {clienteEncontrado.estado}
+                                </Badge>
+                              </div>
+                            </Col>
+                          </Row>
+                        </Card.Body>
+                      </Card>
+                    )}
+                  </Col>
+                </>
+              )}
+            </Row>
+          </Container>
         </Col>
       </Row>
     </Container>
-   );
- };
+  );
+};
 
- export default PagePrincipal;
+export default PagePrincipal;

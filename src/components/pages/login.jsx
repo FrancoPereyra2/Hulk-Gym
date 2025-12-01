@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Form, Button, Alert, Card, InputGroup } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { FaGoogle, FaEye, FaEyeSlash } from 'react-icons/fa';
+import Swal from 'sweetalert2';
 import LogoLoginImg from '../../assets/logo-login.png';
 // Importaciones de Firebase
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
@@ -40,6 +41,7 @@ const HulkGymLogin = () => {
   });
   
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Verificar si es la primera vez que se inicia la app
   useEffect(() => {
@@ -333,6 +335,188 @@ const HulkGymLogin = () => {
     }
   };
 
+  // Nuevos estados para activación de cuenta
+  const [mostrarActivacion, setMostrarActivacion] = useState(false);
+  const [tokenActivacion, setTokenActivacion] = useState('');
+  const [dniActivacion, setDniActivacion] = useState('');
+  const [passwordActivacion, setPasswordActivacion] = useState('');
+  const [confirmPasswordActivacion, setConfirmPasswordActivacion] = useState('');
+
+  // Verificar si hay parámetros de activación en la URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const dni = urlParams.get('dni');
+    
+    if (token && dni) {
+      setTokenActivacion(token);
+      setDniActivacion(dni);
+      setMostrarActivacion(true);
+      
+      // Limpiar URL sin recargar página
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
+  // Función para activar cuenta
+  const handleActivarCuenta = (e) => {
+    e.preventDefault();
+
+    if (!passwordActivacion.trim() || !confirmPasswordActivacion.trim()) {
+      setAlertVariant('danger');
+      setAlertMessage('Por favor, completa todos los campos');
+      setShowAlert(true);
+      return;
+    }
+
+    if (passwordActivacion !== confirmPasswordActivacion) {
+      setAlertVariant('danger');
+      setAlertMessage('Las contraseñas no coinciden');
+      setShowAlert(true);
+      return;
+    }
+
+    if (passwordActivacion.length < 6) {
+      setAlertVariant('danger');
+      setAlertMessage('La contraseña debe tener al menos 6 caracteres');
+      setShowAlert(true);
+      return;
+    }
+
+    try {
+      // Verificar token
+      const tokensGuardados = JSON.parse(localStorage.getItem('tokensActivacion') || '[]');
+      const tokenValido = tokensGuardados.find(t => 
+        t.token === tokenActivacion && 
+        t.clienteDNI === dniActivacion && 
+        !t.usado &&
+        new Date(t.fechaExpiracion) > new Date()
+      );
+
+      if (!tokenValido) {
+        setAlertVariant('danger');
+        setAlertMessage('Token inválido o expirado. Contacta al gimnasio para obtener un nuevo enlace.');
+        setShowAlert(true);
+        return;
+      }
+
+      // Buscar cliente
+      const clientesGuardados = JSON.parse(localStorage.getItem('clientes') || '[]');
+      const cliente = clientesGuardados.find(c => c.dni === dniActivacion && c.id === tokenValido.clienteId);
+
+      if (!cliente) {
+        setAlertVariant('danger');
+        setAlertMessage('Cliente no encontrado.');
+        setShowAlert(true);
+        return;
+      }
+
+      // Crear usuario en el sistema de login
+      const usuariosActuales = JSON.parse(localStorage.getItem('users') || '[]');
+      
+      // Verificar si ya existe un usuario con este email
+      const usuarioExistente = usuariosActuales.find(u => u.username === cliente.email);
+      
+      if (usuarioExistente) {
+        setAlertVariant('danger');
+        setAlertMessage('Ya existe una cuenta con este email.');
+        setShowAlert(true);
+        return;
+      }
+
+      // Crear nuevo usuario cliente
+      const nuevoUsuario = {
+        fullName: cliente.nombre,
+        username: cliente.email,
+        password: passwordActivacion.trim(),
+        role: 'cliente',
+        clienteId: cliente.id,
+        activadoPorToken: true
+      };
+
+      const usuariosActualizados = [...usuariosActuales, nuevoUsuario];
+      localStorage.setItem('users', JSON.stringify(usuariosActualizados));
+      setUsers(usuariosActualizados);
+
+      // Marcar cliente como activado
+      const clientesActualizados = clientesGuardados.map(c => 
+        c.id === cliente.id ? { ...c, cuentaActivada: true, fechaActivacion: new Date().toISOString() } : c
+      );
+      localStorage.setItem('clientes', JSON.stringify(clientesActualizados));
+
+      // Marcar token como usado
+      const tokensActualizados = tokensGuardados.map(t => 
+        t.token === tokenActivacion ? { ...t, usado: true, fechaUso: new Date().toISOString() } : t
+      );
+      localStorage.setItem('tokensActivacion', JSON.stringify(tokensActualizados));
+
+      // NUEVO: ENVIAR EMAIL con las credenciales
+      (async () => {
+        try {
+          console.log('📧 Enviando email con credenciales...');
+          const { enviarCredencialesAcceso } = await import('../../services/emailService');
+          const resultadoEmail = await enviarCredencialesAcceso(cliente, passwordActivacion.trim());
+          
+          if (resultadoEmail.success) {
+            console.log('✅ Email enviado exitosamente');
+            
+            // Guardar en historial
+            const historialStr = localStorage.getItem('emailHistory');
+            const historial = historialStr ? JSON.parse(historialStr) : [];
+            
+            historial.push({
+              id: Date.now(),
+              clienteNombre: cliente.nombre,
+              clienteDNI: cliente.dni,
+              clienteEmail: cliente.email,
+              tipo: 'credenciales',
+              fechaEnvio: new Date().toLocaleString('es-AR'),
+              estado: 'Enviado',
+              error: null,
+              asunto: '✅ Cuenta activada - Tus credenciales - HULK GYM'
+            });
+            
+            localStorage.setItem('emailHistory', JSON.stringify(historial));
+            
+            setAlertVariant('success');
+            setAlertMessage('¡Cuenta activada exitosamente! Se ha enviado un email con tus credenciales.');
+          } else {
+            console.error('❌ Error al enviar email:', resultadoEmail.error);
+            setAlertVariant('success');
+            setAlertMessage('¡Cuenta activada exitosamente! (No se pudo enviar el email de confirmación)');
+          }
+        } catch (error) {
+          console.error('Error al enviar email:', error);
+          setAlertVariant('success');
+          setAlertMessage('¡Cuenta activada exitosamente! Ya puedes iniciar sesión.');
+        }
+        
+        setShowAlert(true);
+      })();
+
+      // Mostrar mensaje inmediato
+      setAlertVariant('success');
+      setAlertMessage('¡Cuenta activada exitosamente! Ya puedes iniciar sesión.');
+      setShowAlert(true);
+
+      // Limpiar formulario y volver al login
+      setTimeout(() => {
+        setMostrarActivacion(false);
+        setTokenActivacion('');
+        setDniActivacion('');
+        setPasswordActivacion('');
+        setConfirmPasswordActivacion('');
+        setEmail(cliente.email);
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error al activar cuenta:', error);
+      setAlertVariant('danger');
+      setAlertMessage('Error al activar la cuenta. Inténtalo de nuevo.');
+      setShowAlert(true);
+    }
+  };
+
   return (
     <Container fluid>
       <Row className="justify-content-center align-items-center vh-100">
@@ -342,11 +526,13 @@ const HulkGymLogin = () => {
               <div className="text-center mb-4">
                 <img src={LogoLoginImg} alt="Logo" className="img-fluid w-50" />
                 <p className="text-muted h5">
-                  {isFirstUse 
-                    ? 'Crea el primer usuario administrador' 
-                    : mostrarRegistro 
-                      ? 'Crea tu cuenta para continuar' 
-                      : 'Inicia sesión para continuar'}
+                  {mostrarActivacion 
+                    ? 'Activa tu cuenta creando una contraseña'
+                    : isFirstUse 
+                      ? 'Crea el primer usuario administrador' 
+                      : mostrarRegistro 
+                        ? 'Crea tu cuenta para continuar' 
+                        : 'Inicia sesión para continuar'}
                 </p>
               </div>
               
@@ -356,7 +542,81 @@ const HulkGymLogin = () => {
                 </Alert>
               )}
               
-              {mostrarRegistro ? (
+              {mostrarActivacion ? (
+                // Formulario de activación de cuenta
+                <Form onSubmit={handleActivarCuenta}>
+                  <Alert variant="info" className="mb-3">
+                    <strong>¡Bienvenido a HULK GYM!</strong><br />
+                    Crea tu contraseña para activar tu cuenta y acceder a tu información.
+                  </Alert>
+
+                  <Form.Group className="mb-3">
+                    <Form.Label>DNI</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={dniActivacion}
+                      readOnly
+                      className="bg-light"
+                    />
+                  </Form.Group>
+                  
+                  <Form.Group className="mb-3">
+                    <Form.Label>Nueva Contraseña</Form.Label>
+                    <InputGroup>
+                      <Form.Control
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Crea tu contraseña (mín. 6 caracteres)"
+                        value={passwordActivacion}
+                        onChange={(e) => setPasswordActivacion(e.target.value)}
+                      />
+                      <InputGroup.Text 
+                        as="button"
+                        type="button"
+                        onClick={togglePasswordVisibility}
+                        className="bg-transparent"
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {showPassword ? <FaEyeSlash /> : <FaEye />}
+                      </InputGroup.Text>
+                    </InputGroup>
+                  </Form.Group>
+                  
+                  <Form.Group className="mb-4">
+                    <Form.Label>Confirmar Contraseña</Form.Label>
+                    <InputGroup>
+                      <Form.Control
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Confirma tu contraseña"
+                        value={confirmPasswordActivacion}
+                        onChange={(e) => setConfirmPasswordActivacion(e.target.value)}
+                      />
+                      <InputGroup.Text 
+                        as="button"
+                        type="button"
+                        onClick={toggleConfirmPasswordVisibility}
+                        className="bg-transparent"
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                      </InputGroup.Text>
+                    </InputGroup>
+                  </Form.Group>
+                  
+                  <Button variant="success" type="submit" className="w-100 mb-3">
+                    ACTIVAR CUENTA
+                  </Button>
+                  
+                  <div className="text-center">
+                    <Button 
+                      variant="link" 
+                      onClick={() => setMostrarActivacion(false)}
+                      className="text-decoration-none"
+                    >
+                      ¿Ya tienes cuenta? Inicia sesión aquí
+                    </Button>
+                  </div>
+                </Form>
+              ) : mostrarRegistro ? (
                 // Formulario de registro
                 <Form onSubmit={handleRegister}>
                   <Form.Group className="mb-3">
@@ -391,8 +651,10 @@ const HulkGymLogin = () => {
                       />
                       <InputGroup.Text 
                         as="button"
+                        type="button"
                         onClick={togglePasswordVisibility}
                         className="bg-transparent"
+                        style={{ cursor: 'pointer' }}
                       >
                         {showPassword ? <FaEyeSlash /> : <FaEye />}
                       </InputGroup.Text>
@@ -411,8 +673,10 @@ const HulkGymLogin = () => {
                       />
                       <InputGroup.Text 
                         as="button"
+                        type="button"
                         onClick={toggleConfirmPasswordVisibility}
                         className="bg-transparent"
+                        style={{ cursor: 'pointer' }}
                       >
                         {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
                       </InputGroup.Text>
@@ -520,8 +784,10 @@ const HulkGymLogin = () => {
                         />
                         <InputGroup.Text 
                           as="button"
+                          type="button"
                           onClick={togglePasswordVisibility}
                           className="bg-transparent"
+                          style={{ cursor: 'pointer' }}
                         >
                           {showPassword ? <FaEyeSlash /> : <FaEye />}
                         </InputGroup.Text>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Container,
   Row,
@@ -12,10 +12,12 @@ import {
   Offcanvas,
   Modal,
   Form,
+  Alert
 } from "react-bootstrap";
-import { FaUsers, FaDumbbell, FaTimes, FaBars, FaMoon, FaSun, FaPlus, FaTrash, FaEdit, FaSearch } from "react-icons/fa";
+import { FaUsers, FaDumbbell, FaTimes, FaBars, FaMoon, FaSun, FaPlus, FaTrash, FaEdit, FaSearch, FaEnvelope, FaUser, FaCalendarAlt, FaCheckCircle, FaTimesCircle } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from './admin.jsx';
+import Swal from 'sweetalert2';
 import "bootstrap-icons/font/bootstrap-icons.css";
 
 // util
@@ -58,6 +60,38 @@ const Rutinas = () => {
   const [formDataEjercicioEdicion, setFormDataEjercicioEdicion] = useState({ ejercicio: "", series: "", repeticiones: "" });
   const [ejercicioEnEdicion, setEjercicioEnEdicion] = useState(null);
   const [indexEjercicioEdicion, setIndexEjercicioEdicion] = useState(null);
+
+  // Nuevos estados para el sistema de emails
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailHistory, setEmailHistory] = useState(() => {
+    const savedHistory = localStorage.getItem('emailHistory');
+    return savedHistory ? JSON.parse(savedHistory) : [];
+  });
+  const [cuentasVencidas, setCuentasVencidas] = useState([]);
+
+  // Función para verificar cuentas vencidas
+  const verificarCuentasVencidas = useCallback(() => {
+    const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
+    const hoy = new Date();
+    const vencidas = clientes.filter(cliente => {
+      if (!cliente.vencimiento || !cliente.email || cliente.email.trim() === '') return false;
+      try {
+        const [dia, mes, anio] = cliente.vencimiento.split("/");
+        const fechaVencimiento = new Date(`${anio}-${mes}-${dia}T23:59:59`);
+        return fechaVencimiento < hoy;
+      } catch (error) {
+        return false;
+      }
+    });
+    
+    setCuentasVencidas(vencidas);
+    return vencidas;
+  }, []);
+
+  // Verificar cuentas vencidas al cargar
+  useEffect(() => {
+    verificarCuentasVencidas();
+  }, [verificarCuentasVencidas]);
 
   useEffect(() => {
     localStorage.setItem('rutinas', JSON.stringify(rutinas));
@@ -236,6 +270,35 @@ const Rutinas = () => {
     setFormDataEjercicioEdicion({ ejercicio: "", series: "", repeticiones: "" });
   };
 
+  // NUEVO: Función para eliminar un email del historial
+  const handleEliminarEmail = useCallback((emailId) => {
+    Swal.fire({
+      title: '¿Eliminar registro?',
+      text: '¿Estás seguro de que deseas eliminar este registro del historial?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      reverseButtons: true
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const nuevoHistorial = emailHistory.filter(email => email.id !== emailId);
+        setEmailHistory(nuevoHistorial);
+        localStorage.setItem('emailHistory', JSON.stringify(nuevoHistorial));
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'Eliminado',
+          text: 'El registro ha sido eliminado del historial',
+          timer: 2000,
+          showConfirmButton: false
+        });
+      }
+    });
+  }, [emailHistory]);
+
   // Sidebar
   const renderSidebar = () => (
     <Navbar 
@@ -249,18 +312,32 @@ const Rutinas = () => {
     >
       <Container fluid className="d-flex flex-column h-100 p-0">
         <Navbar.Brand className="p-3 w-100">
-          <h3 className={`fw-bold text-center ${isDarkMode ? 'text-success' : 'text-primary'}`}>HULK GYM</h3>
-          <Nav className="flex-column w-100 mt-4">
-            {/* Opciones de navegación */}
+          <h3 className={`fw-bold text-center ${isDarkMode ? 'text-success' : 'text-primary'}`} style={{
+            background: isDarkMode 
+              ? 'linear-gradient(45deg, #60a5fa, #34d399)'
+              : undefined,
+            WebkitBackgroundClip: isDarkMode ? 'text' : undefined,
+            WebkitTextFillColor: isDarkMode ? 'transparent' : undefined,
+            color: isDarkMode ? undefined : '#222',
+            fontFamily: '"Fjalla One", sans-serif'
+          }}>HULK GYM</h3>
+          <p className={`text-center small mb-4 ${isDarkMode ? 'text-light opacity-75' : 'text-muted'}`} style={{
+            color: isDarkMode ? undefined : '#222',
+            fontWeight: 500
+          }}>
+            {isReadOnly ? 'Panel de Cliente' : 'Panel Administrativo'}
+          </p>
+          
+          <Nav className="flex-column w-100">
             <Nav.Link 
-              className={`d-flex align-items-center text-center mb-2 ${isDarkMode ? 'text-light' : 'text-dark'}`}
+              className={`d-flex align-items-center mb-2 ${isDarkMode ? 'text-light' : 'text-dark'}`}
+              onClick={() => navigate(userType === 'admin' ? '/admin' : '/principal')}
               style={{
+                cursor: 'pointer',
                 transition: 'all 0.3s ease',
                 borderRadius: '8px',
-                padding: '12px 16px',
-                cursor: 'pointer'
+                padding: '12px 16px'
               }}
-              onClick={() => navigate(userType === 'admin' ? '/admin' : '/principal')}
               onMouseEnter={(e) => {
                 e.target.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
                 e.target.style.transform = 'translateX(5px)';
@@ -271,11 +348,11 @@ const Rutinas = () => {
               }}
             >
               <FaUsers className="me-2" />
-              <span>Gestión de Clientes</span>
+              <span>{isReadOnly ? 'Mi Información' : 'Gestión de Clientes'}</span>
             </Nav.Link>
             
             <Nav.Link 
-              className={`d-flex align-items-center text-center mb-2 ${isDarkMode ? 'text-info' : 'text-primary'}`}
+              className={`d-flex align-items-center mb-2 ${isDarkMode ? 'text-info' : 'text-primary'}`}
               style={{
                 transition: 'all 0.3s ease',
                 borderRadius: '8px',
@@ -287,21 +364,48 @@ const Rutinas = () => {
               <span>Rutinas</span>
             </Nav.Link>
 
-            {/* Separador */}
+            {/* Solo mostrar historial de emails si es admin */}
+            {!isReadOnly && (
+              <Nav.Link 
+                className={`d-flex align-items-center mb-2 ${isDarkMode ? 'text-light' : 'text-dark'}`}
+                style={{
+                  transition: 'all 0.3s ease',
+                  borderRadius: '8px',
+                  padding: '12px 16px',
+                  cursor: 'pointer'
+                }}
+                onClick={() => setShowEmailModal(true)}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+                  e.target.style.transform = 'translateX(5px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'transparent';
+                  e.target.style.transform = 'translateX(0)';
+                }}
+              >
+                <FaEnvelope className="me-2" />
+                <span>Historial de Emails</span>
+                {cuentasVencidas.length > 0 && (
+                  <Badge bg="danger" className="ms-2">{cuentasVencidas.length}</Badge>
+                )}
+              </Nav.Link>
+            )}
+
             <hr style={{
               borderColor: isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
               margin: '20px 0'
             }} />
 
             {/* Botón de Cerrar Sesión */}
-            <Nav.Link 
-              className="d-flex align-items-center text-center text-danger mt-auto mb-3"
+            <Nav.Link
+              className="d-flex align-items-center text-danger mt-auto mb-3"
               onClick={handleLogout}
               style={{
+                cursor: 'pointer',
                 transition: 'all 0.3s ease',
                 borderRadius: '8px',
-                padding: '12px 16px',
-                cursor: 'pointer'
+                padding: '12px 16px'
               }}
               onMouseEnter={(e) => {
                 e.target.style.backgroundColor = 'rgba(220, 53, 69, 0.1)';
@@ -504,8 +608,8 @@ const Rutinas = () => {
                 <div className="mb-4">
                   <Row>
                     <Col className="d-flex justify-content-end gap-2">
-                      {/* Solo mostrar botón de nueva rutina si NO es cliente */}
-                      {!isReadOnly && (
+                      {/* Solo mostrar botón de nueva rutina si NO es cliente Y NO es móvil */}
+                      {!isReadOnly && !isMobile && (
                         <Button
                           onClick={handleAgregarRutina}
                           className="d-flex align-items-center border-0 shadow-lg"
@@ -943,6 +1047,147 @@ const Rutinas = () => {
                 </Modal>
               </>
             )}
+
+            {/* Modal para historial de emails */}
+            <Modal 
+              show={showEmailModal} 
+              onHide={() => setShowEmailModal(false)} 
+              size="lg"
+              centered
+            >
+              <Modal.Header 
+                closeButton 
+                style={{
+                  background: isDarkMode 
+                    ? 'linear-gradient(90deg, #1a1a2e 0%, #16213e 100%)'
+                    : 'linear-gradient(90deg, #ffffff 0%, #f8faff 100%)',
+                  color: isDarkMode ? 'white' : 'dark'
+                }}
+              >
+                <Modal.Title>
+                  <FaEnvelope className="me-2" />
+                  Historial de Emails Enviados
+                </Modal.Title>
+              </Modal.Header>
+              <Modal.Body style={{
+                background: isDarkMode 
+                  ? 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)'
+                  : 'linear-gradient(135deg, #ffffff 0%, #f8faff 100%)',
+                color: isDarkMode ? 'white' : 'dark'
+              }}>
+                <Row className="mb-3">
+                  <Col className="d-flex justify-content-between align-items-center">
+                    <h6 className="mb-0">
+                      <FaTimesCircle className="me-2 text-warning" />
+                      Cuentas Vencidas Actuales: <Badge bg="danger">{cuentasVencidas.length}</Badge>
+                    </h6>
+                  </Col>
+                </Row>
+                
+                {emailHistory.length === 0 ? (
+                  <Alert variant="info" className="text-center">
+                    <FaEnvelope size={40} className="mb-2" />
+                    <p className="mb-0">No se han enviado emails aún</p>
+                  </Alert>
+                ) : (
+                  <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                    {emailHistory
+                      .sort((a, b) => new Date(b.fechaEnvio) - new Date(a.fechaEnvio))
+                      .map((email) => (
+                        <Card 
+                          key={email.id}
+                          className="mb-2"
+                          style={{
+                            background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.8)',
+                            color: isDarkMode ? 'white' : 'dark',
+                            border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`
+                          }}
+                        >
+                          <Card.Body className="p-3">
+                            <div className="d-flex justify-content-between align-items-start">
+                              <div className="flex-grow-1">
+                                <h6 className="mb-1">
+                                  <FaUser className="me-2 text-primary" />
+                                  {email.clienteNombre}
+                                </h6>
+                                <p className="mb-1 small">
+                                  <FaUser className="me-1 text-muted" />
+                                  DNI: {email.clienteDNI}
+                                </p>
+                                <p className="mb-1 small">
+                                  <FaEnvelope className="me-1 text-muted" />
+                                  {email.clienteEmail}
+                                </p>
+                                <p className="mb-0 small text-muted">
+                                  <FaCalendarAlt className="me-1" />
+                                  {email.fechaEnvio}
+                                </p>
+                              </div>
+                              <div className="text-end d-flex flex-column align-items-end gap-2">
+                                <div>
+                                  <Badge 
+                                    bg={email.tipo === 'vencimiento' ? 'danger' : email.tipo === 'activacion' ? 'info' : 'warning'}
+                                    className="mb-2"
+                                  >
+                                    {email.tipo === 'vencimiento' ? 'Vencida' : email.tipo === 'activacion' ? 'Activación' : 'Recordatorio'}
+                                  </Badge>
+                                  <br />
+                                  <Badge bg={
+                                    email.estado === 'Enviado' ? 'success' : 
+                                    email.estado === 'Simulado' ? 'warning' : 'danger'
+                                  }>
+                                    {email.estado === 'Enviado' ? (
+                                      <>
+                                        <FaCheckCircle className="me-1" />
+                                        Enviado
+                                      </>
+                                    ) : email.estado === 'Simulado' ? (
+                                      <>
+                                        <FaEnvelope className="me-1" />
+                                        Simulado
+                                      </>
+                                    ) : (
+                                      <>
+                                        <FaTimesCircle className="me-1" />
+                                        Error
+                                      </>
+                                    )}
+                                  </Badge>
+                                  {email.error && (
+                                    <div className="mt-1">
+                                      <small className="text-muted" title={email.error}>
+                                        {email.error.substring(0, 30)}...
+                                      </small>
+                                    </div>
+                                  )}
+                                </div>
+                                <Button 
+                                  variant="outline-danger" 
+                                  size="sm"
+                                  onClick={() => handleEliminarEmail(email.id)}
+                                  className="border-0"
+                                  title="Eliminar registro"
+                                >
+                                  <FaTrash />
+                                </Button>
+                              </div>
+                            </div>
+                          </Card.Body>
+                        </Card>
+                      ))}
+                  </div>
+                )}
+              </Modal.Body>
+              <Modal.Footer style={{
+                background: isDarkMode 
+                  ? 'linear-gradient(90deg, #1a1a2e 0%, #16213e 100%)'
+                  : 'linear-gradient(90deg, #ffffff 0%, #f8faff 100%)'
+              }}>
+                <Button variant="secondary" onClick={() => setShowEmailModal(false)}>
+                  Cerrar
+                </Button>
+              </Modal.Footer>
+            </Modal>
 
           </Container>
         </Col>

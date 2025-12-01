@@ -1,213 +1,543 @@
 import emailjs from '@emailjs/browser';
 
-// Configuración de EmailJS - REEMPLAZA CON TUS CREDENCIALES REALES
-const EMAIL_CONFIG = {
-  serviceId: 'service_penoe9y', // Tu Service ID de EmailJS
-  templateId: 'template_gk7cllh', // Tu Template ID de EmailJS
-  publicKey: '8bThJu5vUmfB7LfxS', // Tu Public Key de EmailJS
+// 🔑 CUENTA PRINCIPAL - Para activación y vencimientos
+const EMAILJS_CONFIG = {
+  SERVICE_ID: 'service_penoe9y',
+  TEMPLATE_ID_VENCIMIENTO: 'template_gk7cllh',
+  TEMPLATE_ID_ACTIVACION: 'template_ofwuas8',
+  PUBLIC_KEY: '8bThJu5vUmfB7LfxS'
 };
 
-// Inicializar EmailJS
+// 🔑 CUENTA SECUNDARIA - Para enviar credenciales
+// Verifica que estos valores estén correctos:
+const EMAILJS_CONFIG_CREDENCIALES = {
+  SERVICE_ID: 'service_1jr3j5c',  // ✅ Tu Service ID
+  TEMPLATE_ID_CREDENCIALES: 'template_zu951rc',  // ✅ Tu Template ID correcto
+  PUBLIC_KEY: 'jLrk8oTINcs386RKq'  // ✅ Tu Public Key
+};
+
+// Verificar si EmailJS está configurado - LÓGICA CORREGIDA
+export const isEmailConfigured = () => {
+  const isConfigured = Boolean(
+    EMAILJS_CONFIG.SERVICE_ID && 
+    EMAILJS_CONFIG.PUBLIC_KEY && 
+    EMAILJS_CONFIG.TEMPLATE_ID_VENCIMIENTO && 
+    EMAILJS_CONFIG.TEMPLATE_ID_ACTIVACION
+  );
+  
+  console.log('📧 EmailJS (Principal) configurado:', isConfigured);
+  return isConfigured;
+};
+
+// NUEVO: Verificar si la cuenta de credenciales está configurada
+export const isEmailCredencialesConfigured = () => {
+  const isConfigured = Boolean(
+    EMAILJS_CONFIG_CREDENCIALES.SERVICE_ID && 
+    EMAILJS_CONFIG_CREDENCIALES.PUBLIC_KEY && 
+    EMAILJS_CONFIG_CREDENCIALES.TEMPLATE_ID_CREDENCIALES
+  );
+  
+  console.log('📧 EmailJS (Credenciales) configurado:', isConfigured);
+  return isConfigured;
+};
+
+// Inicializar EmailJS con tu Public Key PRINCIPAL (para activación y vencimientos)
 try {
-  emailjs.init(EMAIL_CONFIG.publicKey);
+  emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
+  console.log('✅ EmailJS Principal inicializado correctamente');
 } catch (error) {
-  console.warn('EmailJS no inicializado:', error);
+  console.error('❌ Error al inicializar EmailJS Principal:', error);
 }
 
-// Función para verificar si está configurado correctamente
-export const isEmailConfigured = () => {
-  return EMAIL_CONFIG.serviceId !== 'service_penoe9y' && 
-         EMAIL_CONFIG.templateId !== 'template_gk7cllh' && 
-         EMAIL_CONFIG.publicKey !== '8bThJu5vUmfB7LfxS';
-};
-
-// Función para enviar email REAL usando EmailJS
+/**
+ * Función para enviar email de vencimiento/recordatorio
+ */
 export const enviarEmailReal = async (cliente, tipo = 'vencimiento') => {
-  try {
-    // Verificar configuración
-    if (!isEmailConfigured()) {
-      throw new Error('EmailJS no está configurado. Configura tus credenciales en emailService.js');
-    }
+  if (!isEmailConfigured()) {
+    console.warn('⚠️ EmailJS no está configurado.');
+    return {
+      success: false,
+      error: 'EmailJS no configurado',
+      messageId: null
+    };
+  }
 
-    // Preparar parámetros del email
+  try {
+    console.log('📧 Enviando email REAL a:', cliente.nombre);
+    console.log('📧 Email destino:', cliente.email);
+
+    // Parámetros para la plantilla de EmailJS
     const templateParams = {
+      to_email: cliente.email,
       to_name: cliente.nombre,
-      to_email: cliente.email || `${cliente.dni}@gmail.com`, // Usar email real del cliente
-      client_dni: cliente.dni,
-      expiry_date: cliente.vencimiento || 'No especificada',
-      gym_name: 'HULK GYM',
-      message_type: tipo === 'vencimiento' ? 'MEMBRESÍA VENCIDA' : 'RECORDATORIO DE VENCIMIENTO',
-      current_date: new Date().toLocaleDateString('es-AR'),
-      from_name: 'HULK GYM - Sistema de Notificaciones',
-      reply_to: 'hulkgym@contacto.com',
-      message: tipo === 'vencimiento' 
-        ? `Estimado/a ${cliente.nombre}, su membresía ha vencido el ${cliente.vencimiento}. Por favor, renueve para continuar disfrutando de nuestros servicios.`
-        : `Estimado/a ${cliente.nombre}, le recordamos que su membresía vence pronto. Por favor, renueve a tiempo.`
+      cliente_nombre: cliente.nombre,
+      cliente_dni: cliente.dni,
+      fecha_vencimiento: cliente.vencimiento,
+      fecha_inicio: cliente.fechaInicio,
+      precio: cliente.precio ? `$${cliente.precio.toLocaleString()}` : 'N/A',
+      tipo_notificacion: tipo === 'vencimiento' ? 'VENCIDA' : 'PRÓXIMA A VENCER',
+      mensaje_adicional: tipo === 'vencimiento' 
+        ? 'Tu membresía ha vencido. Por favor, acércate al gimnasio para renovarla.'
+        : 'Tu membresía está próxima a vencer. Recuerda renovarla a tiempo.',
+      gimnasio_nombre: 'HULK GYM',
+      gimnasio_contacto: 'contacto@hulkgym.com',
+      gimnasio_telefono: '+54 9 11 1234-5678',
+      anio_actual: new Date().getFullYear()
     };
 
-    console.log('🚀 Enviando email REAL a:', templateParams.to_email);
+    console.log('📤 Enviando con config:', {
+      serviceId: EMAILJS_CONFIG.SERVICE_ID,
+      templateId: EMAILJS_CONFIG.TEMPLATE_ID_VENCIMIENTO,
+      to_email: templateParams.to_email
+    });
 
-    // Enviar email usando EmailJS
-    const result = await emailjs.send(
-      EMAIL_CONFIG.serviceId,
-      EMAIL_CONFIG.templateId,
-      templateParams,
-      EMAIL_CONFIG.publicKey
+    // Enviar el email usando EmailJS
+    const response = await emailjs.send(
+      EMAILJS_CONFIG.SERVICE_ID,
+      EMAILJS_CONFIG.TEMPLATE_ID_VENCIMIENTO,
+      templateParams
     );
 
-    console.log('✅ Email enviado exitosamente:', result);
+    console.log('✅ Email enviado exitosamente:', response);
 
     return {
       success: true,
-      messageId: result.text,
-      status: 'Enviado',
-      response: result
+      messageId: response.text,
+      message: 'Email enviado correctamente'
     };
 
   } catch (error) {
-    console.error('❌ Error al enviar email REAL:', error);
+    console.error('❌ Error al enviar email:', error);
     return {
       success: false,
-      error: error.message,
-      status: 'Error'
+      error: error.text || error.message || 'Error desconocido',
+      messageId: null
     };
   }
 };
 
-// Función para verificar y notificar expiraciones automáticamente
-export const verificarYNotificarExpiraciones = async () => {
+/**
+ * Función para generar token de activación único
+ */
+export const generarTokenActivacion = () => {
+  return Math.random().toString(36).substring(2, 15) + 
+         Math.random().toString(36).substring(2, 15) +
+         Date.now().toString(36);
+};
+
+/**
+ * Función para enviar email de activación de cuenta
+ */
+export const enviarEmailActivacion = async (cliente, token) => {
+  if (!isEmailConfigured()) {
+    console.warn('⚠️ EmailJS no está configurado. Usando modo simulación.');
+    return {
+      success: false,
+      error: 'EmailJS no configurado',
+      messageId: null
+    };
+  }
+
   try {
-    const savedClientes = localStorage.getItem('clientes');
-    const clientes = savedClientes ? JSON.parse(savedClientes) : [];
+    console.log('📧 Enviando email de ACTIVACIÓN a:', cliente.nombre);
+    console.log('📧 Email destino (cliente):', cliente.email); // Log para debug
+
+    // URL de activación (ajusta según tu dominio en producción)
+    const activationUrl = `${window.location.origin}/login?token=${token}&dni=${cliente.dni}`;
+
+    // Parámetros para la plantilla de activación - CORREGIDO
+    const templateParams = {
+      to_email: cliente.email, // ASEGURARNOS que sea el email del cliente
+      to_name: cliente.nombre,
+      cliente_nombre: cliente.nombre,
+      cliente_dni: cliente.dni,
+      activation_link: activationUrl,
+      token: token,
+      gimnasio_nombre: 'HULK GYM',
+      gimnasio_contacto: 'hulkgym670@gmail.com',
+      expiracion_dias: 7,
+      anio_actual: new Date().getFullYear()
+    };
+
+    console.log('📤 Parámetros del email:', {
+      destinatario: templateParams.to_email,
+      nombre: templateParams.cliente_nombre,
+      dni: templateParams.cliente_dni
+    });
+
+    const response = await emailjs.send(
+      EMAILJS_CONFIG.SERVICE_ID,
+      EMAILJS_CONFIG.TEMPLATE_ID_ACTIVACION,
+      templateParams
+    );
+
+    console.log('✅ Email de activación enviado a:', cliente.email);
+    console.log('Response:', response);
+
+    return {
+      success: true,
+      messageId: response.text,
+      message: 'Email de activación enviado correctamente'
+    };
+
+  } catch (error) {
+    console.error('❌ Error al enviar email de activación:', error);
+    return {
+      success: false,
+      error: error.text || error.message || 'Error desconocido',
+      messageId: null
+    };
+  }
+};
+
+/**
+ * MODIFICADO: Función para enviar credenciales de acceso
+ * Usa una cuenta DIFERENTE de EmailJS
+ */
+export const enviarCredencialesAcceso = async (cliente, password) => {
+  if (!isEmailCredencialesConfigured()) {
+    console.warn('⚠️ EmailJS (Credenciales) no está configurado.');
+    return {
+      success: false,
+      error: 'EmailJS para credenciales no configurado',
+      messageId: null
+    };
+  }
+
+  try {
+    console.log('📧 Enviando credenciales de acceso a:', cliente.nombre);
+    console.log('📧 Email destino:', cliente.email);
+    console.log('📧 Usando cuenta secundaria de EmailJS');
+
+    // IMPORTANTE: Inicializar temporalmente con la segunda cuenta
+    emailjs.init(EMAILJS_CONFIG_CREDENCIALES.PUBLIC_KEY);
+
+    // Parámetros para la plantilla de credenciales
+    const templateParams = {
+      to_email: cliente.email,
+      to_name: cliente.nombre,
+      cliente_nombre: cliente.nombre,
+      cliente_dni: cliente.dni,
+      usuario_email: cliente.email,
+      usuario_password: password,
+      login_url: `${window.location.origin}/login`,
+      gimnasio_nombre: 'HULK GYM',
+      gimnasio_contacto: 'hulkgym670@gmail.com',
+      anio_actual: new Date().getFullYear()
+    };
+
+    console.log('📤 Enviando credenciales con cuenta secundaria:', {
+      serviceId: EMAILJS_CONFIG_CREDENCIALES.SERVICE_ID,
+      templateId: EMAILJS_CONFIG_CREDENCIALES.TEMPLATE_ID_CREDENCIALES,
+      to_email: templateParams.to_email
+    });
+
+    const response = await emailjs.send(
+      EMAILJS_CONFIG_CREDENCIALES.SERVICE_ID,
+      EMAILJS_CONFIG_CREDENCIALES.TEMPLATE_ID_CREDENCIALES,
+      templateParams
+    );
+
+    console.log('✅ Credenciales enviadas exitosamente:', response);
+
+    // IMPORTANTE: Restaurar la cuenta principal
+    emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
+    console.log('🔄 Cuenta principal restaurada');
+
+    return {
+      success: true,
+      messageId: response.text,
+      message: 'Credenciales enviadas correctamente'
+    };
+
+  } catch (error) {
+    console.error('❌ Error al enviar credenciales:', error);
     
-    if (clientes.length === 0) {
+    // IMPORTANTE: Asegurarse de restaurar la cuenta principal incluso si hay error
+    try {
+      emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
+      console.log('🔄 Cuenta principal restaurada después de error');
+    } catch (initError) {
+      console.error('❌ Error al restaurar cuenta principal:', initError);
+    }
+    
+    return {
+      success: false,
+      error: error.text || error.message || 'Error desconocido',
+      messageId: null
+    };
+  }
+};
+
+/**
+ * Función para verificar y notificar expiraciones
+ */
+export const verificarYNotificarExpiraciones = async () => {
+  console.log('🔍 Verificando cuentas vencidas...');
+  
+  try {
+    // Obtener clientes de forma segura
+    let clientes = [];
+    try {
+      const clientesStr = localStorage.getItem('clientes');
+      clientes = clientesStr ? JSON.parse(clientesStr) : [];
+    } catch (parseError) {
+      console.error('Error al parsear clientes:', parseError);
       return {
-        success: true,
-        message: 'No hay clientes registrados',
-        enviados: 0,
-        errores: 0
+        error: { message: 'Error al cargar clientes' },
+        totalVerificados: 0,
+        clientesVencidos: 0,
+        emailsEnviados: 0,
+        errores: 1
       };
     }
-
-    // Verificar cuentas vencidas
+    
+    console.log('📊 Total de clientes en localStorage:', clientes.length);
+    
     const hoy = new Date();
-    const vencidas = clientes.filter(cliente => {
-      if (!cliente.vencimiento) return true;
+    let emailsEnviados = 0;
+    let errores = 0;
+    
+    // Filtrar clientes con email y vencidos
+    const clientesVencidos = clientes.filter(cliente => {
+      console.log(`\n🔍 Verificando cliente: ${cliente?.nombre || 'Sin nombre'}`);
+      console.log(`   - Email: ${cliente?.email || 'Sin email'}`);
+      console.log(`   - Vencimiento: ${cliente?.vencimiento || 'Sin fecha'}`);
+      
+      if (!cliente || !cliente.email || !cliente.vencimiento) {
+        console.log('   ❌ Cliente sin email o vencimiento');
+        return false;
+      }
+      
       try {
         const [dia, mes, anio] = cliente.vencimiento.split("/");
+        if (!dia || !mes || !anio) {
+          console.log('   ❌ Formato de fecha inválido');
+          return false;
+        }
+        
         const fechaVencimiento = new Date(`${anio}-${mes}-${dia}T23:59:59`);
-        return fechaVencimiento < hoy;
+        if (isNaN(fechaVencimiento.getTime())) {
+          console.log('   ❌ Fecha inválida');
+          return false;
+        }
+        
+        const estaVencido = fechaVencimiento < hoy;
+        console.log(`   - Fecha vencimiento: ${fechaVencimiento.toLocaleDateString()}`);
+        console.log(`   - Está vencido: ${estaVencido ? 'SÍ' : 'NO'}`);
+        
+        return estaVencido;
       } catch (error) {
-        console.error('Error al procesar fecha:', cliente.vencimiento);
+        console.log('   ❌ Error al procesar fecha:', error.message);
         return false;
       }
     });
-
-    if (vencidas.length === 0) {
-      return {
-        success: true,
-        message: 'No hay cuentas vencidas',
-        enviados: 0,
-        errores: 0
-      };
-    }
-
-    // Obtener historial para evitar duplicados
-    const savedHistory = localStorage.getItem('emailHistory');
-    const emailHistory = savedHistory ? JSON.parse(savedHistory) : [];
-    const hace24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
     
-    const clientesParaNotificar = vencidas.filter(cliente => {
-      const ultimoEmail = emailHistory
-        .filter(email => 
-          email.clienteDNI === cliente.dni && 
-          email.estado === 'Enviado'
-        )
-        .sort((a, b) => new Date(b.fechaEnvio) - new Date(a.fechaEnvio))[0];
-      
-      return !ultimoEmail || new Date(ultimoEmail.fechaEnvio) < hace24h;
-    });
-
-    if (clientesParaNotificar.length === 0) {
+    console.log(`\n📊 Clientes vencidos encontrados: ${clientesVencidos.length}`);
+    
+    if (clientesVencidos.length === 0) {
       return {
-        success: true,
-        message: 'Todos los clientes ya fueron notificados en las últimas 24 horas',
-        enviados: 0,
+        totalVerificados: clientes.length,
+        clientesVencidos: 0,
+        emailsEnviados: 0,
         errores: 0
       };
     }
-
-    let enviados = 0;
-    let errores = 0;
-    const nuevosEmails = [];
-
-    // Enviar emails reales con delay
-    for (const cliente of clientesParaNotificar) {
+    
+    // Enviar emails reales
+    for (const cliente of clientesVencidos) {
       try {
-        console.log(`📧 Enviando email ${enviados + 1}/${clientesParaNotificar.length} a ${cliente.nombre}...`);
-        
+        console.log(`\n📧 Procesando envío para: ${cliente.nombre}`);
         const resultado = await enviarEmailReal(cliente, 'vencimiento');
         
-        const nuevoEmail = {
-          id: Date.now() + Math.random(),
-          clienteNombre: cliente.nombre,
-          clienteDNI: cliente.dni,
-          clienteEmail: cliente.email || `${cliente.dni}@gmail.com`,
-          tipo: 'vencimiento',
-          fechaEnvio: new Date().toLocaleString('es-AR'),
-          estado: resultado.success ? 'Enviado' : 'Error',
-          error: resultado.error || null,
-          asunto: 'Membresía Vencida - HULK GYM',
-          metodo: 'EmailJS',
-          messageId: resultado.messageId || null
-        };
-
-        nuevosEmails.push(nuevoEmail);
-        
         if (resultado.success) {
-          enviados++;
+          emailsEnviados++;
           console.log(`✅ Email enviado a ${cliente.nombre}`);
         } else {
           errores++;
-          console.log(`❌ Error enviando a ${cliente.nombre}: ${resultado.error}`);
-        }
-
-        // Delay entre emails para evitar rate limiting
-        if (clientesParaNotificar.length > 1) {
-          await new Promise(resolve => setTimeout(resolve, 3000)); // 3 segundos entre emails
+          console.log(`❌ Error al enviar email a ${cliente.nombre}:`, resultado.error);
         }
         
+        // Esperar 2 segundos entre cada envío
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
       } catch (error) {
-        console.error('Error procesando cliente:', cliente.nombre, error);
+        console.error(`❌ Error al enviar email a ${cliente.nombre}:`, error);
         errores++;
       }
     }
-
-    // Guardar historial actualizado
-    const historialActualizado = [...emailHistory, ...nuevosEmails];
-    localStorage.setItem('emailHistory', JSON.stringify(historialActualizado));
-
+    
+    console.log(`\n✅ Proceso completado:`);
+    console.log(`   - Emails enviados: ${emailsEnviados}`);
+    console.log(`   - Errores: ${errores}`);
+    
     return {
-      success: true,
-      message: `Proceso completado: ${enviados} emails REALES enviados, ${errores} errores`,
-      enviados,
-      errores,
-      total: clientesParaNotificar.length
+      totalVerificados: clientes.length,
+      clientesVencidos: clientesVencidos.length,
+      emailsEnviados,
+      errores
     };
-
   } catch (error) {
-    console.error('Error en verificarYNotificarExpiraciones:', error);
+    console.error('❌ Error en verificación:', error);
     return {
-      success: false,
-      message: 'Error en el proceso de verificación',
-      error: error.message,
-      enviados: 0,
-      errores: 0
+      error: { message: error.message || 'Error desconocido' },
+      totalVerificados: 0,
+      clientesVencidos: 0,
+      emailsEnviados: 0,
+      errores: 1
     };
   }
 };
 
-// Función adicional para enviar email individual
-export const enviarEmailExpiracion = async (cliente) => {
-  return await enviarEmailReal(cliente, 'vencimiento');
+/**
+ * NUEVO: Función para verificar automáticamente vencimientos diarios
+ * Esta función se ejecuta automáticamente y envía emails a las membresías vencidas
+ */
+export const verificarVencimientosAutomaticos = async () => {
+  console.log('🤖 [AUTO] Iniciando verificación automática de vencimientos...');
+  
+  // Obtener la última fecha de verificación
+  const ultimaVerificacion = localStorage.getItem('ultimaVerificacionAutomatica');
+  const hoy = new Date();
+  const fechaHoy = hoy.toDateString();
+  
+  // Si ya se verificó hoy, no hacer nada
+  if (ultimaVerificacion === fechaHoy) {
+    console.log('✅ [AUTO] Ya se verificó hoy. Saltando verificación.');
+    return {
+      yaVerificado: true,
+      mensaje: 'Verificación ya realizada hoy'
+    };
+  }
+  
+  console.log('🔍 [AUTO] Primera verificación del día. Procesando...');
+  
+  try {
+    // Obtener clientes
+    const clientesStr = localStorage.getItem('clientes');
+    const clientes = clientesStr ? JSON.parse(clientesStr) : [];
+    
+    // Obtener historial de notificaciones para evitar duplicados
+    const historialStr = localStorage.getItem('emailHistory');
+    const historial = historialStr ? JSON.parse(historialStr) : [];
+    
+    let emailsEnviados = 0;
+    let errores = 0;
+    
+    // Filtrar clientes vencidos HOY (que vencieron exactamente hoy)
+    const clientesVencidosHoy = clientes.filter(cliente => {
+      if (!cliente || !cliente.email || !cliente.vencimiento) return false;
+      
+      try {
+        const [dia, mes, anio] = cliente.vencimiento.split("/");
+        const fechaVencimiento = new Date(`${anio}-${mes}-${dia}T23:59:59`);
+        
+        // Verificar si vence HOY
+        const esHoy = fechaVencimiento.toDateString() === fechaHoy;
+        
+        if (esHoy) {
+          // Verificar si ya se le envió email hoy
+          const yaNotificadoHoy = historial.some(email => 
+            email.clienteDNI === cliente.dni &&
+            email.tipo === 'vencimiento' &&
+            new Date(email.fechaEnvio).toDateString() === fechaHoy
+          );
+          
+          return !yaNotificadoHoy;
+        }
+        
+        return false;
+      } catch (error) {
+        return false;
+      }
+    });
+    
+    console.log(`📊 [AUTO] Clientes que vencen HOY: ${clientesVencidosHoy.length}`);
+    
+    if (clientesVencidosHoy.length === 0) {
+      localStorage.setItem('ultimaVerificacionAutomatica', fechaHoy);
+      return {
+        totalVerificados: clientes.length,
+        clientesVencidos: 0,
+        emailsEnviados: 0,
+        errores: 0
+      };
+    }
+    
+    // Enviar emails a los clientes que vencen HOY
+    for (const cliente of clientesVencidosHoy) {
+      try {
+        console.log(`📧 [AUTO] Enviando notificación automática a: ${cliente.nombre}`);
+        
+        const resultado = await enviarEmailReal(cliente, 'vencimiento');
+        
+        if (resultado.success) {
+          emailsEnviados++;
+          
+          // Guardar en historial
+          const nuevoEmail = {
+            id: Date.now() + Math.random(),
+            clienteNombre: cliente.nombre,
+            clienteDNI: cliente.dni,
+            clienteEmail: cliente.email,
+            tipo: 'vencimiento',
+            fechaEnvio: new Date().toLocaleString('es-AR'),
+            estado: 'Enviado',
+            error: null,
+            asunto: 'Membresía Vencida - HULK GYM',
+            automatico: true // Marcar como envío automático
+          };
+          
+          historial.push(nuevoEmail);
+          localStorage.setItem('emailHistory', JSON.stringify(historial));
+          
+          console.log(`✅ [AUTO] Notificación enviada a ${cliente.nombre}`);
+        } else {
+          errores++;
+          console.log(`❌ [AUTO] Error al notificar a ${cliente.nombre}`);
+        }
+        
+        // Esperar entre envíos
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+      } catch (error) {
+        console.error(`❌ [AUTO] Error con ${cliente.nombre}:`, error);
+        errores++;
+      }
+    }
+    
+    // Guardar fecha de verificación
+    localStorage.setItem('ultimaVerificacionAutomatica', fechaHoy);
+    
+    console.log(`✅ [AUTO] Verificación completada: ${emailsEnviados} emails enviados`);
+    
+    return {
+      totalVerificados: clientes.length,
+      clientesVencidos: clientesVencidosHoy.length,
+      emailsEnviados,
+      errores,
+      automatico: true
+    };
+    
+  } catch (error) {
+    console.error('❌ [AUTO] Error en verificación automática:', error);
+    return {
+      error: { message: error.message },
+      totalVerificados: 0,
+      clientesVencidos: 0,
+      emailsEnviados: 0,
+      errores: 1
+    };
+  }
+};
+
+export default {
+  isEmailConfigured,
+  isEmailCredencialesConfigured,  // NUEVO: Exportar verificación de cuenta secundaria
+  enviarEmailReal,
+  generarTokenActivacion,
+  enviarEmailActivacion,
+  verificarYNotificarExpiraciones,
+  verificarVencimientosAutomaticos,
+  enviarCredencialesAcceso
 };

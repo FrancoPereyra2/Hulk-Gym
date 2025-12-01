@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
+import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Container,
@@ -42,9 +42,8 @@ import {
   FaCrown,
   FaEnvelope,
 } from "react-icons/fa";
-import { verificarYNotificarExpiraciones } from '../../services/emailService';
+import Swal from 'sweetalert2';
 
-// Hook personalizado para el tema
 export const useTheme = () => {
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const temaGuardado = localStorage.getItem('tema');
@@ -63,7 +62,6 @@ export const useTheme = () => {
   return { isDarkMode, alternarTema };
 };
 
-// Componente memoizado para tarjetas de estadísticas
 const StatCard = memo(({ title, value, icon: Icon, color, isDarkMode }) => (
   <Card 
     className="h-100 border-0 shadow-lg"
@@ -76,29 +74,28 @@ const StatCard = memo(({ title, value, icon: Icon, color, isDarkMode }) => (
       transition: 'all 0.3s ease'
     }}
   >
-    <Card.Body className="p-4">
+    <Card.Body className="p-3">
       <div className="d-flex align-items-center justify-content-between">
-        <div>
-          <p className={`small mb-1 ${isDarkMode ? 'text-light opacity-75' : 'text-muted'}`}>
+        <div className="flex-grow-1">
+          <p className={`small mb-1 ${isDarkMode ? 'text-light opacity-75' : 'text-muted'}`} style={{ fontSize: '0.75rem' }}>
             {title}
           </p>
-          <h2 className={`fw-bold mb-0 text-${color}`}>
+          <h3 className={`fw-bold mb-0 text-${color}`} style={{ fontSize: '1.5rem' }}>
             {value}
-          </h2>
+          </h3>
         </div>
         <div 
-          className={`rounded-circle d-flex align-items-center justify-content-center bg-${color} bg-opacity-10`}
-          style={{ width: '60px', height: '60px' }}
+          className={`rounded-circle d-flex align-items-center justify-content-center bg-${color} bg-opacity-10 flex-shrink-0`}
+          style={{ width: '48px', height: '48px', minWidth: '48px' }}
         >
-          <Icon className={`text-${color}`} size={24} />
+          <Icon className={`text-${color}`} size={20} />
         </div>
       </div>
     </Card.Body>
   </Card>
 ));
 
-// Componente memoizado para filas de tabla
-const ClienteRow = memo(({ cliente, membership, progreso, isDarkMode, onSelect, onDelete }) => (
+const ClienteRow = memo(({ cliente, membership, progreso, isDarkMode, onSelect, onDelete, onRenovar, onTogglePago }) => (
   <tr 
     onClick={() => onSelect(cliente)} 
     style={{ cursor: "pointer" }}
@@ -119,6 +116,13 @@ const ClienteRow = memo(({ cliente, membership, progreso, isDarkMode, onSelect, 
       <div className={`small ${isDarkMode ? 'text-light opacity-75' : 'text-muted'}`}>
         DNI: {cliente.dni}
       </div>
+      {/* NUEVO: Indicador de pago del mes */}
+      {cliente.pagoMesActual && (
+        <Badge bg="success" className="mt-1">
+          <FaDollarSign className="me-1" size={10} />
+          Pagado
+        </Badge>
+      )}
     </td>
     <td className="d-none d-lg-table-cell" style={{ minWidth: 200 }}>
       <div className={`small mb-1 ${isDarkMode ? 'text-light opacity-75' : 'text-muted'}`}>
@@ -162,19 +166,44 @@ const ClienteRow = memo(({ cliente, membership, progreso, isDarkMode, onSelect, 
       </small>
     </td>
     <td>
-      <Button 
-        variant="outline-danger" 
-        size="sm" 
-        onClick={(e) => { e.stopPropagation(); onDelete(cliente, e); }}
-        className="border-0"
-      >
-        <FaTrash />
-      </Button>
+      <div className="d-flex gap-1">
+        {/* NUEVO: Botón de renovar solo si está expirada */}
+        {membership === "Expirada" && (
+          <Button 
+            variant="outline-success" 
+            size="sm" 
+            onClick={(e) => { e.stopPropagation(); onRenovar(cliente, e); }}
+            className="border-0"
+            title="Renovar membresía"
+          >
+            <FaCheckCircle />
+          </Button>
+        )}
+        
+        {/* NUEVO: Botón de pago del mes */}
+        <Button 
+          variant={cliente.pagoMesActual ? "success" : "outline-warning"} 
+          size="sm" 
+          onClick={(e) => { e.stopPropagation(); onTogglePago(cliente); }}
+          className="border-0"
+          title={cliente.pagoMesActual ? "Marcar como no pagado" : "Marcar como pagado"}
+        >
+          <FaDollarSign />
+        </Button>
+        
+        <Button 
+          variant="outline-danger" 
+          size="sm" 
+          onClick={(e) => { e.stopPropagation(); onDelete(cliente, e); }}
+          className="border-0"
+        >
+          <FaTrash />
+        </Button>
+      </div>
     </td>
   </tr>
 ));
 
-// Hook de debounce optimizado
 const useDebounce = (value, delay) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
 
@@ -195,7 +224,9 @@ const AdminClientes = () => {
   const navigate = useNavigate();
   const { isDarkMode, alternarTema } = useTheme();
 
-  // Verificación más robusta de usuario administrador
+  const detalleClienteRef = useRef(null);
+  const tablaClientesRef = useRef(null);
+
   useEffect(() => {
     const userType = localStorage.getItem("userType");
     const userEmail = localStorage.getItem("userEmail");
@@ -203,7 +234,6 @@ const AdminClientes = () => {
     if (userType !== "admin") {
       navigate("/login");
     } else {
-      // Verificación adicional contra la base de usuarios
       const savedUsers = localStorage.getItem('users');
       if (savedUsers) {
         const users = JSON.parse(savedUsers);
@@ -218,33 +248,64 @@ const AdminClientes = () => {
     }
   }, [navigate]);
 
-  // Estados optimizados
   const [searchTerm, setSearchTerm] = useState("");
   const [filtroActivo, setFiltroActivo] = useState("todos");
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [showSidebar, setShowSidebar] = useState(false);
   const [paginaActual, setPaginaActual] = useState(1);
 
-  // Estados para modales
   const [showModalNuevo, setShowModalNuevo] = useState(false);
   const [showModalEditar, setShowModalEditar] = useState(false);
   const [showModalEliminar, setShowModalEliminar] = useState(false);
   const [clienteAEliminar, setClienteAEliminar] = useState(null);
 
-  // Cargar clientes con lazy loading
+  const [showModalRenovar, setShowModalRenovar] = useState(false);
+  const [clienteARenovar, setClienteARenovar] = useState(null);
+
   const [clientes, setClientes] = useState(() => {
     const savedClientes = localStorage.getItem('clientes');
     return savedClientes ? JSON.parse(savedClientes) : [];
   });
 
-  // Debounce para búsqueda
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailHistory, setEmailHistory] = useState(() => {
+    const savedHistory = localStorage.getItem('emailHistory');
+    return savedHistory ? JSON.parse(savedHistory) : [];
+  });
+  const [cuentasVencidas, setCuentasVencidas] = useState([]);
+
+  const [tokensActivacion, setTokensActivacion] = useState(() => {
+    const savedTokens = localStorage.getItem('tokensActivacion');
+    return savedTokens ? JSON.parse(savedTokens) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('tokensActivacion', JSON.stringify(tokensActivacion));
+  }, [tokensActivacion]);
+
+  const verificarCuentasVencidas = useCallback(() => {
+    const hoy = new Date();
+    const vencidas = clientes.filter(cliente => {
+      if (!cliente.vencimiento || !cliente.email || cliente.email.trim() === '') return false;
+      try {
+        const [dia, mes, anio] = cliente.vencimiento.split("/");
+        const fechaVencimiento = new Date(`${anio}-${mes}-${dia}T23:59:59`);
+        return fechaVencimiento < hoy;
+      } catch (error) {
+        return false;
+      }
+    });
+    
+    setCuentasVencidas(vencidas);
+    return vencidas;
+  }, [clientes]);
+
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
-  // Form para nuevo/editar cliente
   const [formData, setFormData] = useState({
     nombre: "",
     dni: "",
-    email: "", // Nuevo campo
+    email: "",
     fechaInicio: "",
     vencimiento: "",
     estado: "Activo",
@@ -252,18 +313,15 @@ const AdminClientes = () => {
     precio: 10000,
   });
 
-  // Estados del gráfico
   const [hoveredBar, setHoveredBar] = useState(null);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
 
-  // Nuevo estado para el sistema de emails
   const [verificandoEmails, setVerificandoEmails] = useState(false);
   const [ultimaVerificacion, setUltimaVerificacion] = useState(() => {
     const saved = localStorage.getItem('ultimaVerificacionEmails');
     return saved ? new Date(saved) : null;
   });
 
-  // Función memoizada para calcular estado de membresía
   const getEstadoMembresia = useCallback((cliente) => {
     try {
       const partes = (cliente?.vencimiento || "").split("/");
@@ -277,9 +335,7 @@ const AdminClientes = () => {
     }
   }, []);
 
-  // Estadísticas memoizadas
   const estadisticas = useMemo(() => {
-    // Filtrar solo clientes con email
     const clientesConEmail = clientes.filter(cliente => {
       const email = cliente.email || '';
       return email.trim() !== '';
@@ -299,13 +355,11 @@ const AdminClientes = () => {
     };
   }, [clientes, getEstadoMembresia]);
 
-  // Datos del gráfico memoizados
   const datosIngresos = useMemo(() => {
     const currentYear = new Date().getFullYear();
     const meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
     const ingresosMensuales = Array(12).fill(0);
 
-    // Solo procesar clientes con email
     const clientesConEmail = clientes.filter(cliente => {
       const email = cliente.email || '';
       return email.trim() !== '';
@@ -339,24 +393,18 @@ const AdminClientes = () => {
     }));
   }, [clientes]);
 
-  // Valor máximo del gráfico memoizado
   const valorMaximo = useMemo(() => 
     Math.max(...(datosIngresos.length > 0 ? datosIngresos.map((item) => item.valor) : [0])) || 10000
   , [datosIngresos]);
 
-  // Filtrado y búsqueda optimizados con debounce
+
   const clientesFiltrados = useMemo(() => {
-    console.log('Todos los clientes:', clientes);
     
-    // Primero filtrar solo clientes con email válido
     const clientesConEmail = clientes.filter(cliente => {
       const email = cliente.email || '';
       const tieneEmail = email.trim() !== '';
-      console.log(`Cliente ${cliente.nombre}: email="${email}", tieneEmail=${tieneEmail}`);
       return tieneEmail;
     });
-
-    console.log('Clientes con email:', clientesConEmail);
 
     const clientesFiltradosFinales = clientesConEmail.filter((cliente) => {
       const nombre = (cliente.nombre || "").toLowerCase();
@@ -373,11 +421,9 @@ const AdminClientes = () => {
       return coincideTermino;
     });
 
-    console.log('Clientes filtrados finales:', clientesFiltradosFinales);
     return clientesFiltradosFinales;
   }, [clientes, debouncedSearchTerm, filtroActivo, getEstadoMembresia]);
 
-  // Paginación optimizada
   const clientesPaginados = useMemo(() => {
     const clientesPorPagina = 10;
     const indiceInicial = (paginaActual - 1) * clientesPorPagina;
@@ -387,7 +433,6 @@ const AdminClientes = () => {
     };
   }, [clientesFiltrados, paginaActual]);
 
-  // Función de progreso memoizada
   const calcularProgresoMembresia = useCallback((cliente) => {
     const parseFecha = (fechaString) => {
       if (!fechaString) return null;
@@ -414,7 +459,6 @@ const AdminClientes = () => {
     return { pct: Math.max(0, Math.min(100, pct)), diasRestantes, vencido };
   }, []);
 
-  // Optimizar listeners
   useEffect(() => {
     let timeoutId;
     const onResize = () => {
@@ -431,7 +475,6 @@ const AdminClientes = () => {
     };
   }, []);
 
-  // Guardar clientes optimizado con debounce
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       localStorage.setItem('clientes', JSON.stringify(clientes));
@@ -440,7 +483,6 @@ const AdminClientes = () => {
     return () => clearTimeout(timeoutId);
   }, [clientes]);
 
-  // Callbacks optimizados
   const handleFormChange = useCallback((e) => {
     const { name, value } = e.target;
 
@@ -467,15 +509,83 @@ const AdminClientes = () => {
 
   const seleccionarCliente = useCallback((cliente) => {
     setClienteSeleccionado(cliente);
-  }, []);
+    
+    setTimeout(() => {
+      requestAnimationFrame(() => {
+        const detalleElement = detalleClienteRef.current || document.getElementById('detalle-cliente');
+        
+        if (detalleElement) {
+          const rect = detalleElement.getBoundingClientRect();
+          
+          if (rect.height > 0) {
+            const targetPosition = rect.top + window.pageYOffset - 20;
+            const startPosition = window.pageYOffset;
+            const distance = targetPosition - startPosition;
+            const duration = 1200;
+            let start = null;
 
-  const handleSearch = useCallback((e) => {
-    e.preventDefault();
-    setPaginaActual(1);
+            const animation = (currentTime) => {
+              if (start === null) start = currentTime;
+              const timeElapsed = currentTime - start;
+              const progress = Math.min(timeElapsed / duration, 1);
+              
+              const easeInOutQuart = progress < 0.5
+                ? 8 * progress * progress * progress * progress
+                : 1 - Math.pow(-2 * progress + 2, 4) / 2;
+              
+              window.scrollTo(0, startPosition + distance * easeInOutQuart);
+              
+              if (timeElapsed < duration) {
+                requestAnimationFrame(animation);
+              }
+            };
+
+            requestAnimationFrame(animation);
+          } else {
+            setTimeout(() => {
+              const retryElement = detalleClienteRef.current || document.getElementById('detalle-cliente');
+              if (retryElement) {
+                retryElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
+            }, 100);
+          }
+        }
+      });
+    }, 100); 
   }, []);
 
   const cancelarSeleccion = useCallback(() => {
-    setClienteSeleccionado(null);
+    const tablaElement = tablaClientesRef.current || document.getElementById('tabla-clientes');
+    
+    if (tablaElement) {
+      const targetPosition = tablaElement.getBoundingClientRect().top + window.pageYOffset - 100; 
+      const startPosition = window.pageYOffset;
+      const distance = targetPosition - startPosition;
+      const duration = 800;
+      let start = null;
+
+      const animation = (currentTime) => {
+        if (start === null) start = currentTime;
+        const timeElapsed = currentTime - start;
+        const progress = Math.min(timeElapsed / duration, 1);
+        
+        const easeInOutQuart = progress < 0.5
+          ? 8 * progress * progress * progress * progress
+          : 1 - Math.pow(-2 * progress + 2, 4) / 2;
+        
+        window.scrollTo(0, startPosition + distance * easeInOutQuart);
+        
+        if (timeElapsed < duration) {
+          requestAnimationFrame(animation);
+        } else {
+          setClienteSeleccionado(null);
+        }
+      };
+
+      requestAnimationFrame(animation);
+    } else {
+      setClienteSeleccionado(null);
+    }
   }, []);
 
   const abrirModalNuevo = useCallback(() => {
@@ -499,121 +609,467 @@ const AdminClientes = () => {
     setShowModalNuevo(true);
   }, []);
 
-  const guardarNuevoCliente = useCallback(() => {
-    // Validar que el email esté presente antes de guardar
+  const guardarNuevoCliente = useCallback(async () => {
     if (!formData.email || formData.email.trim() === '') {
-      alert('El email es obligatorio para registrar un cliente.');
+      Swal.fire({
+        icon: 'error',
+        title: 'Email obligatorio',
+        text: 'El email es obligatorio para registrar un cliente.',
+        confirmButtonColor: '#dc3545'
+      });
       return;
     }
 
-    console.log('Datos del formulario antes de guardar:', formData);
+    if (!formData.dni || formData.dni.trim() === '') {
+      Swal.fire({
+        icon: 'error',
+        title: 'DNI obligatorio',
+        text: 'El DNI es obligatorio para registrar un cliente.',
+        confirmButtonColor: '#dc3545'
+      });
+      return;
+    }
 
-    const nuevoCliente = {
-      id: clientes.length > 0 ? Math.max(...clientes.map((c) => c.id)) + 1 : 1,
-      ...formData,
-      email: formData.email.trim(), // Asegurar que se guarde el email sin espacios
-      precio: Number(formData.precio)
-    };
+    if (!formData.nombre || formData.nombre.trim() === '') {
+      Swal.fire({
+        icon: 'error',
+        title: 'Nombre obligatorio',
+        text: 'El nombre es obligatorio para registrar un cliente.',
+        confirmButtonColor: '#dc3545'
+      });
+      return;
+    }
 
-    if (!nuevoCliente.estadoCuenta) nuevoCliente.estadoCuenta = "Activo";
+    const emailExistente = clientes.find(c => c.email.toLowerCase() === formData.email.trim().toLowerCase());
+    if (emailExistente) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Email duplicado',
+        text: `Ya existe un cliente registrado con el email ${formData.email.trim()}`,
+        confirmButtonColor: '#ffc107'
+      });
+      return;
+    }
 
-    console.log('Nuevo cliente a guardar:', nuevoCliente);
+    const dniExistente = clientes.find(c => c.dni === formData.dni.trim());
+    if (dniExistente) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'DNI duplicado',
+        text: `Ya existe un cliente registrado con el DNI ${formData.dni.trim()}`,
+        confirmButtonColor: '#ffc107'
+      });
+      return;
+    }
 
-    setClientes(prev => {
-      const nuevaLista = [...prev, nuevoCliente];
-      console.log('Nueva lista de clientes:', nuevaLista);
-      return nuevaLista;
-    });
-    
     setShowModalNuevo(false);
-    
-    // Limpiar el formulario
-    setFormData({
-      nombre: "",
-      dni: "",
-      email: "",
-      fechaInicio: "",
-      vencimiento: "",
-      estado: "Activo",
-      estadoCuenta: "Activo",
-      precio: 10000,
-    });
 
-    // Forzar actualización inmediata del localStorage
-    setTimeout(() => {
-      const clientesActualizados = JSON.parse(localStorage.getItem('clientes') || '[]');
-      console.log('Clientes en localStorage después de guardar:', clientesActualizados);
-    }, 100);
-  }, [clientes.length, formData]);
+    try {
+      Swal.fire({
+        title: 'Registrando cliente...',
+        html: 'Por favor espera mientras se envía el email de activación',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
 
-  const abrirModalEditar = useCallback((cliente, e) => {
-    if (e) e.stopPropagation();
-    setFormData({
-      id: cliente.id,
-      nombre: cliente.nombre,
-      dni: cliente.dni,
-      email: cliente.email,
-      fechaInicio: cliente.fechaInicio,
-      vencimiento: cliente.vencimiento,
-      estadoCuenta: cliente.estadoCuenta || "Activo",
-      precio: cliente.precio,
-    });
-    setShowModalEditar(true);
+      const nuevoCliente = {
+        id: clientes.length > 0 ? Math.max(...clientes.map((c) => c.id)) + 1 : 1,
+        ...formData,
+        email: formData.email.trim().toLowerCase(),
+        dni: formData.dni.trim(),
+        nombre: formData.nombre.trim(),
+        precio: Number(formData.precio),
+        cuentaActivada: false,
+        fechaCreacion: new Date().toISOString()
+      };
+
+
+      if (!nuevoCliente.estadoCuenta) nuevoCliente.estadoCuenta = "Activo";
+
+      const { generarTokenActivacion, enviarEmailActivacion } = await import('../../services/emailService');
+      
+      const token = generarTokenActivacion();
+      
+      const tokenData = {
+        token: token,
+        clienteId: nuevoCliente.id,
+        clienteDNI: nuevoCliente.dni,
+        clienteEmail: nuevoCliente.email,
+        fechaCreacion: new Date().toISOString(),
+        usado: false,
+        fechaExpiracion: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      };
+
+      setTokensActivacion(prev => [...prev, tokenData]);
+
+      setClientes(prev => [...prev, nuevoCliente]);
+
+      setFormData({
+        nombre: "",
+        dni: "",
+        email: "",
+        fechaInicio: "",
+        vencimiento: "",
+        estado: "Activo",
+        estadoCuenta: "Activo",
+        precio: 10000,
+      });
+
+      const resultadoEmail = await enviarEmailActivacion(nuevoCliente, token);
+      
+
+      
+      
+      if (resultadoEmail.success) {
+        
+        const nuevoEmailHistorial = {
+          id: Date.now(),
+          clienteNombre: nuevoCliente.nombre,
+          clienteDNI: nuevoCliente.dni,
+          clienteEmail: nuevoCliente.email,
+          tipo: 'activacion',
+          fechaEnvio: new Date().toLocaleString('es-AR'),
+          estado: 'Enviado',
+          error: null,
+          asunto: 'Activa tu cuenta - HULK GYM',
+          token: token
+        };
+
+        setEmailHistory(prev => {
+          const nuevoHistorial = [...prev, nuevoEmailHistorial];
+          localStorage.setItem('emailHistory', JSON.stringify(nuevoHistorial));
+          return nuevoHistorial;
+        });
+
+        await Swal.fire({
+          icon: 'success',
+          title: '¡Cliente registrado!',
+          html: `
+            <div style="text-align: left;">
+              <p><strong>Cliente:</strong> ${nuevoCliente.nombre}</p>
+              <p><strong>DNI:</strong> ${nuevoCliente.dni}</p>
+              <p><strong>Email:</strong> ${nuevoCliente.email}</p>
+              <p style="color: #28a745; margin-top: 15px;">
+                <i class="fas fa-check-circle"></i> 
+                Se ha enviado un email de activación exitosamente
+              </p>
+            </div>
+          `,
+          confirmButtonColor: '#28a745',
+          timer: 4000,
+          timerProgressBar: true
+        });
+
+      } else {
+        console.error('❌ Error al enviar email:', resultadoEmail.error);
+
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Cliente registrado con advertencia',
+          html: `
+            <div style="text-align: left;">
+              <p><strong>Cliente:</strong> ${nuevoCliente.nombre}</p>
+              <p><strong>DNI:</strong> ${nuevoCliente.dni}</p>
+              <p style="color: #ffc107; margin-top: 15px;">
+                <i class="fas fa-exclamation-triangle"></i> 
+                Hubo un error al enviar el email de activación
+              </p>
+              <p style="font-size: 0.9em; color: #6c757d;">
+                ${resultadoEmail.error}
+              </p>
+            </div>
+          `,
+          confirmButtonColor: '#ffc107'
+        });
+      }
+
+    } catch (error) {
+      console.error('❌ Error al guardar cliente:', error);
+      
+      setFormData({
+        nombre: "",
+        dni: "",
+        email: "",
+        fechaInicio: "",
+        vencimiento: "",
+        estado: "Activo",
+        estadoCuenta: "Activo",
+        precio: 10000,
+      });
+
+      await Swal.fire({
+        icon: 'error',
+        title: 'Error al registrar',
+        text: 'Error al registrar el cliente: ' + error.message,
+        confirmButtonColor: '#dc3545'
+      });
+    }
+  }, [clientes, formData]);
+
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
+  const [alertVariant, setAlertVariant] = useState("success");
+
+  const handleCloseAlert = useCallback(() => {
+    setShowAlert(false);
   }, []);
 
-  const guardarClienteEditado = useCallback(() => {
-    // Validar que el email esté presente antes de guardar
-    if (!formData.email || formData.email.trim() === '') {
-      alert('El email es obligatorio para el cliente.');
-      return;
-    }
+  const handleEliminarEmail = useCallback((emailId) => {
+    Swal.fire({
+      title: '¿Eliminar registro?',
+      text: '¿Estás seguro de que deseas eliminar este registro del historial?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      reverseButtons: true
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const nuevoHistorial = emailHistory.filter(email => email.id !== emailId);
+        setEmailHistory(nuevoHistorial);
+        localStorage.setItem('emailHistory', JSON.stringify(nuevoHistorial));
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'Eliminado',
+          text: 'El registro ha sido eliminado del historial',
+          timer: 2000,
+          showConfirmButton: false
+        });
+      }
+    });
+  }, [emailHistory]);
 
-    const formDataActualizado = {
-      ...formData,
-      email: formData.email.trim(), // Asegurar que se guarde el email sin espacios
-      precio: Number(formData.precio)
-    };
+  const handleVerificarEmails = useCallback(async () => {
+    setVerificandoEmails(true);
     
-    setClientes(prev => prev.map((c) =>
-      c.id === formData.id ? { ...c, ...formDataActualizado } : c
-    ));
+    try {
+      
+      Swal.fire({
+        title: 'Verificando emails...',
+        html: 'Por favor espera mientras verificamos las cuentas vencidas',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+      
+      const { verificarYNotificarExpiraciones } = await import('../../services/emailService');
+      
+      const resultado = await verificarYNotificarExpiraciones();
+      
+      
+      if (resultado.error) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error en la verificación',
+          text: resultado.error.message,
+          confirmButtonColor: '#dc3545'
+        });
+      } else {
+        let icon = 'success';
+        if (resultado.clientesVencidos === 0) {
+          icon = 'info';
+        } else if (resultado.errores > 0 && resultado.emailsEnviados === 0) {
+          icon = 'error';
+        } else if (resultado.errores > 0) {
+          icon = 'warning';
+        }
 
-    if (clienteSeleccionado && clienteSeleccionado.id === formData.id) {
-      setClienteSeleccionado(prev => prev ? { ...prev, ...formDataActualizado } : formDataActualizado);
+        Swal.fire({
+          icon: icon,
+          title: 'Verificación completada',
+          html: `
+            <div style="text-align: left; padding: 10px;">
+              <div style="margin-bottom: 15px;">
+                <h5 style="color: #6c757d; font-size: 1.1em; margin-bottom: 10px;">
+                  📊 Resumen de verificación
+                </h5>
+              </div>
+              
+              <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                <p style="margin: 8px 0;">
+                  <strong>Clientes verificados:</strong> 
+                  <span style="color: #0d6efd;">${resultado.totalVerificados}</span>
+                </p>
+                  <strong>Errores:</strong> 
+                  <span style="color: ${resultado.errores > 0 ? '#ffc107' : '#6c757d'};">${resultado.errores}</span>
+                </p>
+              </div>
+
+              ${resultado.emailsEnviados > 0 
+                ? `<div style="background: #d4edda; color: #155724; padding: 10px; border-radius: 6px; border-left: 4px solid #28a745;">
+                    <small>
+                      <i class="fas fa-check-circle"></i> 
+                      ¡Revisa tu bandeja de entrada de Gmail para confirmar los envíos!
+                    </small>
+                  </div>` 
+                : `<div style="background: #d1ecf1; color: #0c5460; padding: 10px; border-radius: 6px; border-left: 4px solid #17a2b8;">
+                    <small>
+                      <i class="fas fa-info-circle"></i> 
+                      No se enviaron emails (no hay cuentas vencidas con email válido)
+                    </small>
+                  </div>`
+              }
+            </div>
+          `,
+          confirmButtonColor: '#0d6efd',
+          confirmButtonText: 'Entendido',
+          width: '600px'
+        });
+        
+        const ahora = new Date();
+        setUltimaVerificacion(ahora);
+        localStorage.setItem('ultimaVerificacionEmails', ahora.toISOString());
+      }
+      
+    } catch (error) {
+      console.error('❌ Error inesperado:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error inesperado',
+        text: error.message,
+        confirmButtonColor: '#dc3545'
+      });
+    } finally {
+      setVerificandoEmails(false);
     }
-
-    setShowModalEditar(false);
-  }, [formData, clienteSeleccionado]);
-
-  const abrirModalEliminar = useCallback((cliente, e) => {
-    if (e) e.stopPropagation();
-    setClienteAEliminar(cliente);
-    setShowModalEliminar(true);
   }, []);
 
-  const confirmarEliminarCliente = useCallback(() => {
-    setClientes(prev => prev.filter((c) => c.id !== clienteAEliminar.id));
+  const verificarVencimientosAutomaticos = useCallback(async () => {
+    try {
 
-    if (clienteSeleccionado && clienteSeleccionado.id === clienteAEliminar.id) {
-      setClienteSeleccionado(null);
+      
+      const { verificarVencimientosAutomaticos } = await import('../../services/emailService');
+      
+      const resultado = await verificarVencimientosAutomaticos();
+
+      
+      if (resultado.emailsEnviados > 0) {
+        const historialStr = localStorage.getItem('emailHistory');
+        const nuevoHistorial = historialStr ? JSON.parse(historialStr) : [];
+        setEmailHistory(nuevoHistorial);
+        
+      }
+      
+    } catch (error) {
+      console.error('❌ Error en verificación automática:', error);
     }
+  }, []);
 
-    setShowModalEliminar(false);
-  }, [clienteAEliminar, clienteSeleccionado]);
+  useEffect(() => {
+    verificarVencimientosAutomaticos();
+    
+    const intervalo = setInterval(() => {
+      verificarVencimientosAutomaticos();
+    }, 3600000); 
+    
+    return () => clearInterval(intervalo);
+  }, [verificarVencimientosAutomaticos]);
 
-  const handleLogout = useCallback(() => {
-    localStorage.removeItem("userType");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("userEmail");
-    navigate("/login");
-  }, [navigate]);
+  const verificarYResetearPagosMensuales = useCallback(() => {
+    const fechaActual = new Date();
+    const mesActual = fechaActual.getMonth();
+    const anioActual = fechaActual.getFullYear();
+    
+    const ultimaVerificacionPagos = localStorage.getItem('ultimaVerificacionPagos');
+    let debeResetear = false;
+    
+    if (!ultimaVerificacionPagos) {
+      debeResetear = true;
+    } else {
+      const fechaUltimaVerificacion = new Date(ultimaVerificacionPagos);
+      const mesVerificacion = fechaUltimaVerificacion.getMonth();
+      const anioVerificacion = fechaUltimaVerificacion.getFullYear();
+      
+      if (mesActual !== mesVerificacion || anioActual !== anioVerificacion) {
+        debeResetear = true;
+      }
+    }
+    
+    if (debeResetear) {
+      
+      setClientes(prev => {
+        const clientesActualizados = prev.map(cliente => ({
+          ...cliente,
+          pagoMesActual: false
+        }));
+        
+        localStorage.setItem('clientes', JSON.stringify(clientesActualizados));
+        
+        return clientesActualizados;
+      });
+      
+      localStorage.setItem('ultimaVerificacionPagos', fechaActual.toISOString());
+      
+    }
+  }, []);
 
-  const handleNuevoAdmin = useCallback(() => {
-    localStorage.setItem('creandoAdmin', 'true');
-    navigate('/registro');
-  }, [navigate]);
+  useEffect(() => {
+    verificarYResetearPagosMensuales();
+  }, [verificarYResetearPagosMensuales]);
 
-  // Gráfico de barras usando componentes de React Bootstrap
+  const togglePagoMes = useCallback((cliente) => {
+    const accion = cliente.pagoMesActual ? 'marcar como NO pagado' : 'marcar como pagado';
+    const textoConfirmacion = cliente.pagoMesActual 
+      ? `¿Estás seguro de que deseas marcar el pago del mes actual de <strong>${cliente.nombre}</strong> como <strong>NO PAGADO</strong>?<br><br>Esto indicará que el cliente debe el mes actual.`
+      : `¿Confirmar que <strong>${cliente.nombre}</strong> ha <strong>PAGADO</strong> el mes actual?<br><br>Esto actualizará el registro del cliente.`;
+    
+    Swal.fire({
+      title: cliente.pagoMesActual ? '¿Marcar como NO pagado?' : '¿Confirmar pago?',
+      html: textoConfirmacion,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: cliente.pagoMesActual ? '#dc3545' : '#28a745',
+      cancelButtonColor: '#6c757d',
+      confirmButtonText: cliente.pagoMesActual ? 'Sí, marcar NO pagado' : 'Sí, confirmar pago',
+      cancelButtonText: 'Cancelar',
+      reverseButtons: true
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const clienteActualizado = {
+          ...cliente,
+          pagoMesActual: !cliente.pagoMesActual,
+          fechaUltimoPago: !cliente.pagoMesActual ? new Date().toISOString() : cliente.fechaUltimoPago
+        };
+        
+        setClientes(prev => prev.map((c) =>
+          c.id === cliente.id ? clienteActualizado : c
+        ));
+        
+        if (clienteSeleccionado && clienteSeleccionado.id === cliente.id) {
+          setClienteSeleccionado(clienteActualizado);
+        }
+
+        Swal.fire({
+          icon: 'success',
+          title: clienteActualizado.pagoMesActual ? '¡Pago confirmado!' : 'Marcado como pendiente',
+          text: clienteActualizado.pagoMesActual 
+            ? `El pago de ${cliente.nombre} ha sido registrado correctamente.`
+            : `${cliente.nombre} ahora aparece con pago pendiente.`,
+          timer: 2000,
+          showConfirmButton: false
+        });
+      }
+    });
+  }, [clienteSeleccionado]);
+
+  const formatearFechaParaInput = (fechaString) => {
+    if (!fechaString) return "";
+    const partes = fechaString.split("/");
+    if (partes.length !== 3) return "";
+    const dia = partes[0].padStart(2, "0");
+    const mes = partes[1].padStart(2, "0");
+    const año = partes[2];
+    return `${año}-${mes}-${dia}`;
+  };
+
   const renderBarChart = () => {
     const hayDatos = datosIngresos.some(item => item.valor > 0);
     if (!hayDatos) {
@@ -627,20 +1083,18 @@ const AdminClientes = () => {
       );
     }
 
-    const chartHeight = isMobile ? 140 : 240;
-    const gap = isMobile ? 8 : 12;
+    const chartHeight = isMobile ? 180 : 240;
+    const gap = isMobile ? 4 : 12;
     const indexMax = datosIngresos.reduce((acc, cur, i) => (cur.valor > (datosIngresos[acc]?.valor || 0) ? i : acc), 0);
-
-    // qué etiquetas de mes mostrar en móvil (antes mostraba cada 2 meses)
-    // Mostrar siempre todas las etiquetas de mes (compactadas por tamaño en móvil)
-    const mostrarEtiqueta = () => true;
     
     return (
       <Card className="shadow-sm mb-3">
-        <Card.Body style={{ background: isDarkMode ? 'linear-gradient(180deg, rgba(30,58,138,0.03), transparent)' : 'linear-gradient(180deg, rgba(59,130,246,0.03), transparent)' }}>
-          <Card.Title as="h6" className="mb-3">Ingresos por mes basados en clientes registrados</Card.Title>
+        <Card.Body style={{ background: isDarkMode ? 'linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)' : 'linear-gradient(180deg, rgba(59,130,246,0.03), transparent)' }}>
+          <Card.Title as={isMobile ? "h6" : "h6"} className="mb-3">
+            Ingresos por mes basados en clientes registrados
+          </Card.Title>
 
-          <div style={{ padding: isMobile ? '0.5rem' : '1rem' }}>
+          <div style={{ padding: isMobile ? '0.25rem' : '1rem' }}>
             <div style={{ height: chartHeight + 40, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: gap, height: chartHeight }}>
                 {datosIngresos.map((item, index) => {
@@ -652,14 +1106,14 @@ const AdminClientes = () => {
                   const isMax = index === indexMax;
 
                   return (
-                    <div key={index} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: isMobile ? 18 : 28 }}>
+                    <div key={index} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: isMobile ? 20 : 28 }}>
                       <div style={{ height: chartHeight - heightPx }} />
                       <div
                         role="button"
                         onMouseEnter={() => setHoveredBar(index)}
                         onMouseLeave={() => setHoveredBar(null)}
                         style={{
-                          width: '70%',
+                          width: isMobile ? '90%' : '70%',
                           height: heightPx,
                           background: `linear-gradient(180deg, ${colorStart}, ${colorEnd})`,
                           borderRadius: isMax ? 10 : 6,
@@ -672,7 +1126,6 @@ const AdminClientes = () => {
                           position: 'relative',
                         }}
                       >
-                        {/* mostrar valor sólo cuando se hace hover o para la barra máxima en desktop */}
                         {(hoveredBar === index || (!isMobile && isMax)) && valor > 0 && (
                           <div style={{
                             position: 'absolute',
@@ -681,24 +1134,30 @@ const AdminClientes = () => {
                             color: isDarkMode ? '#fff' : '#111',
                             padding: '3px 8px',
                             borderRadius: 8,
-                            fontSize: isMobile ? 10 : 12,
+                            fontSize: isMobile ? 9 : 12,
                             fontWeight: 700,
-                            boxShadow: '0 6px 12px rgba(0,0,0,0.08)'
+                            boxShadow: '0 6px 12px rgba(0,0,0,0.08)',
+                            whiteSpace: 'nowrap'
                           }}>
                             ${valor.toLocaleString()}
                           </div>
                         )}
                       </div>
-                      <div style={{ height: 8 }} />
-                      <div style={{ fontSize: isMobile ? 10 : 12, color: isDarkMode ? '#e6eef8' : '#374151', fontWeight: 600, textAlign: 'center' }}>
-                        {mostrarEtiqueta(index) ? item.mes : ''}
+                      <div style={{ height: 6 }} />
+                      <div style={{ 
+                        fontSize: isMobile ? 9 : 12, 
+                        color: isDarkMode ? '#e6eef8' : '#374151', 
+                        fontWeight: 600, 
+                        textAlign: 'center',
+                        lineHeight: 1.2
+                      }}>
+                        {item.mes}
                       </div>
                     </div>
                   );
                 })}
               </div>
-              {/* nota de contexto más compacta */}
-              <div style={{ marginTop: 8, textAlign: 'right', fontSize: 11, color: isDarkMode ? '#9fb4ff' : '#6b7280' }}>
+              <div style={{ marginTop: 8, textAlign: 'right', fontSize: isMobile ? 9 : 11, color: isDarkMode ? '#9fb4ff' : '#6b7280' }}>
                 Datos basados en clientes activos — año actual
               </div>
             </div>
@@ -707,8 +1166,7 @@ const AdminClientes = () => {
       </Card>
     );
   };
- 
-  // Sidebar para dispositivos móviles
+
   const renderSidebar = () => (
     <Navbar 
       className="d-flex flex-column h-100"
@@ -724,14 +1182,14 @@ const AdminClientes = () => {
           <h3 className={`fw-bold text-center ${isDarkMode ? 'text-success' : 'text-primary'}`} style={{
             background: isDarkMode 
               ? 'linear-gradient(45deg, #60a5fa, #34d399)'
-              : undefined, // Solo degradado en modo oscuro
-          WebkitBackgroundClip: isDarkMode ? 'text' : undefined,
-          WebkitTextFillColor: isDarkMode ? 'transparent' : undefined,
-          color: isDarkMode ? undefined : '#222', // Texto oscuro en modo claro
-          fontFamily: '"Fjalla One", sans-serif'
+              : undefined,
+            WebkitBackgroundClip: isDarkMode ? 'text' : undefined,
+            WebkitTextFillColor: isDarkMode ? 'transparent' : undefined,
+            color: isDarkMode ? undefined : '#222',
+            fontFamily: '"Fjalla One", sans-serif'
           }}>HULK GYM</h3>
           <p className={`text-center small mb-4 ${isDarkMode ? 'text-light opacity-75' : 'text-muted'}`} style={{
-            color: isDarkMode ? undefined : '#222', // Texto oscuro en modo claro
+            color: isDarkMode ? undefined : '#222',
             fontWeight: 500
           }}>
             Panel Administrativo
@@ -773,6 +1231,31 @@ const AdminClientes = () => {
               <span>Rutinas</span>
             </Nav.Link>
 
+            <Nav.Link 
+              className={`d-flex align-items-center mb-2 ${isDarkMode ? 'text-light' : 'text-dark'}`}
+              style={{
+                transition: 'all 0.3s ease',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                cursor: 'pointer'
+              }}
+              onClick={() => setShowEmailModal(true)}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+                e.target.style.transform = 'translateX(5px)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.transform = 'translateX(0)';
+              }}
+            >
+              <FaEnvelope className="me-2" />
+              <span>Historial de Emails</span>
+              {cuentasVencidas.length > 0 && (
+                <Badge bg="danger" className="ms-2">{cuentasVencidas.length}</Badge>
+              )}
+            </Nav.Link>
+
             <hr style={{
               borderColor: isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
               margin: '20px 0'
@@ -805,67 +1288,172 @@ const AdminClientes = () => {
     </Navbar>
   );
 
-  // --- Nuevos helpers para mostrar progreso y días hasta vencimiento ---
-  // Convierte "DD/MM/YYYY" -> "YYYY-MM-DD" para inputs type="date"
-  const formatearFechaParaInput = (fechaString) => {
-    if (!fechaString) return "";
-    const partes = fechaString.split("/");
-    if (partes.length !== 3) return "";
-    const dia = partes[0].padStart(2, "0");
-    const mes = partes[1].padStart(2, "0");
-    const año = partes[2];
-    return `${año}-${mes}-${dia}`;
-  };
-
-  // Nueva función para verificar emails manualmente
-  const handleVerificarEmails = useCallback(async () => {
-    setVerificandoEmails(true);
-    
-    try {
-      const resultado = await verificarYNotificarExpiraciones();
-      
-      if (resultado.error) {
-        alert('Error al verificar emails: ' + resultado.error.message);
-      } else {
-        const mensaje = `Verificación completada:
-        - Clientes verificados: ${resultado.totalVerificados}
-        - Emails enviados: ${resultado.emailsEnviados}
-        - Errores: ${resultado.errores}`;
-        
-        alert(mensaje);
-        
-        // Actualizar última verificación
-        const ahora = new Date();
-        setUltimaVerificacion(ahora);
-        localStorage.setItem('ultimaVerificacionEmails', ahora.toISOString());
-      }
-    } catch (error) {
-      alert('Error inesperado: ' + error.message);
-    } finally {
-      setVerificandoEmails(false);
-    }
+  const abrirModalRenovar = useCallback((cliente, e) => {
+    if (e) e.stopPropagation();
+    setClienteARenovar(cliente);
+    setShowModalRenovar(true);
   }, []);
 
-  // Verificación automática al cargar el componente
-  useEffect(() => {
-    const verificacionAutomatica = async () => {
-      const ahora = new Date();
-      const unDiaEnMs = 24 * 60 * 60 * 1000;
-      
-      // Verificar si han pasado más de 24 horas desde la última verificación
-      if (!ultimaVerificacion || (ahora - ultimaVerificacion) > unDiaEnMs) {
-        console.log('Ejecutando verificación automática de emails...');
-        await verificarYNotificarExpiraciones();
-        
-        setUltimaVerificacion(ahora);
-        localStorage.setItem('ultimaVerificacionEmails', ahora.toISOString());
-      }
-    };
+  const abrirModalEliminar = useCallback((cliente, e) => {
+    if (e) e.stopPropagation();
+    setClienteAEliminar(cliente);
+    setShowModalEliminar(true);
+  }, []);
 
-    // Ejecutar verificación automática después de 5 segundos de cargar la página
-    const timer = setTimeout(verificacionAutomatica, 5000);
-    return () => clearTimeout(timer);
-  }, [ultimaVerificacion]);
+  const abrirModalEditar = useCallback((cliente, e) => {
+    if (e) e.stopPropagation();
+    setFormData({
+      id: cliente.id,
+      nombre: cliente.nombre,
+      dni: cliente.dni,
+      email: cliente.email,
+      fechaInicio: cliente.fechaInicio,
+      vencimiento: cliente.vencimiento,
+      estadoCuenta: cliente.estadoCuenta || "Activo",
+      precio: cliente.precio,
+    });
+    setShowModalEditar(true);
+  }, []);
+
+  const guardarClienteEditado = useCallback(() => {
+    if (!formData.email || formData.email.trim() === '') {
+      Swal.fire({
+        icon: 'error',
+        title: 'Email obligatorio',
+        text: 'El email es obligatorio para el cliente.',
+        confirmButtonColor: '#dc3545'
+      });
+      return;
+    }
+
+    const emailExistente = clientes.find(c => 
+      c.id !== formData.id && 
+      c.email.toLowerCase() === formData.email.trim().toLowerCase()
+    );
+    
+    if (emailExistente) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Email duplicado',
+        text: `Ya existe otro cliente registrado con el email ${formData.email.trim()}`,
+        confirmButtonColor: '#ffc107'
+      });
+      return;
+    }
+
+    const formDataActualizado = {
+      ...formData,
+      email: formData.email.trim().toLowerCase(),
+      precio: Number(formData.precio)
+    };
+    
+    setClientes(prev => prev.map((c) =>
+      c.id === formData.id ? { ...c, ...formDataActualizado } : c
+    ));
+
+    if (clienteSeleccionado && clienteSeleccionado.id === formData.id) {
+      setClienteSeleccionado(prev => prev ? { ...prev, ...formDataActualizado } : formDataActualizado);
+    }
+
+    setShowModalEditar(false);
+  }, [formData, clienteSeleccionado, clientes]);
+
+  const confirmarEliminarCliente = useCallback(() => {
+    setClientes(prev => prev.filter((c) => c.id !== clienteAEliminar.id));
+
+    const savedUsers = localStorage.getItem('users');
+    if (savedUsers && clienteAEliminar.email) {
+      const users = JSON.parse(savedUsers);
+      const updatedUsers = users.filter(u => 
+        u.username !== clienteAEliminar.email || u.role === 'admin'
+      );
+      localStorage.setItem('users', JSON.stringify(updatedUsers));
+    }
+
+    const savedTokens = localStorage.getItem('tokensActivacion');
+    if (savedTokens && clienteAEliminar.id) {
+      const tokens = JSON.parse(savedTokens);
+      const updatedTokens = tokens.filter(t => t.clienteId !== clienteAEliminar.id);
+      localStorage.setItem('tokensActivacion', JSON.stringify(updatedTokens));
+    }
+
+    if (clienteSeleccionado && clienteSeleccionado.id === clienteAEliminar.id) {
+      setClienteSeleccionado(null);
+    }
+
+    setShowModalEliminar(false);
+  }, [clienteAEliminar, clienteSeleccionado]);
+
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem("userType");
+    localStorage.removeItem("userName");
+    localStorage.removeItem("userEmail");
+    navigate("/login");
+  }, [navigate]);
+
+  const handleNuevoAdmin = useCallback(() => {
+    localStorage.setItem('creandoAdmin', 'true');
+    navigate('/registro');
+  }, [navigate]);
+
+  const handleSearch = useCallback((e) => {
+    if (e && e.preventDefault) {
+      e.preventDefault();
+    }
+    if (searchTerm && typeof searchTerm === 'string' && searchTerm.trim()) {
+      setPaginaActual(1);
+    }
+    return false;
+  }, [searchTerm]);
+
+  const renovarMembresia = useCallback((cliente) => {
+    try {
+      const fechaHoy = new Date();
+      const fechaVencimiento = new Date(fechaHoy);
+      fechaVencimiento.setDate(fechaVencimiento.getDate() + 30);
+      
+      const vencimientoFormateado = `${fechaVencimiento.getDate().toString().padStart(2, '0')}/${(fechaVencimiento.getMonth() + 1).toString().padStart(2, '0')}/${fechaVencimiento.getFullYear()}`;
+      
+      const clienteActualizado = {
+        ...cliente,
+        vencimiento: vencimientoFormateado,
+        estado: "Activo",
+        estadoCuenta: "Activo",
+        pagoMesActual: true,
+        fechaUltimoPago: new Date().toISOString()
+      };
+      
+      setClientes(prev => prev.map((c) =>
+        c.id === cliente.id ? clienteActualizado : c
+      ));
+      
+      if (clienteSeleccionado && clienteSeleccionado.id === cliente.id) {
+        setClienteSeleccionado(clienteActualizado);
+      }
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Membresía renovada',
+        text: `Nueva fecha de vencimiento: ${vencimientoFormateado}`,
+        confirmButtonColor: '#28a745'
+      });
+      
+      setShowModalRenovar(false);
+      
+    } catch (error) {
+      console.error('Error al renovar membresía:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Error al renovar la membresía',
+        confirmButtonColor: '#dc3545'
+      });
+    }
+  }, [clienteSeleccionado]);
+
+  useEffect(() => {
+    verificarCuentasVencidas();
+  }, [verificarCuentasVencidas]);
 
   return (
     <Container fluid className="min-vh-100 d-flex flex-column p-0" style={{
@@ -983,21 +1571,24 @@ const AdminClientes = () => {
             {/* Header con saludo y botón de tema */}
             <div className="d-flex justify-content-between align-items-center mb-4">
               <div className="text-center mb-4" style={{ flexGrow: 1 }}>
-                <h1 className="display-4 fw-bold mb-2" style={{
+                {
+                <h1 className={`${isMobile ? 'h3' : 'display-4'} fw-bold mb-2`} style={{
                   background: isDarkMode 
                     ? 'linear-gradient(45deg, #60a5fa, #34d399, #fbbf24)'
-                    : undefined, // Solo degradado en modo oscuro
+                    : undefined,
                   WebkitBackgroundClip: isDarkMode ? 'text' : undefined,
                   WebkitTextFillColor: isDarkMode ? 'transparent' : undefined,
-                  color: isDarkMode ? undefined : '#222', // Texto oscuro en modo claro
+                  color: isDarkMode ? undefined : '#222',
                   fontFamily: '"Fjalla One", sans-serif',
-                  letterSpacing: '2px',
+                  letterSpacing: isMobile ? '1px' : '2px',
                   transition: 'all 0.3s ease'
                 }}>
                   PANEL DE ADMINISTRACIÓN
                 </h1>
-                <p className={`lead ${isDarkMode ? 'text-light' : 'text-muted'}`} style={{
-                  fontSize: '1.1rem',
+}
+{/* MODIFICADO: Subtítulo más pequeño en móvil */}
+                <p className={`${isMobile ? 'small' : 'lead'} ${isDarkMode ? 'text-light' : 'text-muted'}`} style={{
+                  fontSize: isMobile ? '0.9rem' : '1.1rem',
                   fontWeight: '300',
                   transition: 'color 0.3s ease'
                 }}>
@@ -1022,8 +1613,8 @@ const AdminClientes = () => {
             </div>
 
             {/* Tarjetas de resumen optimizadas */}
-            <Row className="g-4 mb-5">
-              <Col xs={12} sm={6} lg={3}>
+            <Row className="g-3 mb-4">
+              <Col xs={6} lg={3}>
                 <StatCard 
                   title="Clientes Activos"
                   value={estadisticas.clientesActivos}
@@ -1032,7 +1623,7 @@ const AdminClientes = () => {
                   isDarkMode={isDarkMode}
                 />
               </Col>
-              <Col xs={12} sm={6} lg={3}>
+              <Col xs={6} lg={3}>
                 <StatCard 
                   title="Membresías Expiradas"
                   value={estadisticas.membresiasVencidas}
@@ -1041,7 +1632,7 @@ const AdminClientes = () => {
                   isDarkMode={isDarkMode}
                 />
               </Col>
-              <Col xs={12} sm={6} lg={3}>
+              <Col xs={6} lg={3}>
                 <StatCard 
                   title="Ingresos Anuales"
                   value={estadisticas.ingresosMes}
@@ -1050,7 +1641,7 @@ const AdminClientes = () => {
                   isDarkMode={isDarkMode}
                 />
               </Col>
-              <Col xs={12} sm={6} lg={3}>
+              <Col xs={6} lg={3}>
                 <StatCard 
                   title="Total Clientes"
                   value={estadisticas.totalClientes}
@@ -1093,49 +1684,49 @@ const AdminClientes = () => {
             </Card>
 
             {/* Botones de acción mejorados */}
-            <div className="d-flex flex-wrap gap-3 mb-4">
+            <div className="d-flex flex-column flex-md-row flex-wrap gap-2 mb-4">
               <Button
                 variant="primary"
-                size="md" // Cambiado de "lg" a "md"
+                size={isMobile ? "sm" : "md"}
                 onClick={abrirModalNuevo}
-                className="d-flex align-items-center px-3 py-2 shadow-sm border-0" // padding reducido
-                style={{ borderRadius: '10px', fontSize: '1rem' }} // radio y fuente más pequeños
+                className="d-flex align-items-center justify-content-center px-3 py-2 shadow-sm border-0"
+                style={{ borderRadius: '10px', fontSize: isMobile ? '0.875rem' : '1rem' }}
               >
                 <FaPlus className="me-2" />
                 <div className="text-start">
                   <div className="fw-bold">Agregar Cliente</div>
-                  <small className="opacity-75">Registrar nuevo miembro</small>
+                  {!isMobile && <small className="opacity-75">Registrar nuevo miembro</small>}
                 </div>
               </Button>
               
               <Button 
                 variant="outline-success"
-                size="md" // Cambiado de "lg" a "md"
+                size={isMobile ? "sm" : "md"}
                 onClick={handleNuevoAdmin}
-                className="d-flex align-items-center px-3 py-2 border-2"
-                style={{ borderRadius: '10px', fontSize: '1rem' }} // radio y fuente más pequeños
+                className="d-flex align-items-center justify-content-center px-3 py-2 border-2"
+                style={{ borderRadius: '10px', fontSize: isMobile ? '0.875rem' : '1rem' }}
               >
                 <FaUserShield className="me-2" />
                 <div className="text-start">
                   <div className="fw-bold">Nuevo Admin</div>
-                  <small className="opacity-75">Crear administrador</small>
+                  {!isMobile && <small className="opacity-75">Crear administrador</small>}
                 </div>
               </Button>
 
               <Button 
                 variant="outline-warning"
-                size="md"
+                size={isMobile ? "sm" : "md"}
                 onClick={handleVerificarEmails}
                 disabled={verificandoEmails}
-                className="d-flex align-items-center px-3 py-2 border-2"
-                style={{ borderRadius: '10px', fontSize: '1rem' }}
+                className="d-flex align-items-center justify-content-center px-3 py-2 border-2"
+                style={{ borderRadius: '10px', fontSize: isMobile ? '0.875rem' : '1rem' }}
               >
                 <FaEnvelope className="me-2" />
                 <div className="text-start">
                   <div className="fw-bold">
                     {verificandoEmails ? 'Verificando...' : 'Verificar Emails'}
                   </div>
-                  <small className="opacity-75">Notificar membresías expiradas</small>
+                  {!isMobile && <small className="opacity-75">Notificar membresías expiradas</small>}
                 </div>
               </Button>
             </div>
@@ -1150,13 +1741,18 @@ const AdminClientes = () => {
             )}
 
             {/* Sección de gestión de clientes optimizada */}
-            <Card className="border-0 shadow-lg" style={{
-              background: isDarkMode 
-                ? 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)'
-                : 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%)',
-              backdropFilter: 'blur(15px)',
-              borderRadius: '20px'
-            }}>
+            <Card 
+              ref={tablaClientesRef}
+              id="tabla-clientes"
+              className="border-0 shadow-lg" 
+              style={{
+                background: isDarkMode 
+                  ? 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)'
+                  : 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%)',
+                backdropFilter: 'blur(15px)',
+                borderRadius: '20px'
+              }}
+            >
               <Card.Header className="border-0 bg-transparent py-4">
                 <div className="d-flex align-items-center">
                   <div 
@@ -1169,7 +1765,7 @@ const AdminClientes = () => {
                   </div>
                   <div>
                     <h3 className={`mb-0 fw-bold ${isDarkMode ? 'text-white' : 'text-dark'}`}>
-                      Gestión de Clientes
+                                                                                                                                                                                                                                                                                     Gestión de Clientes
                     </h3>
                     <p className={`mb-0 small ${isDarkMode ? 'text-light opacity-75' : 'text-muted'}`}>
                       Administra la información de todos los miembros
@@ -1180,16 +1776,16 @@ const AdminClientes = () => {
               
               <Card.Body className="p-4">
                 {/* Barra de filtros y búsqueda mejorada */}
-                <Row className="g-3 mb-4">
-                  <Col md={8}>
-                    <Form onSubmit={handleSearch}>
-                      <InputGroup size="md">
+                <Row className="g-2 mb-4">
+                  <Col xs={12} md={8}>
+                    <Form onSubmit={handleSearch} noValidate>
+                      <InputGroup size={isMobile ? "sm" : "md"}>
                         <InputGroup.Text className={isDarkMode ? 'bg-secondary border-secondary' : 'bg-light border-light'}>
                           <FaSearch className={isDarkMode ? 'text-light' : 'text-muted'} />
                         </InputGroup.Text>
                         <Form.Control
                           type="text"
-                          placeholder="Buscar por DNI..."
+                          placeholder={isMobile ? "Buscar DNI..." : "Buscar por DNI..."}
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
                           className={`border-start-0 ${isDarkMode ? 'bg-dark text-white' : ''}`}
@@ -1199,12 +1795,13 @@ const AdminClientes = () => {
                     </Form>
                   </Col>
                   
-                  <Col md={4}>
-                    <ButtonGroup size="md" className="w-100">
+                  <Col xs={12} md={4}>
+                    <ButtonGroup size={isMobile ? "sm" : "md"} className="w-100">
                       <Button
                         variant={filtroActivo === "todos" ? "primary" : "outline-primary"}
                         onClick={() => setFiltroActivo("todos")}
                         className="flex-fill"
+                        style={{ fontSize: isMobile ? '0.75rem' : '1rem' }}
                       >
                         Todos
                       </Button>
@@ -1212,6 +1809,7 @@ const AdminClientes = () => {
                         variant={filtroActivo === "activos" ? "success" : "outline-success"}
                         onClick={() => setFiltroActivo("activos")}
                         className="flex-fill"
+                        style={{ fontSize: isMobile ? '0.75rem' : '1rem' }}
                       >
                         Activos
                       </Button>
@@ -1219,6 +1817,7 @@ const AdminClientes = () => {
                         variant={filtroActivo === "vencidos" ? "danger" : "outline-danger"}
                         onClick={() => setFiltroActivo("vencidos")}
                         className="flex-fill"
+                        style={{ fontSize: isMobile ? '0.75rem' : '1rem' }}
                       >
                         Expirados
                       </Button>
@@ -1260,12 +1859,15 @@ const AdminClientes = () => {
                             isDarkMode={isDarkMode}
                             onSelect={seleccionarCliente}
                             onDelete={abrirModalEliminar}
+                            onRenovar={abrirModalRenovar}
+                            onTogglePago={togglePagoMes}
                           />
                         )) : (
                           <tr>
                             <td colSpan="6" className="text-center py-5">
                               <div className={isDarkMode ? 'text-light opacity-50' : 'text-muted'}>
                                 <FaUsers size={48} className="mb-3 d-block mx-auto" />
+
                                 <p>No se encontraron clientes con email registrado</p>
                                 <small>
                                   Total clientes: {clientes.length} | 
@@ -1281,12 +1883,6 @@ const AdminClientes = () => {
                 ) : (
                   /* Vista móvil optimizada */
                   <div className="d-flex flex-column gap-3 mb-4">
-                    {/* Debug info temporal para móvil */}
-                    <div className="p-2 bg-info text-white rounded">
-                      <small>
-                        Debug: Total: {clientes.length} | Con email: {clientes.filter(c => c.email && c.email.trim()).length} | Filtrados: {clientesFiltrados.length}
-                      </small>
-                    </div>
                     {clientesPaginados.clientes.length > 0 ? clientesPaginados.clientes.map(cliente => {
                       const membership = getEstadoMembresia(cliente);
                       const progreso = calcularProgresoMembresia(cliente);
@@ -1294,16 +1890,19 @@ const AdminClientes = () => {
                       return (
                         <Card 
                           key={cliente.id} 
-                          className={`border-0 shadow-sm ${isDarkMode ? 'bg-secondary' : 'bg-white'}`}
+                          className="border-0 shadow-sm"
                           role="button" 
                           onClick={() => seleccionarCliente(cliente)}
                           style={{ 
                             transition: 'all 0.3s ease',
-                            borderRadius: '12px'
+                            borderRadius: '12px',
+                            background: isDarkMode 
+                              ? 'rgba(255,255,255,0.05)'
+                              : 'rgba(255,255,255,0.95)'
                           }}
                         >
                           <Card.Body className="p-3">
-                            <div className="d-flex align-items-center mb-3">
+                            <div className="d-flex align-items-center mb-2">
                               <div 
                                 className="rounded-circle d-flex align-items-center justify-content-center bg-primary text-white me-3 shadow-sm" 
                                 style={{ width: '50px', height: '50px', fontWeight: 700 }}
@@ -1332,24 +1931,6 @@ const AdminClientes = () => {
                               </div>
                             </div>
                             
-                            {!progreso.vencido && (
-                              <div className="mb-3">
-                                <div className="d-flex justify-content-between align-items-center mb-1">
-                                  <small className={isDarkMode ? 'text-light opacity-75' : 'text-muted'}>
-                                    Progreso de membresía
-                                  </small>
-                                  <small className={isDarkMode ? 'text-light opacity-75' : 'text-muted'}>
-                                    {progreso.diasRestantes} días restantes
-                                  </small>
-                                </div>
-                                <ProgressBar 
-                                  now={progreso.pct} 
-                                  variant={progreso.pct > 70 ? "danger" : progreso.pct > 40 ? "warning" : "success"}
-                                  style={{ height: '6px', borderRadius: '3px' }}
-                                />
-                              </div>
-                            )}
-                            
                             <div className="d-flex justify-content-end">
                               <Button 
                                 size="sm" 
@@ -1375,8 +1956,8 @@ const AdminClientes = () => {
                   </div>
                 )}
 
-                {/* Paginación optimizada */}
-                {clientesFiltrados.length > 10 && (
+                {/* Paginación optimizada */
+                clientesFiltrados.length > 10 && (
                   <div className="d-flex justify-content-center">
                     <Pagination className="mb-0">
                       <Pagination.Prev
@@ -1404,7 +1985,11 @@ const AdminClientes = () => {
 
             {/* Información detallada del cliente seleccionado */}
             {clienteSeleccionado && (
-              <Card className={`mt-5 border-0 shadow-lg overflow-hidden ${isDarkMode ? 'bg-dark' : 'bg-white'}`}>
+              <Card 
+                ref={detalleClienteRef}
+                id="detalle-cliente" 
+                className={`mt-5 border-0 shadow-lg overflow-hidden ${isDarkMode ? 'bg-dark' : 'bg-white'}`}
+              >
                 {/* Cabecera con degradado mejorado */}
                 <div 
                   className="position-relative py-5 px-4" 
@@ -1500,6 +2085,15 @@ const AdminClientes = () => {
                                 <td className="fw-bold text-muted ps-0">DNI:</td>
                                 <td className="fs-6">{clienteSeleccionado.dni}</td>
                               </tr>
+                              <tr>
+                                <td className="fw-bold text-muted ps-0">Email:</td>
+                                <td className="fs-6">
+                                  <div className="d-flex align-items-center">
+                                    <FaEnvelope className={`me-2 ${isDarkMode ? 'text-light' : 'text-dark'}`} size={14} />
+                                    <span>{clienteSeleccionado.email || 'No registrado'}</span>
+                                  </div>
+                                </td>
+                              </tr>
                             </tbody>
                           </Table>
                         </Card.Body>
@@ -1511,7 +2105,7 @@ const AdminClientes = () => {
                         <Card.Body>
                           <div className="d-flex align-items-center mb-3">
                             <div 
-                              className={`rounded-circle d-flex align-items-center justify-content-center ${
+                              className={`rounded-circle d-flex alignitems-center justify-content-center ${
                                 isDarkMode ? 'bg-success bg-opacity-25' : 'bg-success bg-opacity-10'
                               } p-2 me-3`}
                             >
@@ -1557,6 +2151,7 @@ const AdminClientes = () => {
                               className={`rounded-circle d-flex align-items-center justify-content-center ${
                                 isDarkMode ? 'bg-warning bg-opacity-25' : 'bg-warning bg-opacity-10'
                               } p-2 me-3`}
+                           
                             >
                               <FaDollarSign size={18} className="text-warning" />
                             </div>
@@ -1564,7 +2159,7 @@ const AdminClientes = () => {
                           </div>
                           
                           <Row>
-                            <Col md={6}>
+                            <Col md={4}>
                               <div className={`p-3 rounded-3 mb-3 ${isDarkMode ? 'bg-dark bg-opacity-50' : 'bg-light'}`}>
                                 <div className="d-flex justify-content-between align-items-center">
                                   <div>
@@ -1583,7 +2178,8 @@ const AdminClientes = () => {
                                 </div>
                               </div>
                             </Col>
-                            <Col md={6}>
+                            
+                            <Col md={4}>
                               <div className={`p-3 rounded-3 mb-3 ${isDarkMode ? 'bg-dark bg-opacity-50' : 'bg-light'}`}>
                                 <div className="d-flex justify-content-between align-items-center">
                                   <div>
@@ -1607,7 +2203,46 @@ const AdminClientes = () => {
                                 </div>
                               </div>
                             </Col>
+                            
+                            {/* NUEVO: Estado de pago del mes actual */}
+                            <Col md={4}>
+                              <div className={`p-3 rounded-3 mb-3 ${isDarkMode ? 'bg-dark bg-opacity-50' : 'bg-light'}`}>
+                                <div className="d-flex justify-content-between align-items-center">
+                                  <div>
+                                    <p className="mb-1 text-muted">Pago Mes Actual</p>
+                                    <h4 className={`fw-bold mb-0 ${clienteSeleccionado.pagoMesActual ? "text-success" : "text-warning"}`}>
+                                      {clienteSeleccionado.pagoMesActual ? "Pagado" : "Pendiente"}
+                                    </h4>
+                                  </div>
+                                  <Button
+                                    variant={clienteSeleccionado.pagoMesActual ? "success" : "warning"}
+                                    className="rounded-circle p-3"
+                                    onClick={() => togglePagoMes(clienteSeleccionado)}
+                                  >
+                                    <FaDollarSign size={24} />
+                                  </Button>
+                                </div>
+                              </div>
+                            </Col>
                           </Row>
+                          
+                          {/* NUEVO: Botón de renovar si está expirada */}
+                          {getEstadoMembresia(clienteSeleccionado) === "Expirada" && (
+                            <Alert variant="danger" className="mt-3 d-flex justify-content-between align-items-center">
+                              <div>
+                                <strong>Membresía Expirada</strong>
+                                <p className="mb-0 small">Esta membresía ha vencido. Renuévala para reactivar el acceso.</p>
+                              </div>
+                              <Button 
+                                variant="success" 
+                                onClick={() => abrirModalRenovar(clienteSeleccionado)}
+                                className="ms-3"
+                              >
+                                <FaCheckCircle className="me-2" />
+                                Renovar Membresía
+                              </Button>
+                            </Alert>
+                          )}
                         </Card.Body>
                       </Card>
                     </Col>
@@ -1783,17 +2418,6 @@ const AdminClientes = () => {
                 />
               </InputGroup>
             </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Estado de la Cuenta</Form.Label>
-              <Form.Select
-                name="estadoCuenta"
-                value={formData.estadoCuenta}
-                onChange={handleFormChange}
-              >
-                <option value="Activo">Activo</option>
-                <option value="Suspendida">Suspendida</option>
-              </Form.Select>
-            </Form.Group>
           </Form>
         </Modal.Body>
         <Modal.Footer>
@@ -1805,6 +2429,7 @@ const AdminClientes = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+
       {/* Modal para confirmar eliminación */}
       <Modal
         show={showModalEliminar}
@@ -1824,6 +2449,186 @@ const AdminClientes = () => {
           </Button>
           <Button variant="danger" onClick={confirmarEliminarCliente}>
             Eliminar
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Modal para historial de emails - corregir estructura del modal */}
+      <Modal 
+        show={showEmailModal} 
+        onHide={() => setShowEmailModal(false)} 
+        size="lg"
+        centered
+      >
+        <Modal.Header 
+          closeButton 
+          style={{
+            background: isDarkMode 
+              ? 'linear-gradient(90deg, #1a1a2e 0%, #16213e 100%)'
+              : 'linear-gradient(90deg, #ffffff 0%, #f8faff 100%)',
+            color: isDarkMode ? 'white' : 'dark'
+          }}
+        >
+          <Modal.Title>
+            <FaEnvelope className="me-2" />
+            Historial de Emails Enviados
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{
+          background: isDarkMode 
+            ? 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)'
+            : 'linear-gradient(135deg, #ffffff 0%, #f8faff 100%)',
+          color: isDarkMode ? 'white' : 'dark'
+        }}>
+          <Row className="mb-3">
+            <Col className="d-flex justify-content-between align-items-center">
+              <h6 className="mb-0">
+                <FaTimesCircle className="me-2 text-warning" />
+                Cuentas Vencidas Actuales: <Badge bg="danger">{cuentasVencidas.length}</Badge>
+              </h6>
+              <Button 
+                variant="warning" 
+                size="sm" 
+                onClick={handleVerificarEmails}
+                disabled={cuentasVencidas.length === 0 || verificandoEmails}
+              >
+                <FaEnvelope className="me-1" />
+                {verificandoEmails ? 'Verificando...' : 'Verificar Emails'}
+              </Button>
+            </Col>
+          </Row>
+          
+          {emailHistory.length === 0 ? (
+            <Alert variant="info" className="text-center">
+              <FaEnvelope size={40} className="mb-2" />
+              <p className="mb-0">No se han enviado emails aún</p>
+            </Alert>
+          ) : (
+            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              {emailHistory
+                .sort((a, b) => new Date(b.fechaEnvio) - new Date(a.fechaEnvio))
+                .map((email) => (
+                  <Card 
+                    key={email.id}
+                    className="mb-2"
+                    style={{
+                      background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.8)',
+                      color: isDarkMode ? 'white' : 'dark',
+                      border: `1px solid ${isDarkMode ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`
+                    }}
+                  >
+                    <Card.Body className="p-3">
+                      <div className="d-flex justify-content-between align-items-start">
+                        <div className="flex-grow-1">
+                          <h6 className="mb-1">
+                            <FaUser className="me-2 text-primary" />
+                            {email.clienteNombre}
+                          </h6>
+                          <p className="mb-1 small">
+                            <FaUser className="me-1 text-muted" />
+                            DNI: {email.clienteDNI}
+                          </p>
+                          <p className="mb-1 small">
+                            <FaEnvelope className="me-1 text-muted" />
+                            {email.clienteEmail}
+                          </p>
+                          <p className="mb-0 small text-muted">
+                            <FaCalendarAlt className="me-1" />
+                            {email.fechaEnvio}
+                          </p>
+                        </div>
+                        <div className="text-end d-flex flex-column align-items-end gap-2">
+                          <div>
+                            <Badge 
+                              bg={email.tipo === 'vencimiento' ? 'danger' : email.tipo === 'activacion' ? 'info' : 'warning'}
+                              className="mb-2"
+                            >
+                              {email.tipo === 'vencimiento' ? 'Vencida' : email.tipo === 'activacion' ? 'Activación' : 'Recordatorio'}
+                            </Badge>
+                            <br />
+                            <Badge bg={
+                              email.estado === 'Enviado' ? 'success' : 
+                              email.estado === 'Simulado' ? 'warning' : 'danger'
+                            }>
+                              {email.estado === 'Enviado' ? (
+                                <>
+                                  <FaCheckCircle className="me-1" />
+                                  Enviado
+                                </>
+                              ) : email.estado === 'Simulado' ? (
+                                <>
+                                  <FaEnvelope className="me-1" />
+                                  Simulado
+                                </>
+                              ) : (
+                                <>
+                                  <FaTimesCircle className="me-1" />
+                                  Error
+                                </>
+                              )}
+                            </Badge>
+                            {email.error && (
+                              <div className="mt-1">
+                                <small className="text-muted" title={email.error}>
+                                  {email.error.substring(0, 30)}...
+                                </small>
+                              </div>
+                            )}
+                          </div>
+                          <Button 
+                            variant="outline-danger" 
+                            size="sm"
+                            onClick={() => handleEliminarEmail(email.id)}
+                            className="border-0"
+                            title="Eliminar registro"
+                          >
+                            <FaTrash />
+                          </Button>
+                        </div>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                ))}
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer style={{
+          background: isDarkMode 
+            ? 'linear-gradient(90deg, #1a1a2e 0%, #16213e 100%)'
+            : 'linear-gradient(90deg, #ffffff 0%, #f8faff 100%)'
+        }}>
+          <Button variant="secondary" onClick={() => setShowEmailModal(false)}>
+            Cerrar
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* NUEVO: Modal para confirmar renovación */}
+      <Modal
+        show={showModalRenovar}
+        onHide={() => setShowModalRenovar(false)}
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Renovar Membresía</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>¿Estás seguro de que deseas renovar la membresía de este cliente?</p>
+          <p className="fw-bold">{clienteARenovar?.nombre}</p>
+          <p className="text-danger">Esta acción no se puede deshacer.</p>
+          <p className="fw-bold">Cambios que se aplicarán:</p>
+          <ul>
+            <li>Se extenderá la fecha de vencimiento por 30 días más</li>
+            <li>El estado cambiará a "Activo"</li>
+            <li>Se marcará el pago del mes actual como completado</li>
+          </ul>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowModalRenovar(false)}>
+            Cancelar
+          </Button>
+          <Button variant="success" onClick={() => renovarMembresia(clienteARenovar)}>
+            <FaCheckCircle className="me-2" />
+            Confirmar Renovación
           </Button>
         </Modal.Footer>
       </Modal>
