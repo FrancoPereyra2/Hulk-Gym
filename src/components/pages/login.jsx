@@ -5,7 +5,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { FaGoogle, FaEye, FaEyeSlash } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 import LogoLoginImg from '../../assets/logo-login.png';
-// Importaciones de Firebase
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth } from '../../firebase/config';
 
@@ -26,15 +25,13 @@ const HulkGymLogin = () => {
   const [isFirstUse, setIsFirstUse] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isGoogleAdmin, setIsGoogleAdmin] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false); // Estado para el modo oscuro
+  const [isDarkMode, setIsDarkMode] = useState(false);
  
-  // Base de datos de usuarios desde localStorage sin datos hardcodeados
   const [users, setUsers] = useState(() => {
     const savedUsers = localStorage.getItem('users');
     if (savedUsers) {
       return JSON.parse(savedUsers);
     } else {
-      // Si no hay usuarios, estamos en el primer uso
       setIsFirstUse(true);
       return [];
     }
@@ -43,7 +40,6 @@ const HulkGymLogin = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Verificar si es la primera vez que se inicia la app
   useEffect(() => {
     if (isFirstUse && users.length === 0) {
       setMostrarRegistro(true);
@@ -54,7 +50,6 @@ const HulkGymLogin = () => {
     }
   }, [isFirstUse, users]);
   
-  // Efecto para limpiar cualquier mensaje de desarrollo que pueda existir
   useEffect(() => {
     const alertElements = document.querySelectorAll('.alert');
     alertElements.forEach(el => {
@@ -64,55 +59,42 @@ const HulkGymLogin = () => {
     });
   }, []);
   
-  // Efecto para detectar cuando la página se carga o se descarga
   useEffect(() => {
-    // Verificar si hay un estado guardado de autenticación en progreso
     const checkSavedState = () => {
       const savedGoogleAuthState = sessionStorage.getItem('googleAuthInProgress');
       if (savedGoogleAuthState) {
-        // Si hay un estado guardado, eliminarlo y asegurarse que el botón esté habilitado
         sessionStorage.removeItem('googleAuthInProgress');
         setIsGoogleLoading(false);
       }
     };
-
-    // Comprobar al cargar la página
     checkSavedState();
     
-    // Evento para guardar estado cuando se abandona la página
     const handleBeforeUnload = () => {
       if (isGoogleLoading) {
-        // Si la autenticación está en progreso, guardar ese estado
         sessionStorage.setItem('googleAuthInProgress', 'true');
       }
     };
     
-    // Evento para manejar cuando el usuario vuelve a la pestaña
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        // Si la página es visible de nuevo, resetear el estado de carga si es necesario
         if (isGoogleLoading) {
           const timeInLoading = Date.now() - (parseInt(sessionStorage.getItem('googleLoadingStartTime') || '0'));
-          if (timeInLoading > 10000) { // Si han pasado más de 10 segundos
+          if (timeInLoading > 10000) {
             setIsGoogleLoading(false);
           }
         }
       }
     };
     
-    // Añadir event listeners
     window.addEventListener('beforeunload', handleBeforeUnload);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
-    // Verificación periódica para evitar que el botón quede bloqueado
     const timer = setTimeout(() => {
       if (isGoogleLoading) {
-        // Si han pasado 30 segundos y sigue cargando, probablemente hubo un problema
         setIsGoogleLoading(false);
       }
     }, 30000);
     
-    // Limpiar event listeners
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -131,11 +113,9 @@ const HulkGymLogin = () => {
   const handleLogin = (e) => {
     e.preventDefault();
 
-    // Trim básico - quitar espacios
     const emailSinEspacios = email.trim();
     const passwordSinEspacios = password.trim();
 
-    // Validación simple
     if (!emailSinEspacios || !passwordSinEspacios) {
       setAlertVariant('danger');
       setAlertMessage('Por favor, completa todos los campos');
@@ -143,7 +123,6 @@ const HulkGymLogin = () => {
       return;
     }
 
-    // Buscar en usuarios registrados sin importar si son admin o cliente
     const user = users.find(
       u => u.username === emailSinEspacios && u.password === passwordSinEspacios
     );
@@ -161,7 +140,6 @@ const HulkGymLogin = () => {
         navigate(user.role === 'admin' ? '/admin' : '/principal');
       }, 1000);
     } else {
-      // Credenciales incorrectas
       setAlertVariant('danger');
       setAlertMessage('Correo electrónico o contraseña incorrectos');
       setShowAlert(true);
@@ -171,7 +149,6 @@ const HulkGymLogin = () => {
   const handleRegister = (e) => {
     e.preventDefault();
 
-    // Validación
     if (!fullName.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
       setAlertVariant('danger');
       setAlertMessage('Por favor, completa todos los campos');
@@ -179,7 +156,6 @@ const HulkGymLogin = () => {
       return;
     }
 
-    // Validar formato de correo electrónico
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
       setAlertVariant('danger');
@@ -195,7 +171,6 @@ const HulkGymLogin = () => {
       return;
     }
 
-    // Verificar si el correo ya existe
     if (users.some(user => user.username === email.trim())) {
       setAlertVariant('danger');
       setAlertMessage('Este correo electrónico ya está registrado');
@@ -203,18 +178,16 @@ const HulkGymLogin = () => {
       return;
     }
 
-    // Crear nuevo usuario
     const newUser = {
       fullName: fullName.trim(),
       username: email.trim(),
       password: password.trim(),
-      role: isAdmin ? 'admin' : 'cliente' // Si es el primer uso o se marcó como admin, crear admin
+      role: isAdmin ? 'admin' : 'cliente'
     };
 
     const updatedUsers = [...users, newUser];
     setUsers(updatedUsers);
     
-    // Guardar en localStorage para que persista
     localStorage.setItem('users', JSON.stringify(updatedUsers));
     
     setAlertVariant('success');
@@ -227,7 +200,6 @@ const HulkGymLogin = () => {
     }
     setShowAlert(true);
 
-    // Limpiar formulario y volver a login
     setFullName('');
     setEmail('');
     setPassword('');
@@ -238,14 +210,12 @@ const HulkGymLogin = () => {
   const handleGoogleSignIn = async () => {
     try {
       setIsGoogleLoading(true);
-      // Guardar el tiempo de inicio del proceso de carga
       sessionStorage.setItem('googleLoadingStartTime', Date.now().toString());
       
       setAlertVariant('info');
       setAlertMessage('Conectando con Google...');
       setShowAlert(true);
       
-      // Agregar configuración adicional al proveedor de Google
       googleProvider.addScope('email');
       googleProvider.addScope('profile');
       googleProvider.setCustomParameters({
@@ -255,11 +225,9 @@ const HulkGymLogin = () => {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
       
-      // Verificar si el usuario ya existe en nuestra base de datos local
       const existingUser = users.find(u => u.username === user.email);
       
       if (!existingUser) {
-        // CAMBIO: Si estamos en el formulario de inicio de sesión y el usuario no existe, mostrar error
         if (!mostrarRegistro) {
           setAlertVariant('danger');
           setAlertMessage('No existe una cuenta con este correo electrónico. Por favor, regístrate primero.');
@@ -267,7 +235,6 @@ const HulkGymLogin = () => {
           return;
         }
         
-        // Solo crear usuario nuevo si estamos en el formulario de registro
         const newUser = {
           fullName: user.displayName || "Usuario de Google",
           username: user.email,
@@ -284,26 +251,21 @@ const HulkGymLogin = () => {
         setAlertVariant('success');
         setAlertMessage(`¡Registro exitoso como ${isFirstUse ? 'administrador' : 'cliente'}! Serás redirigido automáticamente.`);
         
-        // Guardar datos del usuario en localStorage
         localStorage.setItem('userType', isFirstUse ? 'admin' : 'cliente');
         localStorage.setItem('userName', user.displayName || "Usuario de Google");
         localStorage.setItem('userEmail', user.email);
         
-        // Redirigir después de una breve pausa según el tipo de usuario
         setTimeout(() => {
           navigate(isFirstUse ? '/admin' : '/principal');
         }, 2000);
       } else {
-        // Si ya existe, iniciar sesión con el rol que ya tiene
         setAlertVariant('success');
         setAlertMessage('Iniciando sesión...');
         
-        // Guardar datos del usuario existente
         localStorage.setItem('userType', existingUser.role);
         localStorage.setItem('userName', existingUser.fullName);
         localStorage.setItem('userEmail', existingUser.username);
         
-        // Redirigir según el rol
         setTimeout(() => {
           navigate(existingUser.role === 'admin' ? '/admin' : '/principal');
         }, 1000);
@@ -312,7 +274,6 @@ const HulkGymLogin = () => {
     } catch (error) {
       console.error("Error al autenticar con Google:", error);
       
-      // Manejar errores específicos para dar mejores mensajes
       let errorMessage = 'Error al iniciar sesión con Google';
       
       if (error.code === 'auth/popup-closed-by-user') {
@@ -335,14 +296,12 @@ const HulkGymLogin = () => {
     }
   };
 
-  // Nuevos estados para activación de cuenta
   const [mostrarActivacion, setMostrarActivacion] = useState(false);
   const [tokenActivacion, setTokenActivacion] = useState('');
   const [dniActivacion, setDniActivacion] = useState('');
   const [passwordActivacion, setPasswordActivacion] = useState('');
   const [confirmPasswordActivacion, setConfirmPasswordActivacion] = useState('');
 
-  // Verificar si hay parámetros de activación en la URL
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
@@ -353,12 +312,10 @@ const HulkGymLogin = () => {
       setDniActivacion(dni);
       setMostrarActivacion(true);
       
-      // Limpiar URL sin recargar página
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
 
-  // Función para activar cuenta
   const handleActivarCuenta = (e) => {
     e.preventDefault();
 
@@ -384,7 +341,6 @@ const HulkGymLogin = () => {
     }
 
     try {
-      // Verificar token
       const tokensGuardados = JSON.parse(localStorage.getItem('tokensActivacion') || '[]');
       const tokenValido = tokensGuardados.find(t => 
         t.token === tokenActivacion && 
@@ -400,7 +356,6 @@ const HulkGymLogin = () => {
         return;
       }
 
-      // Buscar cliente
       const clientesGuardados = JSON.parse(localStorage.getItem('clientes') || '[]');
       const cliente = clientesGuardados.find(c => c.dni === dniActivacion && c.id === tokenValido.clienteId);
 
@@ -411,10 +366,8 @@ const HulkGymLogin = () => {
         return;
       }
 
-      // Crear usuario en el sistema de login
       const usuariosActuales = JSON.parse(localStorage.getItem('users') || '[]');
       
-      // Verificar si ya existe un usuario con este email
       const usuarioExistente = usuariosActuales.find(u => u.username === cliente.email);
       
       if (usuarioExistente) {
@@ -424,7 +377,6 @@ const HulkGymLogin = () => {
         return;
       }
 
-      // Crear nuevo usuario cliente
       const nuevoUsuario = {
         fullName: cliente.nombre,
         username: cliente.email,
@@ -438,29 +390,23 @@ const HulkGymLogin = () => {
       localStorage.setItem('users', JSON.stringify(usuariosActualizados));
       setUsers(usuariosActualizados);
 
-      // Marcar cliente como activado
       const clientesActualizados = clientesGuardados.map(c => 
         c.id === cliente.id ? { ...c, cuentaActivada: true, fechaActivacion: new Date().toISOString() } : c
       );
       localStorage.setItem('clientes', JSON.stringify(clientesActualizados));
 
-      // Marcar token como usado
       const tokensActualizados = tokensGuardados.map(t => 
         t.token === tokenActivacion ? { ...t, usado: true, fechaUso: new Date().toISOString() } : t
       );
       localStorage.setItem('tokensActivacion', JSON.stringify(tokensActualizados));
 
-      // NUEVO: ENVIAR EMAIL con las credenciales
       (async () => {
         try {
-          console.log('📧 Enviando email con credenciales...');
           const { enviarCredencialesAcceso } = await import('../../services/emailService');
           const resultadoEmail = await enviarCredencialesAcceso(cliente, passwordActivacion.trim());
           
           if (resultadoEmail.success) {
-            console.log('✅ Email enviado exitosamente');
             
-            // Guardar en historial
             const historialStr = localStorage.getItem('emailHistory');
             const historial = historialStr ? JSON.parse(historialStr) : [];
             
@@ -494,12 +440,10 @@ const HulkGymLogin = () => {
         setShowAlert(true);
       })();
 
-      // Mostrar mensaje inmediato
       setAlertVariant('success');
       setAlertMessage('¡Cuenta activada exitosamente! Ya puedes iniciar sesión.');
       setShowAlert(true);
 
-      // Limpiar formulario y volver al login
       setTimeout(() => {
         setMostrarActivacion(false);
         setTokenActivacion('');
@@ -543,7 +487,6 @@ const HulkGymLogin = () => {
               )}
               
               {mostrarActivacion ? (
-                // Formulario de activación de cuenta
                 <Form onSubmit={handleActivarCuenta}>
                   <Alert variant="info" className="mb-3">
                     <strong>¡Bienvenido a HULK GYM!</strong><br />
@@ -617,7 +560,6 @@ const HulkGymLogin = () => {
                   </div>
                 </Form>
               ) : mostrarRegistro ? (
-                // Formulario de registro
                 <Form onSubmit={handleRegister}>
                   <Form.Group className="mb-3">
                     <Form.Label>Nombre Completo</Form.Label>
@@ -700,17 +642,15 @@ const HulkGymLogin = () => {
                     {isFirstUse ? 'CREAR ADMINISTRADOR' : 'REGISTRARSE'}
                   </Button>
                   
-                  {/* Solo mostrar registro con Google si es el primer uso (creación admin) o no es admin */}
                   {(isFirstUse || !isAdmin) && (
                     <>
-                      {/* Checkbox para Google Admin SOLO si es primer uso */}
                       {isFirstUse && (
                         <Form.Group className="mb-3">
                           <Form.Check 
                             type="checkbox"
                             id="googleAdminCheck"
                             label="Registrarse con Google como administrador"
-                            checked={true} // Si es primer uso, siempre marcado y deshabilitado
+                            checked={true}
                             disabled={true}
                           />
                         </Form.Group>
@@ -721,7 +661,6 @@ const HulkGymLogin = () => {
                         type="button" 
                         className="w-100 mb-3 d-flex align-items-center justify-content-center"
                         onClick={() => {
-                          // Si es primer uso, forzamos registro como admin con Google
                           if (isFirstUse) {
                             setIsGoogleAdmin(true);
                           } else {
@@ -759,7 +698,6 @@ const HulkGymLogin = () => {
                   )}
                 </Form>
               ) : (
-                // Formulario de inicio de sesión
                 <>
                   <Form onSubmit={handleLogin}>
                     <Form.Group className="mb-3">

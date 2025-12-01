@@ -20,7 +20,6 @@ import { useTheme } from './admin.jsx';
 import Swal from 'sweetalert2';
 import "bootstrap-icons/font/bootstrap-icons.css";
 
-// util
 const capitalizarPrimeraLetra = (texto) => {
   if (!texto) return '';
   return texto
@@ -35,11 +34,9 @@ const Rutinas = () => {
   const [showSidebar, setShowSidebar] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
 
-  // Verificar tipo de usuario
   const [userType, setUserType] = useState(() => localStorage.getItem('userType'));
   const isReadOnly = userType === 'cliente';
 
-  // modales y rutinas
   const [showModalNuevaRutina, setShowModalNuevaRutina] = useState(false);
   const [showModalEliminar, setShowModalEliminar] = useState(false);
   const [showModalEditarRutina, setShowModalEditarRutina] = useState(false);
@@ -53,7 +50,6 @@ const Rutinas = () => {
   const [rutinaSeleccionada, setRutinaSeleccionada] = useState(null);
   const [modoEdicion, setModoEdicion] = useState(false);
 
-  // formularios
   const [formDataRutina, setFormDataRutina] = useState({ nombre: "", ejercicios: [] });
   const [formDataEjercicio, setFormDataEjercicio] = useState({ ejercicio: "", series: "", repeticiones: "" });
   const [formDataEdicion, setFormDataEdicion] = useState({ id: null, nombre: "", ejercicios: [] });
@@ -61,7 +57,6 @@ const Rutinas = () => {
   const [ejercicioEnEdicion, setEjercicioEnEdicion] = useState(null);
   const [indexEjercicioEdicion, setIndexEjercicioEdicion] = useState(null);
 
-  // Nuevos estados para el sistema de emails
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailHistory, setEmailHistory] = useState(() => {
     const savedHistory = localStorage.getItem('emailHistory');
@@ -69,7 +64,6 @@ const Rutinas = () => {
   });
   const [cuentasVencidas, setCuentasVencidas] = useState([]);
 
-  // Función para verificar cuentas vencidas
   const verificarCuentasVencidas = useCallback(() => {
     const clientes = JSON.parse(localStorage.getItem('clientes') || '[]');
     const hoy = new Date();
@@ -88,7 +82,6 @@ const Rutinas = () => {
     return vencidas;
   }, []);
 
-  // Verificar cuentas vencidas al cargar
   useEffect(() => {
     verificarCuentasVencidas();
   }, [verificarCuentasVencidas]);
@@ -114,7 +107,6 @@ const Rutinas = () => {
 
     setUserType(storedUserType);
 
-    // Verificación adicional contra la base de usuarios
     const savedUsers = localStorage.getItem('users');
     if (savedUsers) {
       const users = JSON.parse(savedUsers);
@@ -128,7 +120,6 @@ const Rutinas = () => {
     }
   }, [navigate]);
 
-  // manejo rutinas
   const handleAgregarRutina = () => {
     setFormDataRutina({ nombre: "", ejercicios: [] });
     setShowModalNuevaRutina(true);
@@ -244,7 +235,6 @@ const Rutinas = () => {
     navigate("/login");
   };
 
-  // editar ejercicio
   const iniciarEdicionEjercicio = (ejercicio, index) => {
     setEjercicioEnEdicion(ejercicio);
     setIndexEjercicioEdicion(index);
@@ -270,7 +260,6 @@ const Rutinas = () => {
     setFormDataEjercicioEdicion({ ejercicio: "", series: "", repeticiones: "" });
   };
 
-  // NUEVO: Función para eliminar un email del historial
   const handleEliminarEmail = useCallback((emailId) => {
     Swal.fire({
       title: '¿Eliminar registro?',
@@ -299,7 +288,6 @@ const Rutinas = () => {
     });
   }, [emailHistory]);
 
-  // Sidebar
   const renderSidebar = () => (
     <Navbar 
       className="d-flex flex-column h-100"
@@ -428,7 +416,6 @@ const Rutinas = () => {
   const cardStyle = { transition: "all 0.3s ease", borderRadius: "12px", overflow: "hidden" };
   const cardHeaderStyle = { fontFamily: "'Fjalla One', sans-serif", letterSpacing: "1px", textTransform: "uppercase" };
 
-  // paletas vía link
   const PALETTES_URL = 'https://raw.githubusercontent.com/tu-usuario/tu-repo/main/palettes.json';
   const [palettes, setPalettes] = useState([]);
 
@@ -440,7 +427,6 @@ const Rutinas = () => {
         const data = await res.json();
         if (Array.isArray(data) && data.length) setPalettes(data);
       } catch (e) {
-        // silent
       }
     })();
   }, []);
@@ -461,7 +447,6 @@ const Rutinas = () => {
     return idx >= 0 ? idx : 0;
   };
 
-  // índice de la rutina seleccionada para detalle
   const selIndex = rutinaSeleccionada ? getRutinaIndexById(rutinaSeleccionada.id) : 0;
 
   return (

@@ -25,10 +25,8 @@ const PagePrincipal = () => {
   const navigate = useNavigate();
   const { isDarkMode, alternarTema } = useTheme();
 
-  // Obtener tipo de usuario
   const [userType, setUserType] = useState(() => localStorage.getItem('userType'));
 
-  // Verificación más robusta de usuario
   useEffect(() => {
     const storedUserType = localStorage.getItem('userType');
     const userEmail = localStorage.getItem('userEmail');
@@ -37,7 +35,6 @@ const PagePrincipal = () => {
       navigate('/login');
     } else {
       setUserType(storedUserType);
-      // Verificación adicional contra la base de usuarios
       const savedUsers = localStorage.getItem('users');
       if (savedUsers) {
         const users = JSON.parse(savedUsers);
@@ -52,7 +49,6 @@ const PagePrincipal = () => {
     }
   }, [navigate]);
 
-  // Inicializar clientes desde localStorage
   const [clientes, setClientes] = useState(() => {
     const savedClientes = localStorage.getItem('clientes');
     return savedClientes ? JSON.parse(savedClientes) : [];
@@ -63,7 +59,6 @@ const PagePrincipal = () => {
   const [busquedaRealizada, setBusquedaRealizada] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
 
-  // Nuevos estados para el sistema de notificaciones
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailHistory, setEmailHistory] = useState(() => {
     const savedHistory = localStorage.getItem('emailHistory');
@@ -72,20 +67,16 @@ const PagePrincipal = () => {
   const [cuentasVencidas, setCuentasVencidas] = useState([]);
   const [showNotificationAlert, setShowNotificationAlert] = useState(false);
 
-  // Nuevo estado para información del cliente logueado
   const [clienteLogueado, setClienteLogueado] = useState(null);
 
-  // Nuevo estado para tokens de activación
   const [tokensActivacion, setTokensActivacion] = useState(() => {
     const savedTokens = localStorage.getItem('tokensActivacion');
     return savedTokens ? JSON.parse(savedTokens) : [];
   });
 
-  // Función para determinar si la membresía está vencida
   const calcularEstado = (vencimiento) => {
     if (!vencimiento) return "Expirada";
     const hoy = new Date();
-    // Suponiendo formato DD/MM/YYYY
     const [dia, mes, anio] = vencimiento.split("/");
     const fechaVencimiento = new Date(`${anio}-${mes}-${dia}T23:59:59`);
     return fechaVencimiento >= hoy ? "Activo" : "Expirada";
@@ -94,7 +85,6 @@ const PagePrincipal = () => {
   const handleSearch = (e) => {
     e.preventDefault();
     
-    // Si el campo está vacío, limpiar la búsqueda
     if (!searchDNI.trim()) {
       setClienteEncontrado(null);
       setBusquedaRealizada(false);
@@ -105,7 +95,6 @@ const PagePrincipal = () => {
       (cliente) => cliente.dni === searchDNI.trim()
     );
 
-    // Si se encuentra, calcular el estado actualizado
     if (cliente) {
       setClienteEncontrado({
         ...cliente,
@@ -117,19 +106,16 @@ const PagePrincipal = () => {
     setBusquedaRealizada(true);
    };
 
-  // Función para limpiar la búsqueda cuando se borra el input
   const handleSearchInputChange = (e) => {
     const value = e.target.value;
     setSearchDNI(value);
     
-    // Si el campo se vacía, limpiar la búsqueda
     if (!value.trim()) {
       setClienteEncontrado(null);
       setBusquedaRealizada(false);
     }
   };
 
-  // Función para cerrar sesión
   const handleLogout = () => {
     localStorage.removeItem('userType');
     localStorage.removeItem('userName');
@@ -137,12 +123,9 @@ const PagePrincipal = () => {
     navigate('/login');
   };
 
-  // Función mejorada para envío de email real
   const enviarEmail = async (cliente, tipo = 'vencimiento') => {
     try {
-      console.log('🚀 Iniciando simulación de envío de email a:', cliente.nombre);
       
-      // Simular envío de email
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       const nuevoEmail = {
@@ -187,7 +170,6 @@ const PagePrincipal = () => {
     }
   };
 
-  // Función para verificar cuentas vencidas
   const verificarCuentasVencidas = () => {
     const hoy = new Date();
     const vencidas = clientes.filter(cliente => {
@@ -201,7 +183,6 @@ const PagePrincipal = () => {
     return vencidas;
   };
 
-  // Función mejorada para enviar notificaciones masivas REALES
   const enviarNotificacionesMasivas = async () => {
     const vencidas = verificarCuentasVencidas();
     
@@ -221,7 +202,6 @@ const PagePrincipal = () => {
     setShowNotificationAlert(true);
     
     try {
-      // Filtrar clientes que no han recibido email en 24h
       const clientesParaNotificar = [];
       const ahora = new Date();
       const hace24h = new Date(ahora.getTime() - 24 * 60 * 60 * 1000);
@@ -245,23 +225,18 @@ const PagePrincipal = () => {
       let exitosos = 0;
       let errores = 0;
 
-      // Enviar emails con progreso
       for (let i = 0; i < clientesParaNotificar.length; i++) {
         const cliente = clientesParaNotificar[i];
         try {
-          console.log(`📧 Enviando ${i + 1}/${clientesParaNotificar.length}: ${cliente.nombre}`);
           
           const resultado = await enviarEmail(cliente, 'vencimiento');
           
           if (resultado.estado === 'Simulado') {
             exitosos++;
-            console.log(`✅ Enviado a ${cliente.nombre}`);
           } else {
             errores++;
-            console.log(`❌ Error enviando a ${cliente.nombre}`);
           }
           
-          // Delay entre emails
           if (i < clientesParaNotificar.length - 1) {
             await new Promise(resolve => setTimeout(resolve, 1000));
           }
@@ -276,14 +251,12 @@ const PagePrincipal = () => {
       alert(mensaje);
       
     } catch (error) {
-      console.error('❌ Error en notificaciones masivas:', error);
       alert('❌ Error en el proceso. Ver consola para detalles.');
     }
     
     setTimeout(() => setShowNotificationAlert(false), 2000);
   };
 
-  // Función para reenviar email de activación
   const reenviarEmailActivacion = useCallback(async (cliente) => {
     if (cliente.cuentaActivada) {
       alert('Esta cuenta ya está activada.');
@@ -291,7 +264,6 @@ const PagePrincipal = () => {
     }
 
     try {
-      // Generar nuevo token simulado
       const nuevoToken = Math.random().toString(36).substring(2, 15);
       const tokenData = {
         token: nuevoToken,
@@ -303,12 +275,10 @@ const PagePrincipal = () => {
         fechaExpiracion: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
       };
 
-      // Marcar tokens anteriores como expirados
       setTokensActivacion(prev => prev.map(t => 
         t.clienteId === cliente.id ? { ...t, usado: true } : t
       ));
 
-      // Simular envío de email
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       setTokensActivacion(prev => [...prev, tokenData]);
@@ -320,12 +290,10 @@ const PagePrincipal = () => {
     }
   }, []);
 
-  // Verificar cuentas vencidas al cargar el componente
   useEffect(() => {
     verificarCuentasVencidas();
   }, [clientes]);
 
-  // Cargar información del cliente si es tipo 'cliente'
   useEffect(() => {
     if (userType === 'cliente') {
       const userEmail = localStorage.getItem('userEmail');
@@ -345,7 +313,6 @@ const PagePrincipal = () => {
     }
   }, [userType]);
 
-  // Sidebar para dispositivos móviles
   const renderSidebar = () => (
     <Navbar 
       className="d-flex flex-column h-100"
@@ -701,9 +668,7 @@ const PagePrincipal = () => {
             </Container>
           </Navbar>
 
-          {/* Contenido de la página */}
-          <Container fluid className="p-3 p-lg-5" style={{ minHeight: '100vh' }}> {/* Más padding en desktop */}
-            {/* Header con botón de tema - MÁS GRANDE EN DESKTOP */}
+          <Container fluid className="p-3 p-lg-5" style={{ minHeight: '100vh' }}> 
             <Row className="mb-3 mb-lg-4">
               <Col className="d-flex justify-content-end">
                 <Button 
@@ -715,7 +680,7 @@ const PagePrincipal = () => {
                     borderRadius: '12px',
                     transition: 'all 0.3s ease',
                     backdropFilter: 'blur(10px)',
-                    padding: '10px 20px' // Más padding en desktop
+                    padding: '10px 20px' 
                   }}
                 >
                   {isDarkMode ? <FaSun size={16} /> : <FaMoon size={16} />}
@@ -725,7 +690,6 @@ const PagePrincipal = () => {
 
             <Row>
               <Col xs={12}>
-                {/* HEADER MÁS GRANDE EN DESKTOP */}
                 <div className="text-center mb-4 mb-lg-5">
                   <h1 className="fw-bold mb-2 mb-lg-3" style={{
                     background: isDarkMode 
@@ -734,12 +698,12 @@ const PagePrincipal = () => {
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     fontFamily: '"Fjalla One", sans-serif',
-                    fontSize: 'clamp(1.5rem, 4vw, 2.5rem)' // Responsivo
+                    fontSize: 'clamp(1.5rem, 4vw, 2.5rem)' 
                   }}>
                     {userType === 'cliente' && clienteLogueado ? 'MI ESTADO DE CUENTA' : 'GESTIÓN DE CLIENTES'}
                   </h1>
                   <p className={`mb-0 ${isDarkMode ? 'text-light opacity-75' : 'text-muted'}`} style={{
-                    fontSize: 'clamp(0.9rem, 2vw, 1.2rem)' // Responsivo
+                    fontSize: 'clamp(0.9rem, 2vw, 1.2rem)' 
                   }}>
                     {userType === 'cliente' && clienteLogueado 
                       ? `Bienvenido ${clienteLogueado.nombre}` 
@@ -748,7 +712,6 @@ const PagePrincipal = () => {
                 </div>
               </Col>
 
-              {/* Vista para cliente logueado - DISEÑO MEJORADO */}
               {userType === 'cliente' && clienteLogueado ? (
                 <Col xs={12} lg={10} xl={9} className="mx-auto mb-4">
                   <Card className="border-0 shadow-lg overflow-hidden" style={{
@@ -1060,10 +1023,8 @@ const PagePrincipal = () => {
                   </Card>
                 </Col>
               ) : (
-                // Vista original para admin y búsqueda - TAMBIÉN MEJORADA
                 <>
-                  <Col xs={12} lg={10} xl={8} className="mx-auto"> {/* Centrado en desktop */}
-                    {/* Sección de búsqueda - MÁS GRANDE */}
+                  <Col xs={12} lg={10} xl={8} className="mx-auto"> 
                     <Card className="border-0 shadow-lg mb-4" style={{
                       background: isDarkMode 
                         ? 'rgba(255,255,255,0.05)'
