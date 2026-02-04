@@ -98,6 +98,19 @@ export const enviarEmailReal = async (cliente, tipo = 'vencimiento') => {
       templateParams
     );
 
+    // Registrar en el historial del backend
+    const token = localStorage.getItem("token");
+    await registrarEmailHistorial({
+      clienteNombre: cliente.nombre,
+      clienteDNI: cliente.dni,
+      clienteEmail: cliente.email,
+      tipo,
+      fechaEnvio: new Date().toISOString(),
+      estado: "Enviado",
+      error: null,
+      asunto: "Membresía Vencida - HULK GYM"
+    }, token);
+
     console.log('✅ Email enviado exitosamente:', response);
 
     return {
@@ -143,7 +156,7 @@ export const enviarEmailActivacion = async (cliente, token) => {
     console.log('📧 Email destino (cliente):', cliente.email); // Log para debug
 
     // URL de activación (ajusta según tu dominio en producción)
-    const activationUrl = `${window.location.origin}/login?token=${token}&dni=${cliente.dni}`;
+    const activationUrl = `${window.location.origin}/login?token=${token}&email=${cliente.email}`;
 
     // Parámetros para la plantilla de activación - CORREGIDO
     const templateParams = {
@@ -395,13 +408,10 @@ export const verificarYNotificarExpiraciones = async () => {
  */
 export const verificarVencimientosAutomaticos = async () => {
   console.log('🤖 [AUTO] Iniciando verificación automática de vencimientos...');
-  
-  // Obtener la última fecha de verificación
   const ultimaVerificacion = localStorage.getItem('ultimaVerificacionAutomatica');
   const hoy = new Date();
   const fechaHoy = hoy.toDateString();
-  
-  // Si ya se verificó hoy, no hacer nada
+
   if (ultimaVerificacion === fechaHoy) {
     console.log('✅ [AUTO] Ya se verificó hoy. Saltando verificación.');
     return {
@@ -409,51 +419,40 @@ export const verificarVencimientosAutomaticos = async () => {
       mensaje: 'Verificación ya realizada hoy'
     };
   }
-  
+
   console.log('🔍 [AUTO] Primera verificación del día. Procesando...');
-  
+
   try {
-    // Obtener clientes
     const clientesStr = localStorage.getItem('clientes');
     const clientes = clientesStr ? JSON.parse(clientesStr) : [];
-    
-    // Obtener historial de notificaciones para evitar duplicados
     const historialStr = localStorage.getItem('emailHistory');
     const historial = historialStr ? JSON.parse(historialStr) : [];
-    
+
     let emailsEnviados = 0;
     let errores = 0;
-    
-    // Filtrar clientes vencidos HOY (que vencieron exactamente hoy)
+
     const clientesVencidosHoy = clientes.filter(cliente => {
       if (!cliente || !cliente.email || !cliente.vencimiento) return false;
-      
       try {
         const [dia, mes, anio] = cliente.vencimiento.split("/");
         const fechaVencimiento = new Date(`${anio}-${mes}-${dia}T23:59:59`);
-        
-        // Verificar si vence HOY
         const esHoy = fechaVencimiento.toDateString() === fechaHoy;
-        
         if (esHoy) {
-          // Verificar si ya se le envió email hoy
-          const yaNotificadoHoy = historial.some(email => 
+          const yaNotificadoHoy = historial.some(email =>
             email.clienteDNI === cliente.dni &&
             email.tipo === 'vencimiento' &&
             new Date(email.fechaEnvio).toDateString() === fechaHoy
           );
-          
           return !yaNotificadoHoy;
         }
-        
         return false;
       } catch (error) {
         return false;
       }
     });
-    
+
     console.log(`📊 [AUTO] Clientes que vencen HOY: ${clientesVencidosHoy.length}`);
-    
+
     if (clientesVencidosHoy.length === 0) {
       localStorage.setItem('ultimaVerificacionAutomatica', fechaHoy);
       return {
@@ -463,18 +462,13 @@ export const verificarVencimientosAutomaticos = async () => {
         errores: 0
       };
     }
-    
-    // Enviar emails a los clientes que vencen HOY
+
     for (const cliente of clientesVencidosHoy) {
       try {
         console.log(`📧 [AUTO] Enviando notificación automática a: ${cliente.nombre}`);
-        
         const resultado = await enviarEmailReal(cliente, 'vencimiento');
-        
         if (resultado.success) {
           emailsEnviados++;
-          
-          // Guardar en historial
           const nuevoEmail = {
             id: Date.now() + Math.random(),
             clienteNombre: cliente.nombre,
@@ -485,32 +479,26 @@ export const verificarVencimientosAutomaticos = async () => {
             estado: 'Enviado',
             error: null,
             asunto: 'Membresía Vencida - HULK GYM',
-            automatico: true // Marcar como envío automático
+            automatico: true
           };
-          
           historial.push(nuevoEmail);
           localStorage.setItem('emailHistory', JSON.stringify(historial));
-          
           console.log(`✅ [AUTO] Notificación enviada a ${cliente.nombre}`);
         } else {
           errores++;
           console.log(`❌ [AUTO] Error al notificar a ${cliente.nombre}`);
         }
-        
-        // Esperar entre envíos
         await new Promise(resolve => setTimeout(resolve, 2000));
-        
       } catch (error) {
         console.error(`❌ [AUTO] Error con ${cliente.nombre}:`, error);
         errores++;
       }
     }
-    
-    // Guardar fecha de verificación
+
     localStorage.setItem('ultimaVerificacionAutomatica', fechaHoy);
-    
+
     console.log(`✅ [AUTO] Verificación completada: ${emailsEnviados} emails enviados`);
-    
+
     return {
       totalVerificados: clientes.length,
       clientesVencidos: clientesVencidosHoy.length,
@@ -518,11 +506,10 @@ export const verificarVencimientosAutomaticos = async () => {
       errores,
       automatico: true
     };
-    
   } catch (error) {
     console.error('❌ [AUTO] Error en verificación automática:', error);
     return {
-      error: { message: error.message },
+      error: { message: error.message || 'Error desconocido' },
       totalVerificados: 0,
       clientesVencidos: 0,
       emailsEnviados: 0,
@@ -531,13 +518,34 @@ export const verificarVencimientosAutomaticos = async () => {
   }
 };
 
+// --- Agrega esta función para registrar el email en el backend ---
+export const registrarEmailHistorial = async (emailData, token) => {
+  try {
+    const res = await fetch("http://localhost:3000/api/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(emailData)
+    });
+    if (!res.ok) throw new Error("No se pudo registrar el email en el historial");
+    return await res.json();
+  } catch (error) {
+    console.error("❌ Error al registrar email en historial:", error);
+    return null;
+  }
+};
+// --- Fin función ---
+
 export default {
   isEmailConfigured,
-  isEmailCredencialesConfigured,  // NUEVO: Exportar verificación de cuenta secundaria
+  isEmailCredencialesConfigured,
   enviarEmailReal,
   generarTokenActivacion,
   enviarEmailActivacion,
   verificarYNotificarExpiraciones,
   verificarVencimientosAutomaticos,
-  enviarCredencialesAcceso
+  enviarCredencialesAcceso,
+  registrarEmailHistorial
 };

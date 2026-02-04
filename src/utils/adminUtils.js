@@ -1,59 +1,43 @@
-/**
- * Utilidades para la administración de usuarios y autenticación
- */
+import axios from "axios";
+
+const API_URL = "http://localhost:3000/api/usuarios"; // ajustá según tu backend
 
 // Verificar si un usuario es administrador
-export const isUserAdmin = (email) => {
-  const savedUsers = localStorage.getItem('users');
-  if (!savedUsers) return false;
-  
-  const users = JSON.parse(savedUsers);
-  return users.some(user => user.username === email && user.role === 'admin');
+export const isUserAdmin = async (token) => {
+  try {
+    const res = await axios.get(`${API_URL}/perfil`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return res.data.usuario.rol === "admin";
+  } catch (error) {
+    return false;
+  }
 };
 
 // Conceder permisos de administrador a un usuario
-export const grantAdminRights = (email, currentAdminEmail) => {
-  // Verificar que quien lo solicita sea un administrador
-  if (!isUserAdmin(currentAdminEmail)) {
-    return {success: false, message: 'No tienes permisos para realizar esta operación'};
+export const grantAdminRights = async (email, token) => {
+  try {
+    const res = await axios.put(
+      `${API_URL}/rol`,
+      { email, rol: "admin" },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return { success: true, message: res.data.mensaje };
+  } catch (error) {
+    return { success: false, message: error.response?.data?.mensaje || "Error en el servidor" };
   }
-  
-  const savedUsers = localStorage.getItem('users');
-  if (!savedUsers) {
-    return {success: false, message: 'No hay usuarios registrados'};
-  }
-  
-  const users = JSON.parse(savedUsers);
-  const userIndex = users.findIndex(user => user.username === email);
-  
-  if (userIndex === -1) {
-    return {success: false, message: 'Usuario no encontrado'};
-  }
-  
-  // Actualizar rol del usuario
-  users[userIndex].role = 'admin';
-  localStorage.setItem('users', JSON.stringify(users));
-  
-  return {success: true, message: 'Permisos de administrador concedidos correctamente'};
 };
 
 // Obtener lista de usuarios (solo para admins)
-export const getUsers = (adminEmail) => {
-  if (!isUserAdmin(adminEmail)) {
-    return {success: false, message: 'No tienes permisos para realizar esta operación'};
+export const getUsers = async (token) => {
+  try {
+    const res = await axios.get(`${API_URL}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    return { success: true, data: res.data.usuarios };
+  } catch (error) {
+    return { success: false, message: error.response?.data?.mensaje || "Error en el servidor" };
   }
-  
-  const savedUsers = localStorage.getItem('users');
-  if (!savedUsers) {
-    return {success: true, data: []};
-  }
-  
-  const users = JSON.parse(savedUsers);
-  
-  // Devolver lista pero sin mostrar contraseñas
-  const safeUserList = users.map(({password, ...rest}) => rest);
-  
-  return {success: true, data: safeUserList};
 };
 
 export default {

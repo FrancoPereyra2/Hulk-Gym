@@ -18,6 +18,7 @@ import { FaUsers, FaDumbbell, FaTimes, FaBars, FaMoon, FaSun, FaPlus, FaTrash, F
 import { useNavigate } from "react-router-dom";
 import { useTheme } from './admin.jsx';
 import Swal from 'sweetalert2';
+import axios from "axios";
 import "bootstrap-icons/font/bootstrap-icons.css";
 
 const capitalizarPrimeraLetra = (texto) => {
@@ -42,11 +43,8 @@ const Rutinas = () => {
   const [showModalEditarRutina, setShowModalEditarRutina] = useState(false);
   const [rutinaAEliminar, setRutinaAEliminar] = useState(null);
 
-  const [rutinas, setRutinas] = useState(() => {
-    const saved = localStorage.getItem('rutinas');
-    return saved ? JSON.parse(saved) : [];
-  });
-
+  // Cambia el estado inicial de rutinas a []
+  const [rutinas, setRutinas] = useState([]);
   const [rutinaSeleccionada, setRutinaSeleccionada] = useState(null);
   const [modoEdicion, setModoEdicion] = useState(false);
 
@@ -57,11 +55,9 @@ const Rutinas = () => {
   const [ejercicioEnEdicion, setEjercicioEnEdicion] = useState(null);
   const [indexEjercicioEdicion, setIndexEjercicioEdicion] = useState(null);
 
+  // Reemplaza el manejo local de emailHistory por llamadas al backend
   const [showEmailModal, setShowEmailModal] = useState(false);
-  const [emailHistory, setEmailHistory] = useState(() => {
-    const savedHistory = localStorage.getItem('emailHistory');
-    return savedHistory ? JSON.parse(savedHistory) : [];
-  });
+  const [emailHistory, setEmailHistory] = useState([]);
   const [cuentasVencidas, setCuentasVencidas] = useState([]);
 
   const verificarCuentasVencidas = useCallback(() => {
@@ -86,9 +82,25 @@ const Rutinas = () => {
     verificarCuentasVencidas();
   }, [verificarCuentasVencidas]);
 
+  // Cargar rutinas desde el backend al iniciar
   useEffect(() => {
-    localStorage.setItem('rutinas', JSON.stringify(rutinas));
-  }, [rutinas]);
+    const fetchRutinas = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get("http://localhost:3000/api/rutinas", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setRutinas(res.data);
+      } catch (error) {
+        Swal.fire({
+          icon: "error",
+          title: "Error al cargar rutinas",
+          text: error.response?.data?.mensaje || "No se pudieron cargar las rutinas"
+        });
+      }
+    };
+    fetchRutinas();
+  }, []);
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
@@ -150,23 +162,49 @@ const Rutinas = () => {
     setFormDataRutina(prev => ({ ...prev, ejercicios: prev.ejercicios.filter((_, i) => i !== index) }));
   };
 
-  const guardarNuevaRutina = () => {
+  // Crear rutina
+  const guardarNuevaRutina = async () => {
     if (!formDataRutina.nombre.trim()) return;
-    const nuevaRutina = {
-      id: rutinas.length > 0 ? Math.max(...rutinas.map(r => r.id)) + 1 : 1,
-      nombre: capitalizarPrimeraLetra(formDataRutina.nombre.trim()),
-      ejercicios: formDataRutina.ejercicios
-    };
-    setRutinas(prev => [...prev, nuevaRutina]);
-    setShowModalNuevaRutina(false);
+    try {
+      const token = localStorage.getItem("token");
+      // Mapear ejercicios al formato correcto
+      const ejercicios = formDataRutina.ejercicios.map(ej => ({
+        nombre: ej.ejercicio,
+        series: Number(ej.series),
+        repeticiones: Number(ej.repeticiones)
+      }));
+      const res = await axios.post(
+        "http://localhost:3000/api/rutinas",
+        { nombre: capitalizarPrimeraLetra(formDataRutina.nombre.trim()), ejercicios },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setRutinas(prev => [...prev, res.data.rutina]);
+      setShowModalNuevaRutina(false);
+      Swal.fire({ icon: "success", title: "Rutina creada" });
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "Error al crear rutina",
+        text: error.response?.data?.mensaje || "No se pudo crear la rutina"
+      });
+    }
   };
 
-  const handleEditarRutina = (id) => {
-    const rutina = rutinas.find(r => r.id === id);
-    if (!rutina) return;
-    setFormDataEdicion({ id: rutina.id, nombre: rutina.nombre, ejercicios: [...rutina.ejercicios] });
-    setShowModalEditarRutina(true);
-  };
+ const handleEditarRutina = (id) => {
+  const rutina = rutinas.find(r => r._id === id || r.id === id);
+  if (!rutina) return;
+  setFormDataEdicion({
+    id: rutina._id || rutina.id,
+    nombre: rutina.nombre,
+    // ⬇️ IMPORTANTE: Ajustar para manejar tanto 'nombre' como 'ejercicio'
+    ejercicios: rutina.ejercicios.map(ej => ({
+      ejercicio: ej.nombre || ej.ejercicio,  // Backend usa 'nombre', frontend 'ejercicio'
+      series: ej.series,
+      repeticiones: ej.repeticiones
+    }))
+  });
+  setShowModalEditarRutina(true);
+};
 
   const handleFormEdicionChange = (e) => {
     const { name, value } = e.target;
@@ -193,17 +231,39 @@ const Rutinas = () => {
     setFormDataEdicion(prev => ({ ...prev, ejercicios: prev.ejercicios.filter((_, i) => i !== index) }));
   };
 
-  const guardarEdicionRutina = () => {
+  // Editar rutina
+  const guardarEdicionRutina = async () => {
     if (!formDataEdicion.nombre.trim()) return;
-    const actualizadas = rutinas.map(r =>
-      r.id === formDataEdicion.id ? { ...r, nombre: capitalizarPrimeraLetra(formDataEdicion.nombre.trim()), ejercicios: formDataEdicion.ejercicios } : r
-    );
-    setRutinas(actualizadas);
-    if (rutinaSeleccionada && rutinaSeleccionada.id === formDataEdicion.id) {
-      setRutinaSeleccionada({ ...rutinaSeleccionada, nombre: capitalizarPrimeraLetra(formDataEdicion.nombre.trim()), ejercicios: formDataEdicion.ejercicios });
+    try {
+      const token = localStorage.getItem("token");
+      const ejercicios = formDataEdicion.ejercicios.map(ej => ({
+        nombre: ej.ejercicio,
+        series: Number(ej.series),
+        repeticiones: Number(ej.repeticiones)
+      }));
+      const res = await axios.put(
+        `http://localhost:3000/api/rutinas/${formDataEdicion.id}`,
+        { nombre: capitalizarPrimeraLetra(formDataEdicion.nombre.trim()), ejercicios },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setRutinas(prev =>
+        prev.map(r =>
+          (r._id || r.id) === formDataEdicion.id ? res.data.rutina : r
+        )
+      );
+      if (rutinaSeleccionada && (rutinaSeleccionada._id || rutinaSeleccionada.id) === formDataEdicion.id) {
+        setRutinaSeleccionada(res.data.rutina);
+      }
+      setShowModalEditarRutina(false);
+      setModoEdicion(false);
+      Swal.fire({ icon: "success", title: "Rutina actualizada" });
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "Error al actualizar rutina",
+        text: error.response?.data?.mensaje || "No se pudo actualizar la rutina"
+      });
     }
-    setShowModalEditarRutina(false);
-    setModoEdicion(false);
   };
 
   const handleCancelarEdicion = () => {
@@ -217,76 +277,170 @@ const Rutinas = () => {
     setShowModalEliminar(true);
   };
 
-  const confirmarEliminarRutina = () => {
-    setRutinas(prev => prev.filter(r => r.id !== rutinaAEliminar.id));
-    if (rutinaSeleccionada && rutinaSeleccionada.id === rutinaAEliminar.id) setRutinaSeleccionada(null);
-    setShowModalEliminar(false);
-    setRutinaAEliminar(null);
+  const confirmarEliminarRutina = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      await axios.delete(
+        `http://localhost:3000/api/rutinas/${rutinaAEliminar._id || rutinaAEliminar.id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setRutinas(prev => prev.filter(r => (r._id || r.id) !== (rutinaAEliminar._id || rutinaAEliminar.id)));
+      if (rutinaSeleccionada && (rutinaSeleccionada._id || rutinaSeleccionada.id) === (rutinaAEliminar._id || rutinaAEliminar.id)) {
+        setRutinaSeleccionada(null);
+      }
+      setShowModalEliminar(false);
+      setRutinaAEliminar(null);
+      Swal.fire({ icon: "success", title: "Rutina eliminada" });
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "Error al eliminar rutina",
+        text: error.response?.data?.mensaje || "No se pudo eliminar la rutina"
+      });
+    }
   };
+
+  
 
   const handleSeleccionarRutina = (rutina) => {
-    setRutinaSeleccionada(rutina);
-  };
+  setRutinaSeleccionada(rutina);
+  setModoEdicion(false);
+};
 
-  const handleLogout = () => {
-    localStorage.removeItem("userType");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("userEmail");
-    navigate("/login");
-  };
+const iniciarEdicionEjercicio = (ejercicio, index) => {
+  setEjercicioEnEdicion(ejercicio);
+  setIndexEjercicioEdicion(index);
+  setFormDataEjercicioEdicion({
+    ejercicio: ejercicio.ejercicio,
+    series: ejercicio.series,
+    repeticiones: ejercicio.repeticiones
+  });
+};
 
-  const iniciarEdicionEjercicio = (ejercicio, index) => {
-    setEjercicioEnEdicion(ejercicio);
-    setIndexEjercicioEdicion(index);
-    setFormDataEjercicioEdicion({ ejercicio: ejercicio.ejercicio, series: ejercicio.series, repeticiones: ejercicio.repeticiones });
-  };
+const guardarEjercicioEditado = () => {
+  if (!formDataEjercicioEdicion.ejercicio.trim()) return;
+  
+  const ejerciciosActualizados = formDataEdicion.ejercicios.map((ej, idx) => {
+    if (idx === indexEjercicioEdicion) {
+      return {
+        ejercicio: capitalizarPrimeraLetra(formDataEjercicioEdicion.ejercicio.trim()),
+        series: parseInt(formDataEjercicioEdicion.series) || 0,
+        repeticiones: parseInt(formDataEjercicioEdicion.repeticiones) || 0
+      };
+    }
+    return ej;
+  });
 
-  const guardarEjercicioEditado = () => {
-    if (!formDataEjercicioEdicion.ejercicio.trim()) return;
-    const actualizado = {
-      ejercicio: capitalizarPrimeraLetra(formDataEjercicioEdicion.ejercicio.trim()),
-      series: parseInt(formDataEjercicioEdicion.series) || 0,
-      repeticiones: parseInt(formDataEjercicioEdicion.repeticiones) || 0
-    };
-    const ejerciciosAct = [...formDataEdicion.ejercicios];
-    ejerciciosAct[indexEjercicioEdicion] = actualizado;
-    setFormDataEdicion(prev => ({ ...prev, ejercicios: ejerciciosAct }));
-    cancelarEdicionEjercicio();
-  };
+  setFormDataEdicion(prev => ({
+    ...prev,
+    ejercicios: ejerciciosActualizados
+  }));
 
-  const cancelarEdicionEjercicio = () => {
-    setEjercicioEnEdicion(null);
-    setIndexEjercicioEdicion(null);
-    setFormDataEjercicioEdicion({ ejercicio: "", series: "", repeticiones: "" });
-  };
+  cancelarEdicionEjercicio();
+};
 
-  const handleEliminarEmail = useCallback((emailId) => {
-    Swal.fire({
-      title: '¿Eliminar registro?',
-      text: '¿Estás seguro de que deseas eliminar este registro del historial?',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#dc3545',
-      cancelButtonColor: '#6c757d',
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Cancelar',
-      reverseButtons: true
-    }).then((result) => {
-      if (result.isConfirmed) {
-        const nuevoHistorial = emailHistory.filter(email => email.id !== emailId);
-        setEmailHistory(nuevoHistorial);
-        localStorage.setItem('emailHistory', JSON.stringify(nuevoHistorial));
-        
+const cancelarEdicionEjercicio = () => {
+  setEjercicioEnEdicion(null);
+  setIndexEjercicioEdicion(null);
+  setFormDataEjercicioEdicion({ ejercicio: "", series: "", repeticiones: "" });
+};
+
+const handleLogout = () => {
+  localStorage.removeItem("token");
+  localStorage.removeItem("userType");
+  localStorage.removeItem("userName");
+  localStorage.removeItem("userEmail");
+  navigate("/login");
+};
+
+
+  // Reemplaza el manejo local de emailHistory por llamadas al backend
+  const fetchEmailHistory = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setEmailHistory([]);
         Swal.fire({
-          icon: 'success',
-          title: 'Eliminado',
-          text: 'El registro ha sido eliminado del historial',
-          timer: 2000,
-          showConfirmButton: false
+          icon: "error",
+          title: "No autenticado",
+          text: "Debes iniciar sesión para ver el historial de emails."
         });
+        return;
       }
-    });
-  }, [emailHistory]);
+      const res = await axios.get("http://localhost:3000/api/emails/", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      let history = [];
+      if (Array.isArray(res.data)) {
+        history = res.data;
+      } else if (Array.isArray(res.data.historial)) {
+        history = res.data.historial;
+      } else if (Array.isArray(res.data.emails)) {
+        history = res.data.emails;
+      }
+      setEmailHistory(history);
+    } catch (error) {
+      setEmailHistory([]);
+      let mensaje = "No se pudo obtener el historial de emails";
+      if (error.response && error.response.status === 403) {
+        mensaje = "No tienes permisos para ver el historial de emails. Vuelve a iniciar sesión.";
+      }
+      Swal.fire({
+        icon: "error",
+        title: "Error al cargar historial",
+        text: error.response?.data?.mensaje || mensaje
+      });
+    }
+  }, []);
+
+  // Copia la función handleEliminarEmail del admin.jsx
+  const handleEliminarEmail = useCallback(
+    async (emailId) => {
+      Swal.fire({
+        title: "¿Eliminar registro?",
+        text: "¿Estás seguro de que deseas eliminar este registro del historial?",
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonColor: "#dc3545",
+        cancelButtonColor: "#6c757d",
+        confirmButtonText: "Sí, eliminar",
+        cancelButtonText: "Cancelar",
+        reverseButtons: true,
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          try {
+            const token = localStorage.getItem("token");
+            await axios.delete(`http://localhost:3000/api/emails/${emailId}`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+
+            await fetchEmailHistory();
+
+            Swal.fire({
+              icon: "success",
+              title: "Eliminado",
+              text: "El registro ha sido eliminado del historial",
+              timer: 2000,
+              showConfirmButton: false,
+            });
+          } catch (error) {
+            Swal.fire({
+              icon: "error",
+              title: "Error",
+              text: error.response?.data?.mensaje || "No se pudo eliminar el email del historial",
+            });
+          }
+        }
+      });
+    },
+    [fetchEmailHistory]
+  );
+
+  // Cuando se abre el modal, carga el historial
+  const handleOpenEmailModal = useCallback(() => {
+    setShowEmailModal(true);
+    fetchEmailHistory();
+  }, [fetchEmailHistory]);
 
   const renderSidebar = () => (
     <Navbar 
@@ -347,6 +501,7 @@ const Rutinas = () => {
                 padding: '12px 16px',
                 backgroundColor: isDarkMode ? 'rgba(13, 202, 240, 0.1)' : 'rgba(0, 123, 255, 0.1)'
               }}
+              onClick={() => navigate('/rutinas')}
             >
               <FaDumbbell className="me-2" />
               <span>Rutinas</span>
@@ -362,7 +517,7 @@ const Rutinas = () => {
                   padding: '12px 16px',
                   cursor: 'pointer'
                 }}
-                onClick={() => setShowEmailModal(true)}
+                onClick={handleOpenEmailModal}
                 onMouseEnter={(e) => {
                   e.target.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
                   e.target.style.transform = 'translateX(5px)';
@@ -374,9 +529,6 @@ const Rutinas = () => {
               >
                 <FaEnvelope className="me-2" />
                 <span>Historial de Emails</span>
-                {cuentasVencidas.length > 0 && (
-                  <Badge bg="danger" className="ms-2">{cuentasVencidas.length}</Badge>
-                )}
               </Nav.Link>
             )}
 
@@ -416,21 +568,19 @@ const Rutinas = () => {
   const cardStyle = { transition: "all 0.3s ease", borderRadius: "12px", overflow: "hidden" };
   const cardHeaderStyle = { fontFamily: "'Fjalla One', sans-serif", letterSpacing: "1px", textTransform: "uppercase" };
 
-  const PALETTES_URL = 'https://raw.githubusercontent.com/tu-usuario/tu-repo/main/palettes.json';
-  const [palettes, setPalettes] = useState([]);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch(PALETTES_URL);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (Array.isArray(data) && data.length) setPalettes(data);
-      } catch (e) {
-      }
-    })();
-  }, []);
-
+  // Definir paletas directamente como constante
+const palettes = [
+  { gradient: ['#667eea', '#764ba2'], accent: '#667eea' },
+  { gradient: ['#f093fb', '#f5576c'], accent: '#f093fb' },
+  { gradient: ['#4facfe', '#00f2fe'], accent: '#4facfe' },
+  { gradient: ['#43e97b', '#38f9d7'], accent: '#43e97b' },
+  { gradient: ['#fa709a', '#fee140'], accent: '#fa709a' },
+  { gradient: ['#30cfd0', '#330867'], accent: '#30cfd0' },
+  { gradient: ['#a8edea', '#fed6e3'], accent: '#a8edea' },
+  { gradient: ['#ff9a9e', '#fecfef'], accent: '#ff9a9e' },
+  { gradient: ['#ffecd2', '#fcb69f'], accent: '#ffecd2' },
+  { gradient: ['#ff6e7f', '#bfe9ff'], accent: '#ff6e7f' }
+];
   const getCardGradientByIndex = (index) => {
     if (!palettes || palettes.length === 0) return 'linear-gradient(135deg, #0c60cfff 0%, #c7d2fe 100%)';
     const p = palettes[index % palettes.length].gradient;
@@ -618,7 +768,7 @@ const Rutinas = () => {
 
                 <Row xs={1} md={2} lg={3} className="g-4">
                   {rutinas.length > 0 ? rutinas.map((rutina, index) => (
-                    <Col key={rutina.id}>
+                    <Col key={rutina._id || rutina.id || `rutina-${index}`}>
                       <Card className="h-100 shadow-lg border-0" style={{
                         background: isDarkMode 
                           ? 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)'
@@ -646,7 +796,7 @@ const Rutinas = () => {
                             {rutina.ejercicios && rutina.ejercicios.length > 0 ? (
                               <div className="exercise-list">
                                 {rutina.ejercicios.slice(0, 3).map((ejercicio, idx) => (
-                                  <div key={idx} className="mb-3" style={{ 
+                                  <div key={`${rutina._id || rutina.id}-ej-${idx}`} className="mb-3" style={{ 
                                     borderRadius: "12px", 
                                     padding: "15px", 
                                     background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
@@ -654,7 +804,7 @@ const Rutinas = () => {
                                   }}>
                                     <div className="d-flex flex-column">
                                       <div className="d-flex justify-content-between align-items-center mb-2">
-                                        <span style={{ fontWeight: '600', fontSize: '1rem' }}>{ejercicio.ejercicio}</span>
+                                        <span style={{ fontWeight: '600', fontSize: '1rem' }}>{ejercicio.nombre || ejercicio.ejercicio}</span>
                                         <FaDumbbell size={14} style={{ color: getRandomCardColorByIndex(index), opacity: 0.7 }} />
                                       </div>
                                       <div className="d-flex gap-2 align-items-center">
@@ -815,8 +965,8 @@ const Rutinas = () => {
                           </thead>
                           <tbody>
                             {rutinaSeleccionada.ejercicios && rutinaSeleccionada.ejercicios.length > 0 ? rutinaSeleccionada.ejercicios.map((ejercicio, i) => (
-                              <tr key={i}>
-                                <td className="fs-5" style={{ fontFamily: "'Fjalla One', sans-serif", fontWeight: 300 }}>{ejercicio.ejercicio}</td>
+                              <tr key={`sel-${rutinaSeleccionada._id || rutinaSeleccionada.id}-${i}`}>
+                                <td className="fs-5" style={{ fontFamily: "'Fjalla One', sans-serif", fontWeight: 300 }}>{ejercicio.nombre || ejercicio.ejercicio}</td>
                                 <td className="text-center align-middle">
                                   <Badge pill bg={isDarkMode ? "dark" : "light"} text={isDarkMode ? "light" : "dark"} className="fs-6 px-3" style={{ border: `1px solid ${getRandomCardColorByIndex(selIndex + i)}` }}>
                                     {ejercicio.series}
@@ -873,7 +1023,12 @@ const Rutinas = () => {
             {!isReadOnly && (
               <>
                 {/* Modal Nueva Rutina */}
-                <Modal show={showModalNuevaRutina} onHide={() => setShowModalNuevaRutina(false)} size="lg">
+                <Modal 
+                  show={showModalNuevaRutina} 
+                  onHide={() => setShowModalNuevaRutina(false)} 
+                  size="lg"
+                  enforceFocus={false}
+                >
                   <Modal.Header closeButton>
                     <Modal.Title>Nueva Rutina</Modal.Title>
                   </Modal.Header>
@@ -944,7 +1099,12 @@ const Rutinas = () => {
                 </Modal>
 
                 {/* Modal Editar Rutina */}
-                <Modal show={showModalEditarRutina} onHide={() => { setShowModalEditarRutina(false); cancelarEdicionEjercicio(); }} size="lg">
+                <Modal 
+                  show={showModalEditarRutina} 
+                  onHide={() => { setShowModalEditarRutina(false); cancelarEdicionEjercicio(); }} 
+                  size="lg"
+                  enforceFocus={false}
+                >
                   <Modal.Header closeButton><Modal.Title>Editar Rutina</Modal.Title></Modal.Header>
                   <Modal.Body>
                     <Form>
@@ -1022,7 +1182,11 @@ const Rutinas = () => {
                 </Modal>
 
                 {/* Modal Eliminar */}
-                <Modal show={showModalEliminar} onHide={() => setShowModalEliminar(false)}>
+                <Modal 
+                  show={showModalEliminar} 
+                  onHide={() => setShowModalEliminar(false)}
+                  enforceFocus={false}
+                >
                   <Modal.Header closeButton><Modal.Title>Confirmar Eliminación</Modal.Title></Modal.Header>
                   <Modal.Body>¿Está seguro que desea eliminar la rutina "{rutinaAEliminar?.nombre}"? Esta acción no se puede deshacer.</Modal.Body>
                   <Modal.Footer>
@@ -1039,6 +1203,7 @@ const Rutinas = () => {
               onHide={() => setShowEmailModal(false)} 
               size="lg"
               centered
+              enforceFocus={false}
             >
               <Modal.Header 
                 closeButton 
@@ -1060,15 +1225,6 @@ const Rutinas = () => {
                   : 'linear-gradient(135deg, #ffffff 0%, #f8faff 100%)',
                 color: isDarkMode ? 'white' : 'dark'
               }}>
-                <Row className="mb-3">
-                  <Col className="d-flex justify-content-between align-items-center">
-                    <h6 className="mb-0">
-                      <FaTimesCircle className="me-2 text-warning" />
-                      Cuentas Vencidas Actuales: <Badge bg="danger">{cuentasVencidas.length}</Badge>
-                    </h6>
-                  </Col>
-                </Row>
-                
                 {emailHistory.length === 0 ? (
                   <Alert variant="info" className="text-center">
                     <FaEnvelope size={40} className="mb-2" />
@@ -1080,7 +1236,7 @@ const Rutinas = () => {
                       .sort((a, b) => new Date(b.fechaEnvio) - new Date(a.fechaEnvio))
                       .map((email) => (
                         <Card 
-                          key={email.id}
+                          key={email._id}
                           className="mb-2"
                           style={{
                             background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.8)',
@@ -1149,7 +1305,7 @@ const Rutinas = () => {
                                 <Button 
                                   variant="outline-danger" 
                                   size="sm"
-                                  onClick={() => handleEliminarEmail(email.id)}
+                                  onClick={() => handleEliminarEmail(email._id)}
                                   className="border-0"
                                   title="Eliminar registro"
                                 >
@@ -1180,5 +1336,7 @@ const Rutinas = () => {
     </Container>
   );
 };
+
+
 
 export default Rutinas;

@@ -1,16 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Form, Button, Alert, Card, InputGroup } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { useNavigate, Link } from 'react-router-dom';
-import { FaGoogle, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
+import { FaEye, FaEyeSlash, FaUserShield, FaCrown, FaGoogle } from 'react-icons/fa';
 import LogoLoginImg from '../../assets/logo-login.png';
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { auth } from '../../firebase/config';
-
-const googleProvider = new GoogleAuthProvider();
+import axios from 'axios';
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { auth } from "../../firebase/config";
 
 const Registro = () => {
-  const [fullName, setFullName] = useState('');
+  const [nombre, setNombre] = useState('');
+  const [apellido, setApellido] = useState('');
+  const [dni, setDni] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -19,74 +20,66 @@ const Registro = () => {
   const [alertVariant, setAlertVariant] = useState('danger');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   
+  // Estados para determinar el tipo de registro
+  const [esPrimerUsuario, setEsPrimerUsuario] = useState(false);
   const [isCreatingAdmin, setIsCreatingAdmin] = useState(false);
-  
-  const [users, setUsers] = useState(() => {
-    const savedUsers = localStorage.getItem('users');
-    return savedUsers ? JSON.parse(savedUsers) : [];
+  const [cargando, setCargando] = useState(true);
+  const [creandoAdminFlag, setCreandoAdminFlag] = useState(() => {
+    // Solo lo leemos UNA VEZ al montar el componente
+    const flag = localStorage.getItem('creandoAdmin') === 'true';
+    if (flag) localStorage.removeItem('creandoAdmin');
+    return flag;
   });
   
   const navigate = useNavigate();
 
+  // Verificar tipo de registro al cargar
   useEffect(() => {
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach(mutation => {
-        if (mutation.type === 'childList') {
-          mutation.addedNodes.forEach(node => {
-            if (node.nodeType === 1) { 
-              if (node.textContent && node.textContent.includes('desarrollo')) {
-                node.remove();
-              }
-              
-              const alertElements = node.querySelectorAll('*');
-              alertElements.forEach(el => {
-                if (el.textContent && el.textContent.includes('desarrollo')) {
-                  el.remove();
-                }
-              });
-            }
-          });
+    const verificarTipoRegistro = async () => {
+      try {
+        const res = await axios.get("http://localhost:3000/api/auth/verificar-primer-usuario");
+        setEsPrimerUsuario(res.data.esPrimerUsuario);
+
+        if (creandoAdminFlag) {
+          setIsCreatingAdmin(true);
+          const userType = localStorage.getItem('userType');
+          if (userType !== 'admin' && !res.data.esPrimerUsuario) {
+            navigate('/login');
+            return;
+          }
         }
-      });
-    });
-    
-    observer.observe(document.body, { childList: true, subtree: true });
-    
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
 
-  useEffect(() => {
-    const creandoAdmin = localStorage.getItem('creandoAdmin') === 'true';
-    if (creandoAdmin) {
-      setIsCreatingAdmin(true);
-      localStorage.removeItem('creandoAdmin');
-    }
-
-    const userType = localStorage.getItem('userType');
-    const userEmail = localStorage.getItem('userEmail');
-    
-    if (creandoAdmin && userType !== 'admin') {
-      navigate('/login');
-    } else if (creandoAdmin) {
-      const savedUsers = localStorage.getItem('users');
-      if (savedUsers) {
-        const users = JSON.parse(savedUsers);
-        const currentUser = users.find(u => u.username === userEmail && u.role === 'admin');
-        if (!currentUser) {
+        if (!res.data.esPrimerUsuario && !creandoAdminFlag) {
           navigate('/login');
+          return;
         }
-      }
-    }
-  }, [navigate]);
 
-  const handleRegister = (e) => {
+      } catch (error) {
+        console.error("Error verificando tipo de registro:", error);
+        navigate('/login');
+      } finally {
+        setCargando(false);
+      }
+    };
+
+    verificarTipoRegistro();
+    // Solo depende de navigate y creandoAdminFlag
+  }, [navigate, creandoAdminFlag]);
+
+  // Limpiar alertas automáticamente
+  useEffect(() => {
+    if (showAlert) {
+      const timer = setTimeout(() => setShowAlert(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [showAlert]);
+
+  const handleRegister = async (e) => {
     e.preventDefault();
 
-    if (!fullName.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
+    // Validaciones
+    if (!nombre.trim() || !apellido.trim() || !dni.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
       setAlertVariant('danger');
       setAlertMessage('Por favor, completa todos los campos');
       setShowAlert(true);
@@ -108,193 +101,115 @@ const Registro = () => {
       return;
     }
 
-    if (users.some(user => user.username === email.trim())) {
+    if (password.length < 6) {
       setAlertVariant('danger');
-      setAlertMessage('Este correo electrónico ya está registrado');
+      setAlertMessage('La contraseña debe tener al menos 6 caracteres');
       setShowAlert(true);
       return;
     }
 
-    const newUser = {
-      fullName: fullName.trim(),
-      username: email.trim(),
-      password: password.trim(),
-      role: isCreatingAdmin ? 'admin' : 'cliente' 
-    };
-
-    const updatedUsers = [...users, newUser];
-    setUsers(updatedUsers);
-    
-    localStorage.setItem('users', JSON.stringify(updatedUsers));
-    
-    setAlertVariant('success');
-    setAlertMessage(isCreatingAdmin 
-      ? '¡Nuevo administrador registrado correctamente!' 
-      : '¡Registro exitoso! Ahora puedes iniciar sesión');
-    setShowAlert(true);
-
-    setTimeout(() => {
-      setFullName('');
-      setEmail('');
-      setPassword('');
-      setConfirmPassword('');
-      navigate(isCreatingAdmin ? '/admin' : '/login');
-    }, 2000);
-  };
-
-  const googleButtonRef = useRef(null);
-  
-  useEffect(() => {
-    const cleanup = () => {
-      const alerts = document.querySelectorAll('.alert');
-      alerts.forEach(alert => {
-        if (alert.textContent && alert.textContent.toLowerCase().includes('desarrollo')) {
-          if (alert.parentNode) {
-            alert.parentNode.removeChild(alert);
-          }
-        }
-      });
-    };
-    
-    cleanup();
-    
-    const observer = new MutationObserver(mutations => {
-      mutations.forEach(() => {
-        cleanup();
-      });
-    });
-    
-    observer.observe(document.body, { 
-      childList: true, 
-      subtree: true 
-    });
-    
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
-  
-  useEffect(() => {
-    if (googleButtonRef.current) {
-      const oldButton = googleButtonRef.current;
-      const newButton = oldButton.cloneNode(true);
-      
-      if (oldButton.parentNode) {
-        oldButton.parentNode.replaceChild(newButton, oldButton);
-        googleButtonRef.current = newButton;
-        
-        newButton.addEventListener('click', handleGoogleSignIn);
-      }
-    }
-  }, []);
-
-  const handleGoogleSignIn = async (e) => {
-    if (e) e.preventDefault();
-    
     try {
-      setIsGoogleLoading(true);
-      setAlertVariant('info');
-      setAlertMessage('Conectando con Google...');
-      setShowAlert(true);
-      
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
-      
-      const existingUser = users.find(u => u.username === user.email);
-      
-      if (!existingUser) {
-        const newUser = {
-          fullName: user.displayName || "Usuario de Google",
-          username: user.email,
-          password: `google_${user.uid}`,
-          role: isCreatingAdmin ? 'admin' : 'cliente',
-          googleAuth: true,
-          uid: user.uid
-        };
-        
-        const updatedUsers = [...users, newUser];
-        setUsers(updatedUsers);
-        localStorage.setItem('users', JSON.stringify(updatedUsers));
-        
-        setAlertVariant('success');
-        setAlertMessage(isCreatingAdmin 
-          ? '¡Nuevo administrador registrado correctamente con Google!' 
-          : '¡Registro exitoso! Serás redirigido automáticamente.');
-      } else {
-        setAlertVariant('info');
-        setAlertMessage('Ya existe una cuenta con este email. Iniciando sesión...');
+      let endpoint = "";
+      let headers = {};
+
+      if (esPrimerUsuario) {
+        // Registrar primer admin (no requiere token)
+        endpoint = "http://localhost:3000/api/auth/primer-admin";
+      } else if (isCreatingAdmin) {
+        // Registrar nuevo admin (requiere token de admin)
+        endpoint = "http://localhost:3000/api/auth/registrar-admin";
+        const token = localStorage.getItem("token");
+        headers = { Authorization: `Bearer ${token}` };
       }
-      
-      const userRole = existingUser ? existingUser.role : 'cliente';
-      localStorage.setItem('userType', userRole);
-      localStorage.setItem('userName', user.displayName || "Usuario de Google");
-      localStorage.setItem('userEmail', user.email);
-      
-      setTimeout(() => {
-        navigate(userRole === 'admin' ? '/admin' : '/principal');
-      }, 1500);
-      
-    } catch (error) {
-      console.error("Error de autenticación:", error);
-      
-      setAlertVariant('danger');
-      setAlertMessage(`Error: ${error.message || 'No se pudo conectar con Google'}`);
+
+      const res = await axios.post(endpoint, {
+        nombre: nombre.trim(),
+        apellido: apellido.trim(),
+        dni: dni.trim(),
+        email: email.trim(),
+        password: password.trim(),
+      }, { headers });
+
+      setAlertVariant('success');
+      setAlertMessage(esPrimerUsuario 
+        ? '¡Administrador principal creado! Ya puedes iniciar sesión.' 
+        : '¡Nuevo administrador registrado correctamente!');
       setShowAlert(true);
-    } finally {
-      setIsGoogleLoading(false);
-      sessionStorage.removeItem('googleAuthInProgress');
+
+      setTimeout(() => {
+        // Limpiar formulario
+        setNombre('');
+        setApellido('');
+        setDni('');
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
+        
+        // Redirigir
+        navigate(esPrimerUsuario ? '/login' : '/admin');
+      }, 2000);
+
+    } catch (error) {
+      console.error("❌ Error en registro:", error);
+      setAlertVariant('danger');
+      setAlertMessage(
+        error.response?.data?.mensaje || 
+        'Error al registrar. Verifica tus datos.'
+      );
+      setShowAlert(true);
     }
   };
 
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
+  // NUEVO: Google Sign-In para crear admin
+  const handleGoogleAdminRegister = async (e) => {
+    e.preventDefault();
+    try {
+      const result = await signInWithPopup(auth, new GoogleAuthProvider());
+      const user = result.user;
+      const idToken = await user.getIdToken();
+
+      // Enviar el idToken al backend para crear el admin
+      const token = localStorage.getItem("token");
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await axios.post(
+        "http://localhost:3000/api/google/auth",
+        { idToken },
+        { headers }
+      );
+
+      setAlertVariant("success");
+      setAlertMessage("¡Administrador registrado con Google correctamente!");
+      setShowAlert(true);
+
+      setTimeout(() => {
+        navigate("/admin");
+      }, 1500);
+    } catch (error) {
+      setAlertVariant("danger");
+      setAlertMessage(
+        error.response?.data?.mensaje ||
+          error.message ||
+          "No se pudo registrar con Google"
+      );
+      setShowAlert(true);
+    }
   };
 
-  const toggleConfirmPasswordVisibility = () => {
-    setShowConfirmPassword(!showConfirmPassword);
-  };
+  const togglePasswordVisibility = () => setShowPassword(!showPassword);
+  const toggleConfirmPasswordVisibility = () => setShowConfirmPassword(!showConfirmPassword);
 
-  useEffect(() => {
-    const checkSavedState = () => {
-      const savedGoogleAuthState = sessionStorage.getItem('googleAuthInProgress');
-      if (savedGoogleAuthState) {
-        sessionStorage.removeItem('googleAuthInProgress');
-        setIsGoogleLoading(false);
-      }
-    };
-
-    checkSavedState();
-
-    const handleBeforeUnload = () => {
-      if (isGoogleLoading) {
-        sessionStorage.setItem('googleAuthInProgress', 'true');
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        const googlePopup = window.open('', 'googleAuthPopup');
-        if (!googlePopup || googlePopup.closed) {
-          setIsGoogleLoading(false);
-        }
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    const timer = setTimeout(() => {
-      if (isGoogleLoading) {
-        setIsGoogleLoading(false);
-      }
-    }, 30000);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      clearTimeout(timer);
-    };
-  }, [isGoogleLoading]);
+  if (cargando) {
+    return (
+      <Container fluid className="d-flex justify-content-center align-items-center vh-100">
+        <div className="text-center">
+          <div className="spinner-border text-success" role="status">
+            <span className="visually-hidden">Cargando...</span>
+          </div>
+          <p className="mt-2">Verificando...</p>
+        </div>
+      </Container>
+    );
+  }
 
   return (
     <Container fluid>
@@ -304,15 +219,38 @@ const Registro = () => {
             <Card.Body className="p-4">
               <div className="text-center mb-4">
                 <img src={LogoLoginImg} alt="Logo" className="img-fluid w-50" />
-                <p className="text-muted h5">
-                  {isCreatingAdmin 
-                    ? 'Crea un nuevo administrador' 
-                    : 'Crea tu cuenta para continuar'}
-                </p>
+                
+                {esPrimerUsuario ? (
+                  <>
+                    <div className="mt-3">
+                      <FaCrown size={40} className="text-warning mb-2" />
+                      <h4 className="text-success">¡Bienvenido a HULK GYM!</h4>
+                    </div>
+                    <p className="text-muted">
+                      Crea la cuenta de administrador principal
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="mt-3">
+                      <FaUserShield size={40} className="text-primary mb-2" />
+                      <h4 className="text-primary">Nuevo Administrador</h4>
+                    </div>
+                    <p className="text-muted">
+                      Registra un nuevo administrador del sistema
+                    </p>
+                  </>
+                )}
               </div>
               
-              {isCreatingAdmin && (
+              {esPrimerUsuario && (
                 <Alert variant="info" className="mb-3">
+                  <strong>Primer inicio:</strong> Esta cuenta tendrá todos los permisos de administrador.
+                </Alert>
+              )}
+              
+              {isCreatingAdmin && !esPrimerUsuario && (
+                <Alert variant="warning" className="mb-3">
                   <strong>Importante:</strong> Estás creando una cuenta con permisos de administrador.
                 </Alert>
               )}
@@ -324,13 +262,41 @@ const Registro = () => {
               )}
               
               <Form onSubmit={handleRegister}>
+                <Row>
+                  <Col xs={12} md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Nombre</Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="Nombre"
+                        value={nombre}
+                        onChange={(e) => setNombre(e.target.value)}
+                        required
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col xs={12} md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Apellido</Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="Apellido"
+                        value={apellido}
+                        onChange={(e) => setApellido(e.target.value)}
+                        required
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+
                 <Form.Group className="mb-3">
-                  <Form.Label>Nombre Completo</Form.Label>
+                  <Form.Label>DNI</Form.Label>
                   <Form.Control
                     type="text"
-                    placeholder="Ingresa tu nombre completo"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Número de documento"
+                    value={dni}
+                    onChange={(e) => setDni(e.target.value)}
+                    required
                   />
                 </Form.Group>
                 
@@ -338,9 +304,10 @@ const Registro = () => {
                   <Form.Label>Correo Electrónico</Form.Label>
                   <Form.Control
                     type="email"
-                    placeholder="Ingresa tu correo electrónico"
+                    placeholder="admin@ejemplo.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    required
                   />
                 </Form.Group>
                 
@@ -349,15 +316,16 @@ const Registro = () => {
                   <InputGroup>
                     <Form.Control
                       type={showPassword ? "text" : "password"}
-                      placeholder="Crea una contraseña"
+                      placeholder="Mínimo 6 caracteres"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      required
                     />
                     <InputGroup.Text 
                       as="button"
                       type="button"
                       onClick={togglePasswordVisibility}
-                      className="bg-transparent border-0"
+                      className="bg-transparent"
                       style={{ cursor: 'pointer' }}
                     >
                       {showPassword ? <FaEyeSlash /> : <FaEye />}
@@ -373,12 +341,13 @@ const Registro = () => {
                       placeholder="Confirma tu contraseña"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
                     />
                     <InputGroup.Text 
                       as="button"
                       type="button"
                       onClick={toggleConfirmPasswordVisibility}
-                      className="bg-transparent border-0"
+                      className="bg-transparent"
                       style={{ cursor: 'pointer' }}
                     >
                       {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
@@ -387,29 +356,24 @@ const Registro = () => {
                 </Form.Group>
                 
                 <Button variant="success" type="submit" className="w-100 mb-3">
-                  {isCreatingAdmin ? 'REGISTRAR ADMINISTRADOR' : 'REGISTRARSE'}
+                  {esPrimerUsuario ? 'CREAR ADMINISTRADOR PRINCIPAL' : 'REGISTRAR ADMINISTRADOR'}
                 </Button>
-                
-                {/* Botón de Google para registro, adaptado según contexto */}
-                <Button 
-                  variant="outline-secondary"
-                  type="button" 
-                  className="w-100 mb-3 d-flex align-items-center justify-content-center"
-                  onClick={handleGoogleSignIn}
-                  disabled={isGoogleLoading}
-                  data-testid="google-sign-in-button"
-                >
-                  <FaGoogle className="me-2" style={{ color: '#42f442ff' }} /> 
-                  {isGoogleLoading 
-                    ? "Conectando..." 
-                    : isCreatingAdmin 
-                      ? "Registrar admin con Google" 
-                      : "Registrarse con Google"}
-                </Button>
+                {/* NUEVO: Botón Google solo para admins */}
+                {isCreatingAdmin && (
+                  <Button
+                    variant="outline-danger"
+                    type="button"
+                    className="w-100 mb-3 d-flex align-items-center justify-content-center"
+                    onClick={handleGoogleAdminRegister}
+                  >
+                    <FaGoogle className="me-2" />
+                    Registrar administrador con Google
+                  </Button>
+                )}
               </Form>
               
               <div className="text-center">
-                {isCreatingAdmin ? (
+                {isCreatingAdmin && !esPrimerUsuario ? (
                   <Button 
                     variant="link" 
                     onClick={() => navigate('/admin')}
@@ -418,9 +382,13 @@ const Registro = () => {
                     Volver al panel de administración
                   </Button>
                 ) : (
-                  <Link to="/login" className="text-decoration-none">
-                    ¿Ya tienes una cuenta? Inicia sesión aquí
-                  </Link>
+                  <Button 
+                    variant="link" 
+                    onClick={() => navigate('/login')}
+                    className="text-decoration-none"
+                  >
+                    Volver al inicio de sesión
+                  </Button>
                 )}
               </div>
             </Card.Body>
@@ -432,5 +400,3 @@ const Registro = () => {
 };
 
 export default Registro;
-
-
