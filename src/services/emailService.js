@@ -432,7 +432,7 @@ export const verificarVencimientosAutomaticos = async () => {
 
 export const registrarEmailHistorial = async (emailData, token) => {
   try {
-    const res = await fetch("http://localhost:3000/api/emails", {
+    const res = await fetch("hulk-gym-backend.vercel.app/api/emails", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

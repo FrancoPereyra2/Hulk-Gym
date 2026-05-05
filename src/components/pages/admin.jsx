@@ -542,7 +542,7 @@ const AdminClientes = () => {
     const fetchClientes = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get("http://localhost:3000/api/clientes", {
+        const res = await axios.get("hulk-gym-backend.vercel.app/api/clientes", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (Array.isArray(res.data)) setClientes(res.data);
@@ -860,7 +860,7 @@ const AdminClientes = () => {
       const unMesDespues = new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0];
 
       const res = await axios.post(
-        "http://localhost:3000/api/auth/registrar-cliente",
+        "hulk-gym-backend.vercel.app/api/auth/registrar-cliente",
         {
           nombre: partes[0] || formData.nombre.trim(),
           apellido: partes.slice(1).join(" ") || "",
@@ -897,7 +897,7 @@ const AdminClientes = () => {
       const token = localStorage.getItem("token");
       const clienteId = clienteSeleccionado?._id;
       const res = await axios.put(
-        `http://localhost:3000/api/clientes/${clienteId}`,
+        `hulk-gym-backend.vercel.app/api/clientes/${clienteId}`,
         { nombre: formData.nombre, dni: formData.dni, email: formData.email, fechaInicio: formData.fechaInicio, vencimiento: formData.vencimiento, precio: formData.precio, estadoCuenta: formData.estadoCuenta },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -913,7 +913,7 @@ const AdminClientes = () => {
   const confirmarEliminarCliente = async () => {
     try {
       const token = localStorage.getItem("token");
-      await axios.delete(`http://localhost:3000/api/clientes/${clienteAEliminar._id || clienteAEliminar.id}`, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.delete(`hulk-gym-backend.vercel.app/api/clientes/${clienteAEliminar._id || clienteAEliminar.id}`, { headers: { Authorization: `Bearer ${token}` } });
       setClientes((prev) => prev.filter((c) => c._id !== clienteAEliminar._id && c.id !== clienteAEliminar.id));
       setShowModalEliminar(false);
       Swal.fire({ icon: "success", title: "Cliente eliminado", text: `${clienteAEliminar.nombre} fue eliminado correctamente` });
@@ -925,7 +925,7 @@ const AdminClientes = () => {
   const renovarMembresia = async (cliente) => {
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.put(`http://localhost:3000/api/membresias/${cliente.id}/renovar`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.put(`hulk-gym-backend.vercel.app/api/membresias/${cliente.id}/renovar`, {}, { headers: { Authorization: `Bearer ${token}` } });
       setClientes((prev) => prev.map((c) => c.id === cliente.id ? { ...c, ...res.data.cliente } : c));
       setShowModalRenovar(false);
       Swal.fire({ icon: "success", title: "Membresía renovada", text: `La membresía de ${cliente.nombre} fue renovada correctamente` });
@@ -949,7 +949,7 @@ const AdminClientes = () => {
     if (!confirmacion.isConfirmed) return;
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.put(`http://localhost:3000/api/membresias/${cliente._id}/pago`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      const response = await axios.put(`hulk-gym-backend.vercel.app/api/membresias/${cliente._id}/pago`, {}, { headers: { Authorization: `Bearer ${token}` } });
       const clienteActualizado = response.data.cliente;
       setClientes((prev) => prev.map((c) => c._id === cliente._id ? clienteActualizado : c));
       if (clienteSeleccionado?._id === cliente._id) setClienteSeleccionado(clienteActualizado);
@@ -967,7 +967,7 @@ const AdminClientes = () => {
         setEmailHistory([]);
         return Swal.fire({ icon: "error", title: "No autenticado", text: "Debes iniciar sesión para ver el historial de emails." });
       }
-      const res = await axios.get("http://localhost:3000/api/emails/", { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.get("hulk-gym-backend.vercel.app/api/emails/", { headers: { Authorization: `Bearer ${token}` } });
       let history = [];
       if (Array.isArray(res.data)) history = res.data;
       else if (Array.isArray(res.data.historial)) history = res.data.historial;
@@ -996,7 +996,7 @@ const AdminClientes = () => {
     if (result.isConfirmed) {
       try {
         const token = localStorage.getItem("token");
-        await axios.delete(`http://localhost:3000/api/emails/${emailId}`, { headers: { Authorization: `Bearer ${token}` } });
+        await axios.delete(`hulk-gym-backend.vercel.app/api/emails/${emailId}`, { headers: { Authorization: `Bearer ${token}` } });
         await fetchEmailHistory();
         Swal.fire({ icon: "success", title: "Eliminado", text: "El registro ha sido eliminado del historial", timer: 2000, showConfirmButton: false });
       } catch (error) {

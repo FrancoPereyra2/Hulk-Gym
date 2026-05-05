@@ -35,7 +35,7 @@ const Registro = () => {
   useEffect(() => {
     const verificarTipoRegistro = async () => {
       try {
-        const res = await axios.get("http://localhost:3000/api/auth/verificar-primer-usuario");
+        const res = await axios.get("hulk-gym-backend.vercel.app/api/auth/verificar-primer-usuario");
         setEsPrimerUsuario(res.data.esPrimerUsuario);
 
         if (creandoAdminFlag) {
@@ -107,9 +107,9 @@ const Registro = () => {
       let headers = {};
 
       if (esPrimerUsuario) {
-        endpoint = "http://localhost:3000/api/auth/primer-admin";
+        endpoint = "hulk-gym-backend.vercel.app/api/auth/primer-admin";
       } else if (isCreatingAdmin) {
-        endpoint = "http://localhost:3000/api/auth/registrar-admin";
+        endpoint = "hulk-gym-backend.vercel.app/api/auth/registrar-admin";
         const token = localStorage.getItem("token");
         headers = { Authorization: `Bearer ${token}` };
       }
@@ -160,7 +160,7 @@ const Registro = () => {
       const token = localStorage.getItem("token");
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const res = await axios.post(
-        "http://localhost:3000/api/google/auth",
+        "hulk-gym-backend.vercel.app/api/google/auth",
         { idToken },
         { headers }
       );
