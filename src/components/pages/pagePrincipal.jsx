@@ -77,7 +77,7 @@ const PagePrincipal = () => {
       }
 
       const res = await axios.get(
-        `hulk-gym-backend.vercel.app/api/clientes/email/${usuario.email}`,
+        `https://hulk-gym-backend.vercel.app/api/clientes/email/${usuario.email}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -110,7 +110,7 @@ const PagePrincipal = () => {
       
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get("hulk-gym-backend.vercel.app/api/clientes", {
+        const res = await axios.get("https://hulk-gym-backend.vercel.app/api/clientes", {
           headers: { Authorization: `Bearer ${token}` },
         });
         setClientes(res.data);

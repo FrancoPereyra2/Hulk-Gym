@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
 
-axios.defaults.baseURL = "hulk-gym-backend.vercel.app";
+axios.defaults.baseURL = "https://hulk-gym-backend.vercel.app";
 
 const AuthContext = createContext(null);
 

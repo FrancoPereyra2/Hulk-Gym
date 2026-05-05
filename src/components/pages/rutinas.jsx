@@ -102,7 +102,7 @@ const Rutinas = () => {
     const fetchRutinas = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get("hulk-gym-backend.vercel.app/api/rutinas", {
+        const res = await axios.get("https://hulk-gym-backend.vercel.app/api/rutinas", {
           headers: { Authorization: `Bearer ${token}` }
         });
         setRutinas(res.data);
@@ -187,7 +187,7 @@ const Rutinas = () => {
         repeticiones: Number(ej.repeticiones)
       }));
       const res = await axios.post(
-        "hulk-gym-backend.vercel.app/api/rutinas",
+        "https://hulk-gym-backend.vercel.app/api/rutinas",
         { nombre: capitalizarPrimeraLetra(formDataRutina.nombre.trim()), ejercicios },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -253,7 +253,7 @@ const Rutinas = () => {
         repeticiones: Number(ej.repeticiones)
       }));
       const res = await axios.put(
-        `hulk-gym-backend.vercel.app/api/rutinas/${formDataEdicion.id}`,
+        `https://hulk-gym-backend.vercel.app/api/rutinas/${formDataEdicion.id}`,
         { nombre: capitalizarPrimeraLetra(formDataEdicion.nombre.trim()), ejercicios },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -292,7 +292,7 @@ const Rutinas = () => {
     try {
       const token = localStorage.getItem("token");
       await axios.delete(
-        `hulk-gym-backend.vercel.app/api/rutinas/${rutinaAEliminar._id || rutinaAEliminar.id}`,
+        `https://hulk-gym-backend.vercel.app/api/rutinas/${rutinaAEliminar._id || rutinaAEliminar.id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setRutinas(prev => prev.filter(r => (r._id || r.id) !== (rutinaAEliminar._id || rutinaAEliminar.id)));
@@ -368,7 +368,7 @@ const Rutinas = () => {
         });
         return;
       }
-      const res = await axios.get("hulk-gym-backend.vercel.app/api/emails/", {
+      const res = await axios.get("https://hulk-gym-backend.vercel.app/api/emails/", {
         headers: { Authorization: `Bearer ${token}` }
       });
       let history = [];
@@ -410,7 +410,7 @@ const Rutinas = () => {
         if (result.isConfirmed) {
           try {
             const token = localStorage.getItem("token");
-            await axios.delete(`hulk-gym-backend.vercel.app/api/emails/${emailId}`, {
+            await axios.delete(`https://hulk-gym-backend.vercel.app/api/emails/${emailId}`, {
               headers: { Authorization: `Bearer ${token}` }
             });
             await fetchEmailHistory();

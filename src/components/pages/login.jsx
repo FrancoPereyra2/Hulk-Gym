@@ -47,7 +47,7 @@ const HulkGymLogin = () => {
     const verificarPrimerUsuario = async () => {
       try {
         const res = await axios.get(
-          "hulk-gym-backend.vercel.app/api/auth/verificar-primer-usuario",
+          "https://hulk-gym-backend.vercel.app/api/auth/verificar-primer-usuario",
         );
 
         setEsPrimerUsuario(res.data.esPrimerUsuario);
@@ -81,7 +81,7 @@ const HulkGymLogin = () => {
   const verificarTokenCambioPassword = async (token, email) => {
     try {
       const res = await axios.get(
-        `hulk-gym-backend.vercel.app/api/auth/verificar-token?token=${token}&email=${email}`,
+        `https://hulk-gym-backend.vercel.app/api/auth/verificar-token?token=${token}&email=${email}`,
       );
 
       if (res.data.valido) {
@@ -132,7 +132,7 @@ const HulkGymLogin = () => {
     }
 
     try {
-      const res = await axios.post("hulk-gym-backend.vercel.app/api/auth/login", {
+      const res = await axios.post("https://hulk-gym-backend.vercel.app/api/auth/login", {
         email: emailSinEspacios,
         password: passwordSinEspacios,
       });
@@ -195,7 +195,7 @@ const HulkGymLogin = () => {
     }
 
     try {
-      await axios.post("hulk-gym-backend.vercel.app/api/auth/cambiar-password", {
+      await axios.post("https://hulk-gym-backend.vercel.app/api/auth/cambiar-password", {
         token: tokenCambio,
         email: emailCambio,
         nuevaPassword: nuevaPassword,
@@ -236,7 +236,7 @@ const HulkGymLogin = () => {
       const idToken = await user.getIdToken();
 
       const response = await axios.post(
-        "hulk-gym-backend.vercel.app/api/google/auth",
+        "https://hulk-gym-backend.vercel.app/api/google/auth",
         {
           idToken: idToken,
         },
