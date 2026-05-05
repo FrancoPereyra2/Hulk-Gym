@@ -1,42 +1,201 @@
+# 🏋️‍♂️ Sistema de Gestión de Gimnasio
+
+<div align="center">
+
+### 💪 Plataforma web para la administración completa de un gimnasio
+
+Gestión de clientes • Control de pagos • Rutinas • Notificaciones automáticas
+
+</div>
+
 ---
-name: frontend-design
-description: Create distinctive, production-grade frontend interfaces with high design quality. Use this skill when the user asks to build web components, pages, artifacts, posters, or applications (examples include websites, landing pages, dashboards, React components, HTML/CSS layouts, or when styling/beautifying any web UI). Generates creative, polished code and UI design that avoids generic AI aesthetics.
-license: Complete terms in LICENSE.txt
+
+# 📖 Descripción
+
+Este proyecto es una aplicación web desarrollada para facilitar la administración de un gimnasio, permitiendo llevar un control organizado de los clientes, pagos mensuales, rutinas y administración general del sistema.
+
+La plataforma cuenta con dos tipos de usuarios:
+
+* **Administrador**
+* **Cliente**
+
+Cada uno posee funcionalidades específicas adaptadas a sus necesidades.
+
 ---
 
-This skill guides creation of distinctive, production-grade frontend interfaces that avoid generic "AI slop" aesthetics. Implement real working code with exceptional attention to aesthetic details and creative choices.
+# 🚀 Funcionalidades
 
-The user provides frontend requirements: a component, page, application, or interface to build. They may include context about the purpose, audience, or technical constraints.
+# 👨‍💼 Panel de Administración
 
-## Design Thinking
+El administrador tiene acceso completo al sistema y puede realizar las siguientes acciones:
 
-Before coding, understand the context and commit to a BOLD aesthetic direction:
-- **Purpose**: What problem does this interface solve? Who uses it?
-- **Tone**: Pick an extreme: brutally minimal, maximalist chaos, retro-futuristic, organic/natural, luxury/refined, playful/toy-like, editorial/magazine, brutalist/raw, art deco/geometric, soft/pastel, industrial/utilitarian, etc. There are so many flavors to choose from. Use these for inspiration but design one that is true to the aesthetic direction.
-- **Constraints**: Technical requirements (framework, performance, accessibility).
-- **Differentiation**: What makes this UNFORGETTABLE? What's the one thing someone will remember?
+## 📊 Gestión General
 
-**CRITICAL**: Choose a clear conceptual direction and execute it with precision. Bold maximalism and refined minimalism both work - the key is intentionality, not intensity.
+* Control de ingresos mensuales durante todo el año.
+* Visualización de cantidad total de clientes registrados.
+* Administración completa de alumnos.
 
-Then implement working code (HTML/CSS/JS, React, Vue, etc.) that is:
-- Production-grade and functional
-- Visually striking and memorable
-- Cohesive with a clear aesthetic point-of-view
-- Meticulously refined in every detail
+## 👥 Gestión de Clientes
 
-## Frontend Aesthetics Guidelines
+* Listado completo de clientes.
+* Visualización de:
 
-Focus on:
-- **Typography**: Choose fonts that are beautiful, unique, and interesting. Avoid generic fonts like Arial and Inter; opt instead for distinctive choices that elevate the frontend's aesthetics; unexpected, characterful font choices. Pair a distinctive display font with a refined body font.
-- **Color & Theme**: Commit to a cohesive aesthetic. Use CSS variables for consistency. Dominant colors with sharp accents outperform timid, evenly-distributed palettes.
-- **Motion**: Use animations for effects and micro-interactions. Prioritize CSS-only solutions for HTML. Use Motion library for React when available. Focus on high-impact moments: one well-orchestrated page load with staggered reveals (animation-delay) creates more delight than scattered micro-interactions. Use scroll-triggering and hover states that surprise.
-- **Spatial Composition**: Unexpected layouts. Asymmetry. Overlap. Diagonal flow. Grid-breaking elements. Generous negative space OR controlled density.
-- **Backgrounds & Visual Details**: Create atmosphere and depth rather than defaulting to solid colors. Add contextual effects and textures that match the overall aesthetic. Apply creative forms like gradient meshes, noise textures, geometric patterns, layered transparencies, dramatic shadows, decorative borders, custom cursors, and grain overlays.
+  * Nombre y apellido
+  * Email
+  * Teléfono
+  * Fecha de vencimiento
+  * Datos personales registrados
+* Alta, baja y modificación de clientes.
 
-NEVER use generic AI-generated aesthetics like overused font families (Inter, Roboto, Arial, system fonts), cliched color schemes (particularly purple gradients on white backgrounds), predictable layouts and component patterns, and cookie-cutter design that lacks context-specific character.
+## 🏋️ Gestión de Rutinas
 
-Interpret creatively and make unexpected choices that feel genuinely designed for the context. No design should be the same. Vary between light and dark themes, different fonts, different aesthetics. NEVER converge on common choices (Space Grotesk, for example) across generations.
+* Creación de rutinas.
+* Edición de rutinas.
+* Eliminación de rutinas.
 
-**IMPORTANT**: Match implementation complexity to the aesthetic vision. Maximalist designs need elaborate code with extensive animations and effects. Minimalist or refined designs need restraint, precision, and careful attention to spacing, typography, and subtle details. Elegance comes from executing the vision well.
+## 📧 Sistema de Correos
 
-Remember: Claude is capable of extraordinary creative work. Don't hold back, show what can truly be created when thinking outside the box and committing fully to a distinctive vision.
+* Historial de mails enviados.
+* Verificación automática de clientes vencidos.
+* Envío de correos electrónicos recordando el pago mensual.
+
+## ⚙️ Herramientas Administrativas
+
+* 📥 Exportar listado de alumnos a Excel.
+* ➕ Agregar nuevos clientes.
+* 📨 Verificar clientes vencidos y enviar mails automáticos.
+* 👑 Agregar nuevos administradores.
+
+---
+
+# 👤 Panel del Cliente
+
+Cada cliente posee un espacio personal donde puede visualizar su información.
+
+## 📄 Información Disponible
+
+* Datos personales.
+* Estado de la cuenta.
+* Fecha de vencimiento.
+* Dias restantes.
+* Fecha de inicio.
+
+## 🏋️ Rutinas
+
+* Visualización de rutinas en modo solo lectura.
+
+---
+
+# 🔐 Autenticación
+
+El sistema cuenta con autenticación segura para usuarios y administradores.
+
+## ✅ Inicio de Sesión
+
+* Ingreso mediante:
+
+  * Credenciales (email y contraseña)
+  * Cuenta de Google
+
+## 🔑 Recuperación de Contraseña
+
+* Opción “Olvidaste tu contraseña”.
+
+## 📝 Registro de Usuarios
+
+* Registro tradicional con formulario.
+
+---
+
+# 🛠️ Tecnologías Utilizadas
+
+Este proyecto fue desarrollado utilizando tecnologías modernas para aplicaciones web.
+
+## 🎨 Frontend
+- React
+- Vite
+- HTML5
+- Bootstrap
+- React Bootstrap
+
+## ⚙️ Backend y Servicios
+- Express
+- Firebase
+- Firebase Authentication
+- Firebase Firestore
+
+## 📊 Gráficos y Estadísticas
+- Chart.js
+- React Chartjs 2
+
+## 🔐 Autenticación
+- Inicio de sesión con credenciales
+- Inicio de sesión con Google
+
+## 📦 Librerías y Herramientas
+- React Router DOM
+- React Hook Form
+- Axios
+- SweetAlert2
+- React Icons
+- Bootstrap Icons
+- XLSX
+- File Saver
+- Dayjs
+- EmailJS
+
+---
+
+# 📦 Funcionalidades Destacadas
+
+✔️ Gestión completa de clientes
+✔️ Control de vencimientos
+✔️ Envío automático de emails
+✔️ Exportación a Excel
+✔️ Gestión de rutinas
+✔️ Login con Google
+✔️ Recuperación de contraseña
+✔️ Panel administrador y cliente
+
+---
+
+# 🎯 Objetivo del Proyecto
+
+Brindar una solución práctica y organizada para gimnasios, facilitando la administración diaria y mejorando el seguimiento de clientes, pagos y rutinas.
+
+---
+
+# 📷 Capturas
+
+<p align="center">
+  <img src="src/assets/image.png" width="700">
+</p>
+
+<p align="center">
+  <img src="src/assets/image-1.png" width="700">
+</p>
+
+<p align="center">
+  <img src="src/assets/image-2.png" width="700">
+</p>
+
+<p align="center">
+  <img src="src/assets/image-3.png" width="700">
+</p>
+
+<p align="center">
+  <img src="src/assets/image-4.png" width="700">
+</p>
+
+---
+# 👨‍💻 Autor
+
+Proyecto desarrollado por **[Franco Pereyra]**
+
+---
+
+<div align="center">
+
+### ⭐ Gracias por visitar el proyecto ⭐
+
+</div>
