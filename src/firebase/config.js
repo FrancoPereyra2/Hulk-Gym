@@ -1,7 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 
-// Configuración de Firebase con valores correctos
 const firebaseConfig = {
   apiKey: "AIzaSyAImjuhgFv2Bx_KUndyDNnduDkwHu_QFnY",
   authDomain: "hulk-gym-688df.firebaseapp.com",
@@ -11,7 +10,6 @@ const firebaseConfig = {
   appId: "1:312702399411:web:603d3838f384ab1b5bd1c6",
 };
 
-// Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 

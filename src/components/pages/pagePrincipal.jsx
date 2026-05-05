@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios"; // ✅ AGREGADO
+import axios from "axios"; 
 import {
   Container,
   Row,
@@ -48,11 +48,7 @@ const PagePrincipal = () => {
     localStorage.getItem("userType")
   );
 
-  // ✅ Estados organizados
   const [clientes, setClientes] = useState([]);
-  const [searchDNI, setSearchDNI] = useState("");
-  const [clienteEncontrado, setClienteEncontrado] = useState(null);
-  const [busquedaRealizada, setBusquedaRealizada] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailHistory, setEmailHistory] = useState(() => {
@@ -61,13 +57,42 @@ const PagePrincipal = () => {
   });
   const [cuentasVencidas, setCuentasVencidas] = useState([]);
   const [showNotificationAlert, setShowNotificationAlert] = useState(false);
+  const usuario = JSON.parse(localStorage.getItem("usuario"));
   const [clienteLogueado, setClienteLogueado] = useState(null);
   const [tokensActivacion, setTokensActivacion] = useState(() => {
     const savedTokens = localStorage.getItem("tokensActivacion");
     return savedTokens ? JSON.parse(savedTokens) : [];
   });
 
-  // ✅ Verificar autenticación
+  useEffect(() => {
+  const cargarDatosCliente = async () => {
+    if (userType !== "cliente") return;
+
+    try {
+      const token = localStorage.getItem("token");
+
+      if (!usuario || !usuario.email) {
+        console.error("No hay usuario guardado en localStorage");
+        return;
+      }
+
+      const res = await axios.get(
+        `http://localhost:3000/api/clientes/email/${usuario.email}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      setClienteLogueado(res.data);
+    } catch (error) {
+      console.error("Error al obtener datos del cliente:", error);
+    }
+  };
+
+  cargarDatosCliente();
+}, [userType]);
+
+
   useEffect(() => {
     const storedUserType = localStorage.getItem("userType");
     const userEmail = localStorage.getItem("userEmail");
@@ -79,7 +104,6 @@ const PagePrincipal = () => {
     }
   }, [navigate]);
 
-  // ✅ Obtener clientes (solo para admin)
   useEffect(() => {
     const fetchClientes = async () => {
       if (userType !== "admin") return;
@@ -97,41 +121,7 @@ const PagePrincipal = () => {
     fetchClientes();
   }, [userType]);
 
-  // ✅ Obtener cliente logueado (solo para clientes)
-  useEffect(() => {
-  const fetchClienteLogueado = async () => {
-    if (userType !== "cliente") return;
 
-    try {
-      const token = localStorage.getItem("token");
-      
-      // ✅ NECESITAS GUARDAR EL DNI DEL USUARIO AL HACER LOGIN
-      const userDNI = localStorage.getItem("userDNI");
-      
-      if (!userDNI) {
-        console.error("No se encontró DNI del usuario");
-        return;
-      }
-
-      const res = await axios.get(
-        `http://localhost:3000/api/clientes/dni/${userDNI}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      setClienteLogueado(res.data);
-    } catch (error) {
-      console.error("Error al obtener cliente logueado:", error);
-      if (error.response?.status === 403) {
-        alert("No tienes permiso para acceder a esta información");
-      }
-    }
-  };
-
-  fetchClienteLogueado();
-}, [userType]);
-
-  // ✅ Verificar cuentas vencidas
   useEffect(() => {
     verificarCuentasVencidas();
   }, [clientes]);
@@ -142,46 +132,6 @@ const PagePrincipal = () => {
     const [dia, mes, anio] = vencimiento.split("/");
     const fechaVencimiento = new Date(`${anio}-${mes}-${dia}T23:59:59`);
     return fechaVencimiento >= hoy ? "Activo" : "Expirada";
-  };
-
-  // ✅ Búsqueda de cliente (CORREGIDA)
-  const handleSearch = async (e) => {
-    e.preventDefault();
-
-    if (!searchDNI.trim()) {
-      setClienteEncontrado(null);
-      setBusquedaRealizada(false);
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem("token");
-      const res = await axios.get(
-        `http://localhost:3000/api/clientes/dni/${searchDNI.trim()}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      setClienteEncontrado({
-        ...res.data,
-        estado: calcularEstado(res.data.vencimiento),
-      });
-      setBusquedaRealizada(true);
-    } catch (error) {
-      console.error("Error al buscar cliente:", error);
-      setClienteEncontrado(null);
-      setBusquedaRealizada(true);
-    }
-  };
-
-  const handleSearchInputChange = (e) => {
-    const value = e.target.value;
-    setSearchDNI(value);
-
-    if (!value.trim()) {
-      setClienteEncontrado(null);
-      setBusquedaRealizada(false);
-    }
   };
 
   const handleLogout = () => {
@@ -515,7 +465,6 @@ const PagePrincipal = () => {
         minHeight: "100vh",
       }}
     >
-      {/* Alerta de notificaciones */}
       {showNotificationAlert && (
         <Alert
           variant="success"
@@ -527,7 +476,6 @@ const PagePrincipal = () => {
         </Alert>
       )}
 
-      {/* Modal para historial de emails */}
       <Modal
         show={showEmailModal}
         onHide={() => setShowEmailModal(false)}
@@ -697,7 +645,6 @@ const PagePrincipal = () => {
       </Modal>
 
       <Row className="flex-grow-1 m-0" style={{ minHeight: "100vh" }}>
-        {/* Sidebar para pantallas medianas y grandes */}
         <Col
           xs={2}
           md={2}
@@ -713,7 +660,6 @@ const PagePrincipal = () => {
           {renderSidebar()}
         </Col>
 
-        {/* Offcanvas para móviles */}
         <Offcanvas
           show={showSidebar}
           onHide={() => setShowSidebar(false)}
@@ -741,7 +687,6 @@ const PagePrincipal = () => {
           <Offcanvas.Body className="p-0">{renderSidebar()}</Offcanvas.Body>
         </Offcanvas>
 
-        {/* Contenedor principal */}
         <Col
           xs={12}
           md={10}
@@ -749,7 +694,6 @@ const PagePrincipal = () => {
           className="p-0 d-flex flex-column"
           style={{ minHeight: "100vh" }}
         >
-          {/* Navbar para móviles */}
           <Navbar
             className="d-md-none"
             style={{
@@ -871,7 +815,7 @@ const PagePrincipal = () => {
                 </div>
               </Col>
 
-              {userType === "cliente" && clienteLogueado ? (
+              {userType === "cliente" && clienteLogueado && (
                 <Col xs={12} lg={10} xl={9} className="mx-auto mb-4">
                   <Card
                     className="border-0 shadow-lg overflow-hidden"
@@ -883,7 +827,6 @@ const PagePrincipal = () => {
                       borderRadius: "24px",
                     }}
                   >
-                    {/* Header sin gradiente violeta - diseño limpio */}
                     <div
                       style={{
                         background: isDarkMode
@@ -977,9 +920,7 @@ const PagePrincipal = () => {
                     </div>
 
                     <Card.Body className="p-4 p-lg-5">
-                      {/* Grid de información con diseño mejorado y mejor espaciado */}
                       <Row className="g-3 g-lg-4 mb-4">
-                        {/* Email */}
                         <Col xs={12} md={6}>
                           <div
                             className={`h-100 p-4 rounded-4 ${
@@ -1020,7 +961,6 @@ const PagePrincipal = () => {
                           </div>
                         </Col>
 
-                        {/* Fecha de Inicio */}
                         <Col xs={12} md={6}>
                           <div
                             className={`h-100 p-4 rounded-4 ${
@@ -1063,7 +1003,6 @@ const PagePrincipal = () => {
                           </div>
                         </Col>
 
-                        {/* Fecha de Vencimiento */}
                         <Col xs={12} md={6}>
                           <div
                             className={`h-100 p-4 rounded-4 ${
@@ -1106,7 +1045,6 @@ const PagePrincipal = () => {
                           </div>
                         </Col>
 
-                        {/* Estado de Cuenta */}
                         <Col xs={12} md={6}>
                           <div
                             className={`h-100 p-4 rounded-4 ${
@@ -1146,7 +1084,6 @@ const PagePrincipal = () => {
                           </div>
                         </Col>
 
-                        {/* Días Restantes */}
                         <Col xs={12}>
                           <div
                             className={`h-100 p-4 rounded-4 ${
@@ -1257,7 +1194,6 @@ const PagePrincipal = () => {
                         </Col>
                       </Row>
 
-                      {/* Alerta de estado mejorada */}
                       <Alert
                         variant={
                           calcularEstado(clienteLogueado.vencimiento) ===
@@ -1311,293 +1247,7 @@ const PagePrincipal = () => {
                     </Card.Body>
                   </Card>
                 </Col>
-              ) : (
-                <>
-                  <Col xs={12} lg={10} xl={8} className="mx-auto">
-                    <Card
-                      className="border-0 shadow-lg mb-4"
-                      style={{
-                        background: isDarkMode
-                          ? "rgba(255,255,255,0.05)"
-                          : "rgba(255,255,255,0.98)",
-                        backdropFilter: "blur(20px)",
-                        borderRadius: "24px",
-                      }}
-                    >
-                      <Card.Body className="p-4 p-lg-5">
-                        <h4
-                          className={`mb-4 ${
-                            isDarkMode ? "text-light" : "text-dark"
-                          }`}
-                        >
-                          <FaSearch className="me-2" />
-                          Buscar Cliente
-                        </h4>
-                        <Form onSubmit={handleSearch}>
-                          <InputGroup size="lg">
-                            <InputGroup.Text
-                              className={
-                                isDarkMode
-                                  ? "bg-dark border-0 text-light"
-                                  : "bg-white border-0"
-                              }
-                            >
-                              <FaSearch />
-                            </InputGroup.Text>
-                            <Form.Control
-                              type="text"
-                              placeholder="Ingresa el DNI del cliente..."
-                              value={searchDNI}
-                              onChange={handleSearchInputChange}
-                              className={
-                                isDarkMode
-                                  ? "bg-dark border-0 text-light"
-                                  : "border-0"
-                              }
-                              style={{
-                                fontSize: "1.1rem",
-                                padding: "15px",
-                              }}
-                            />
-                            <Button
-                              variant="primary"
-                              type="submit"
-                              style={{
-                                border: "none",
-                                padding: "0 30px",
-                                fontSize: "1.1rem",
-                              }}
-                            >
-                              Buscar
-                            </Button>
-                          </InputGroup>
-                        </Form>
-                      </Card.Body>
-                    </Card>
-
-                    {/* Tabla de resultados - MÁS ESPACIOSA */}
-                    <Card
-                      className="border-0 shadow-lg mb-4"
-                      style={{
-                        background: isDarkMode
-                          ? "rgba(255,255,255,0.05)"
-                          : "rgba(255,255,255,0.98)",
-                        backdropFilter: "blur(20px)",
-                        borderRadius: "24px",
-                      }}
-                    >
-                      <Card.Body className="p-4 p-lg-5">
-                        <h4
-                          className={`mb-4 ${
-                            isDarkMode ? "text-light" : "text-dark"
-                          }`}
-                        >
-                          <FaUserCheck className="me-2" />
-                          Resultados
-                        </h4>
-                        <div className="table-responsive">
-                          <Table hover className="mb-0">
-                            <thead
-                              style={{
-                                background: isDarkMode
-                                  ? "rgba(255,255,255,0.05)"
-                                  : "rgba(0,0,0,0.02)",
-                              }}
-                            >
-                              <tr>
-                                <th className="p-3 fs-6">Nombre</th>
-                                <th className="p-3 fs-6">DNI</th>
-                                <th className="p-3 fs-6 d-none d-md-table-cell">
-                                  Vencimiento
-                                </th>
-                                <th className="p-3 fs-6">Estado</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {busquedaRealizada ? (
-                                clienteEncontrado ? (
-                                  <tr>
-                                    <td className="p-3">
-                                      {clienteEncontrado.nombre}
-                                    </td>
-                                    <td className="p-3">
-                                      {clienteEncontrado.dni}
-                                    </td>
-                                    <td className="p-3 d-none d-md-table-cell">
-                                      {clienteEncontrado.vencimiento}
-                                    </td>
-                                    <td className="p-3">
-                                      <Badge
-                                        bg={
-                                          clienteEncontrado.estado === "Activo"
-                                            ? "success"
-                                            : "danger"
-                                        }
-                                        pill
-                                        className="px-3 py-2"
-                                      >
-                                        {clienteEncontrado.estado === "Activo"
-                                          ? "Activo"
-                                          : "Expirada"}
-                                      </Badge>
-                                    </td>
-                                  </tr>
-                                ) : (
-                                  <tr>
-                                    <td
-                                      colSpan="4"
-                                      className="text-center p-5 text-muted"
-                                    >
-                                      <FaTimesCircle
-                                        size={48}
-                                        className="mb-3"
-                                      />
-                                      <p className="mb-0 fs-5">
-                                        No se encontraron resultados
-                                      </p>
-                                    </td>
-                                  </tr>
-                                )
-                              ) : (
-                                <tr>
-                                  <td
-                                    colSpan="4"
-                                    className="text-center p-5 text-muted"
-                                  >
-                                    <FaSearch size={48} className="mb-3" />
-                                    <p className="mb-0 fs-5">
-                                      Ingresa un DNI para buscar
-                                    </p>
-                                  </td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </Table>
-                        </div>
-                      </Card.Body>
-                    </Card>
-
-                    {/* Información del cliente encontrado - MÁS ESPACIOSA */}
-                    {clienteEncontrado && (
-                      <Card
-                        className="border-0 shadow-lg"
-                        style={{
-                          background: isDarkMode
-                            ? "rgba(255,255,255,0.05)"
-                            : "rgba(255,255,255,0.98)",
-                          backdropFilter: "blur(20px)",
-                          borderRadius: "24px",
-                        }}
-                      >
-                        <Card.Body className="p-4 p-lg-5">
-                          <h3
-                            className={`mb-4 text-center ${
-                              isDarkMode ? "text-light" : "text-dark"
-                            }`}
-                          >
-                            {clienteEncontrado.nombre}
-                          </h3>
-
-                          <Row className="g-3 g-lg-4">
-                            <Col xs={6} md={4}>
-                              <div
-                                className={`p-3 p-lg-4 rounded-3 text-center ${
-                                  isDarkMode ? "bg-dark" : "bg-light"
-                                }`}
-                              >
-                                <FaIdCard
-                                  className="text-primary mb-2"
-                                  size={28}
-                                />
-                                <small className="text-muted d-block mb-1">
-                                  DNI
-                                </small>
-                                <strong className="fs-5">
-                                  {clienteEncontrado.dni}
-                                </strong>
-                              </div>
-                            </Col>
-                            <Col xs={6} md={4}>
-                              <div
-                                className={`p-3 p-lg-4 rounded-3 text-center ${
-                                  isDarkMode ? "bg-dark" : "bg-light"
-                                }`}
-                              >
-                                <FaEnvelope
-                                  className="text-info mb-2"
-                                  size={28}
-                                />
-                                <small className="text-muted d-block mb-1">
-                                  Email
-                                </small>
-                                <strong className="fs-6">
-                                  {clienteEncontrado.email || "N/A"}
-                                </strong>
-                              </div>
-                            </Col>
-                            <Col xs={6} md={4}>
-                              <div
-                                className={`p-3 p-lg-4 rounded-3 text-center ${
-                                  isDarkMode ? "bg-dark" : "bg-light"
-                                }`}
-                              >
-                                <FaCalendarAlt
-                                  className="text-success mb-2"
-                                  size={28}
-                                />
-                                <small className="text-muted d-block mb-1">
-                                  Inicio
-                                </small>
-                                <strong className="fs-6">
-                                  {clienteEncontrado.fechaInicio || "N/A"}
-                                </strong>
-                              </div>
-                            </Col>
-                            <Col xs={6} md={4}>
-                              <div
-                                className={`p-3 p-lg-4 rounded-3 text-center ${
-                                  isDarkMode ? "bg-dark" : "bg-light"
-                                }`}
-                              >
-                                <FaCalendarAlt
-                                  className="text-warning mb-2"
-                                  size={28}
-                                />
-                                <small className="text-muted d-block mb-1">
-                                  Vencimiento
-                                </small>
-                                <strong className="fs-6">
-                                  {clienteEncontrado.vencimiento}
-                                </strong>
-                              </div>
-                            </Col>
-                            <Col xs={6} md={4}>
-                              <div
-                                className={`p-3 p-lg-4 rounded-3 text-center ${
-                                  isDarkMode ? "bg-dark" : "bg-light"
-                                }`}
-                              >
-                                <small className="text-muted d-block mb-2">
-                                  Estado
-                                </small>
-                                <Badge
-                                  bg={
-                                    clienteEncontrado.estado === "Activo"
-                                      ? "success"
-                                      : "danger"
-                                  }
-                                  className="px-3 py-2 fs-6"
-                                >
-                                  {clienteEncontrado.estado}
-                                </Badge>
-                              </div>
-                            </Col>
-                          </Row>
-                        </Card.Body>
-                      </Card>
-                    )}
-                  </Col>
-                </>
+             
               )}
             </Row>
           </Container>

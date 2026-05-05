@@ -27,8 +27,7 @@ const HulkGymLogin = () => {
   const [alertVariant, setAlertVariant] = useState("danger");
   const [showPassword, setShowPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  
-  // Estados para primer usuario y cambio de contraseña
+
   const [esPrimerUsuario, setEsPrimerUsuario] = useState(false);
   const [mostrarCambioPassword, setMostrarCambioPassword] = useState(false);
   const [tokenCambio, setTokenCambio] = useState("");
@@ -36,41 +35,44 @@ const HulkGymLogin = () => {
   const [nuevaPassword, setNuevaPassword] = useState("");
   const [confirmarNuevaPassword, setConfirmarNuevaPassword] = useState("");
   const [showNuevaPassword, setShowNuevaPassword] = useState(false);
+  const [showConfirmarPassword, setShowConfirmarPassword] = useState(false);
   const [nombreUsuario, setNombreUsuario] = useState("");
+  const [mostrarRecuperacion, setMostrarRecuperacion] = useState(false);
+  const [emailRecuperacion, setEmailRecuperacion] = useState("");
 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // Verificar si es primer usuario al cargar
   useEffect(() => {
     const verificarPrimerUsuario = async () => {
       try {
-        const res = await axios.get("http://localhost:3000/api/auth/verificar-primer-usuario");
-        
-        // ✅ Log para debug
-        console.log("📊 Verificación primer usuario:", res.data);
-        
+        const res = await axios.get(
+          "http://localhost:3000/api/auth/verificar-primer-usuario",
+        );
+
         setEsPrimerUsuario(res.data.esPrimerUsuario);
-        
+
         if (res.data.esPrimerUsuario) {
-          console.log("🚀 Redirigiendo a registro (primer usuario)...");
+          console.info("🚀 Redirigiendo a registro (primer usuario)...");
           navigate("/registro");
         } else {
-          console.log("✅ Ya hay usuarios registrados:", res.data.totalUsuarios);
+          console.info(
+            "✅ Ya hay usuarios registrados:",
+            res.data.totalUsuarios,
+          );
         }
       } catch (error) {
         console.error("Error verificando primer usuario:", error);
       }
     };
-    
+
     verificarPrimerUsuario();
   }, [navigate]);
 
-  // Verificar si viene con token de cambio de contraseña
   useEffect(() => {
     const token = searchParams.get("token");
     const emailParam = searchParams.get("email");
-    
+
     if (token && emailParam) {
       verificarTokenCambioPassword(token, emailParam);
     }
@@ -78,9 +80,10 @@ const HulkGymLogin = () => {
 
   const verificarTokenCambioPassword = async (token, email) => {
     try {
-      // CAMBIA la URL aquí:
-      const res = await axios.get(`http://localhost:3000/api/auth/verificar-token?token=${token}&email=${email}`);
-      
+      const res = await axios.get(
+        `http://localhost:3000/api/auth/verificar-token?token=${token}&email=${email}`,
+      );
+
       if (res.data.valido) {
         setMostrarCambioPassword(true);
         setTokenCambio(token);
@@ -88,17 +91,20 @@ const HulkGymLogin = () => {
         setNombreUsuario(res.data.nombre);
       } else {
         setAlertVariant("danger");
-        setAlertMessage("El enlace para cambiar contraseña es inválido o ha expirado.");
+        setAlertMessage(
+          "El enlace para cambiar contraseña es inválido o ha expirado.",
+        );
         setShowAlert(true);
       }
     } catch (error) {
       setAlertVariant("danger");
-      setAlertMessage("El enlace para cambiar contraseña es inválido o ha expirado.");
+      setAlertMessage(
+        "El enlace para cambiar contraseña es inválido o ha expirado.",
+      );
       setShowAlert(true);
     }
   };
 
-  // Limpiar alertas automáticamente
   useEffect(() => {
     if (showAlert) {
       const timer = setTimeout(() => setShowAlert(false), 5000);
@@ -107,9 +113,11 @@ const HulkGymLogin = () => {
   }, [showAlert]);
 
   const togglePasswordVisibility = () => setShowPassword(!showPassword);
-  const toggleNuevaPasswordVisibility = () => setShowNuevaPassword(!showNuevaPassword);
+  const toggleNuevaPasswordVisibility = () =>
+    setShowNuevaPassword(!showNuevaPassword);
+  const toggleConfirmarPasswordVisibility = () =>
+    setShowConfirmarPassword(!showConfirmarPassword);
 
-  // LOGIN CON EMAIL/PASSWORD
   const handleLogin = async (e) => {
     e.preventDefault();
 
@@ -143,13 +151,13 @@ const HulkGymLogin = () => {
       setShowAlert(true);
 
       setTimeout(() => {
-        navigate(usuario.rol === "admin" ? "/admin" : "/principal", { replace: true });
+        navigate(usuario.rol === "admin" ? "/admin" : "/principal", {
+          replace: true,
+        });
       }, 800);
-
     } catch (error) {
       console.error("❌ Error en login:", error);
-      
-      // Verificar si requiere cambio de contraseña
+
       if (error.response?.data?.requiereCambioPassword) {
         setMostrarCambioPassword(true);
         setTokenCambio(error.response.data.tokenCambio);
@@ -159,17 +167,16 @@ const HulkGymLogin = () => {
         setShowAlert(true);
         return;
       }
-      
+
       setAlertVariant("danger");
       setAlertMessage(
-        error.response?.data?.mensaje || 
-        "Correo electrónico o contraseña incorrectos"
+        error.response?.data?.mensaje ||
+          "Correo electrónico o contraseña incorrectos",
       );
       setShowAlert(true);
     }
   };
 
-  // CAMBIAR CONTRASEÑA
   const handleCambiarPassword = async (e) => {
     e.preventDefault();
 
@@ -191,35 +198,33 @@ const HulkGymLogin = () => {
       await axios.post("http://localhost:3000/api/auth/cambiar-password", {
         token: tokenCambio,
         email: emailCambio,
-        nuevaPassword: nuevaPassword
+        nuevaPassword: nuevaPassword,
       });
 
       setAlertVariant("success");
       setAlertMessage("¡Contraseña actualizada! Ya puedes iniciar sesión.");
       setShowAlert(true);
-      
-      // Limpiar y volver al login
+
       setTimeout(() => {
         setMostrarCambioPassword(false);
         setTokenCambio("");
         setEmailCambio("");
         setNuevaPassword("");
         setConfirmarNuevaPassword("");
-        // Limpiar URL
         window.history.replaceState({}, document.title, "/login");
       }, 2000);
-
     } catch (error) {
       setAlertVariant("danger");
-      setAlertMessage(error.response?.data?.mensaje || "Error al cambiar la contraseña");
+      setAlertMessage(
+        error.response?.data?.mensaje || "Error al cambiar la contraseña",
+      );
       setShowAlert(true);
     }
   };
 
-  // LOGIN CON GOOGLE
   const handleGoogleSignIn = async (e) => {
     if (e) e.preventDefault();
-    
+
     try {
       setIsGoogleLoading(true);
       setAlertVariant("info");
@@ -230,9 +235,12 @@ const HulkGymLogin = () => {
       const user = result.user;
       const idToken = await user.getIdToken();
 
-      const response = await axios.post("http://localhost:3000/api/google/auth", {
-        idToken: idToken,
-      });
+      const response = await axios.post(
+        "http://localhost:3000/api/google/auth",
+        {
+          idToken: idToken,
+        },
+      );
 
       const { accessToken, refreshToken, usuario } = response.data;
 
@@ -248,16 +256,17 @@ const HulkGymLogin = () => {
       setShowAlert(true);
 
       setTimeout(() => {
-        navigate(usuario.rol === "admin" ? "/admin" : "/principal", { replace: true });
+        navigate(usuario.rol === "admin" ? "/admin" : "/principal", {
+          replace: true,
+        });
       }, 1000);
-
     } catch (error) {
       console.error("❌ Error con Google:", error);
       setAlertVariant("danger");
       setAlertMessage(
-        error.response?.data?.mensaje || 
-        error.message || 
-        'No se pudo conectar con Google'
+        error.response?.data?.mensaje ||
+          error.message ||
+          "No se pudo conectar con Google",
       );
       setShowAlert(true);
     } finally {
@@ -265,7 +274,126 @@ const HulkGymLogin = () => {
     }
   };
 
-  // Renderizar formulario de cambio de contraseña
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+
+    if (!emailRecuperacion.trim()) {
+      setAlertVariant("danger");
+      setAlertMessage("Ingresa tu correo electrónico");
+      setShowAlert(true);
+      return;
+    }
+
+    try {
+      await axios.post("http://localhost:3000/api/auth/forgot-password", {
+        email: emailRecuperacion.trim(),
+      });
+
+      setAlertVariant("success");
+      setAlertMessage(
+        "Si el correo existe, se enviará un enlace para restablecer la contraseña.",
+      );
+      setShowAlert(true);
+
+      setEmailRecuperacion("");
+    } catch (error) {
+      setAlertVariant("danger");
+      setAlertMessage("Error al enviar el correo.");
+      setShowAlert(true);
+    }
+  };
+
+  if (mostrarRecuperacion) {
+    return (
+      <Container fluid>
+        <Row className="justify-content-center align-items-center vh-100">
+          <Col xs={12} sm={10} md={8} lg={6} xl={4}>
+            <Card className="border-0 shadow">
+              <Card.Body className="p-4">
+                <div className="text-center mb-4">
+                  <img
+                    src={LogoLoginImg}
+                    alt="Logo"
+                    className="img-fluid w-50"
+                  />
+                  <h4 className="mt-3">Recuperar contraseña</h4>
+                  <p className="text-muted">
+                    Ingresa tu correo y te enviaremos un enlace para restablecer
+                    tu contraseña.
+                  </p>
+                </div>
+
+                {showAlert && (
+                  <Alert
+                    variant={alertVariant}
+                    onClose={() => setShowAlert(false)}
+                    dismissible
+                  >
+                    {alertMessage}
+                  </Alert>
+                )}
+
+                <Form onSubmit={handleForgotPassword}>
+                  <Form.Group className="mb-4">
+                    <Form.Label>Correo Electrónico</Form.Label>
+                    <Form.Control
+                      type="email"
+                      placeholder="Ingresa tu correo"
+                      value={emailRecuperacion}
+                      onChange={(e) => setEmailRecuperacion(e.target.value)}
+                      required
+                    />
+                  </Form.Group>
+
+                  <Button
+                    type="submit"
+                    className="w-100 py-2 mb-3 fw-bold border-0"
+                    style={{
+                      background: "linear-gradient(135deg, #0400f7, #3352ff)",
+                      borderRadius: "10px",
+                      boxShadow: "0 4px 12px rgba(0, 16, 247, 0.4)",
+                      transition: "all 0.3s ease",
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.transform = "translateY(-2px)";
+                      e.target.style.boxShadow =
+                        "0 6px 18px rgba(4, 0, 247, 0.6)";
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.transform = "translateY(0)";
+                      e.target.style.boxShadow =
+                        "0 4px 12px rgba(4, 0, 247, 0.4)";
+                    }}
+                  >
+                    ENVIAR ENLACE
+                  </Button>
+                </Form>
+
+                <Button
+                  variant="link"
+                  className="w-100 fw-semibold text-decoration-none"
+                  style={{
+                    color: "#0d6efd",
+                    transition: "all 0.2s ease",
+                  }}
+                  onClick={() => setMostrarRecuperacion(false)}
+                  onMouseOver={(e) => {
+                    e.target.style.color = "#084298";
+                  }}
+                  onMouseOut={(e) => {
+                    e.target.style.color = "#0d6efd";
+                  }}
+                >
+                  ← Volver al inicio de sesión
+                </Button>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
+      </Container>
+    );
+  }
+
   if (mostrarCambioPassword) {
     return (
       <Container fluid>
@@ -274,29 +402,33 @@ const HulkGymLogin = () => {
             <Card className="border-0 shadow">
               <Card.Body className="p-4">
                 <div className="text-center mb-4">
-                  <img src={LogoLoginImg} alt="Logo" className="img-fluid w-50" />
-                  <div className="mt-3">
-                    <FaLock size={40} className="text-warning mb-2" />
-                    <h4 className="text-warning">Cambio de Contraseña Requerido</h4>
-                  </div>
-                  {nombreUsuario && (
-                    <p className="text-muted">Hola {nombreUsuario}, crea tu nueva contraseña</p>
-                  )}
+                  <img
+                    src={LogoLoginImg}
+                    alt="Logo"
+                    className="img-fluid w-50"
+                  />
+                  <h4 className="mt-3">Cambiar contraseña</h4>
+                  <p className="text-muted">
+                    Hola {nombreUsuario}, ingresa tu nueva contraseña.
+                  </p>
                 </div>
 
                 {showAlert && (
-                  <Alert variant={alertVariant} onClose={() => setShowAlert(false)} dismissible>
+                  <Alert
+                    variant={alertVariant}
+                    onClose={() => setShowAlert(false)}
+                    dismissible
+                  >
                     {alertMessage}
                   </Alert>
                 )}
 
                 <Form onSubmit={handleCambiarPassword}>
                   <Form.Group className="mb-3">
-                    <Form.Label>Nueva Contraseña</Form.Label>
+                    <Form.Label>Nueva contraseña</Form.Label>
                     <InputGroup>
                       <Form.Control
                         type={showNuevaPassword ? "text" : "password"}
-                        placeholder="Mínimo 6 caracteres"
                         value={nuevaPassword}
                         onChange={(e) => setNuevaPassword(e.target.value)}
                         required
@@ -314,18 +446,38 @@ const HulkGymLogin = () => {
                   </Form.Group>
 
                   <Form.Group className="mb-4">
-                    <Form.Label>Confirmar Nueva Contraseña</Form.Label>
-                    <Form.Control
-                      type="password"
-                      placeholder="Repite tu contraseña"
-                      value={confirmarNuevaPassword}
-                      onChange={(e) => setConfirmarNuevaPassword(e.target.value)}
-                      required
-                    />
+                    <Form.Label>Confirmar contraseña</Form.Label>
+                    <InputGroup>
+                      <Form.Control
+                        type={showConfirmarPassword ? "text" : "password"}
+                        value={confirmarNuevaPassword}
+                        onChange={(e) =>
+                          setConfirmarNuevaPassword(e.target.value)
+                        }
+                        required
+                      />
+                      <InputGroup.Text
+                        as="button"
+                        type="button"
+                        onClick={toggleConfirmarPasswordVisibility}
+                        className="bg-transparent"
+                        style={{ cursor: "pointer" }}
+                      >
+                        {showConfirmarPassword ? <FaEyeSlash /> : <FaEye />}
+                      </InputGroup.Text>
+                    </InputGroup>
                   </Form.Group>
 
-                  <Button variant="success" type="submit" className="w-100 py-2">
-                    ACTUALIZAR CONTRASEÑA
+                  <Button
+                    type="submit"
+                    className="w-100 py-2 fw-bold border-0"
+                    style={{
+                      background: "linear-gradient(135deg, #198754, #157347)",
+                      borderRadius: "10px",
+                      boxShadow: "0 4px 12px rgba(25, 135, 84, 0.4)",
+                    }}
+                  >
+                    CAMBIAR CONTRASEÑA
                   </Button>
                 </Form>
               </Card.Body>
@@ -336,7 +488,6 @@ const HulkGymLogin = () => {
     );
   }
 
-  // Renderizar formulario de login normal
   return (
     <Container fluid>
       <Row className="justify-content-center align-items-center vh-100">
@@ -349,7 +500,11 @@ const HulkGymLogin = () => {
               </div>
 
               {showAlert && (
-                <Alert variant={alertVariant} onClose={() => setShowAlert(false)} dismissible>
+                <Alert
+                  variant={alertVariant}
+                  onClose={() => setShowAlert(false)}
+                  dismissible
+                >
                   {alertMessage}
                 </Alert>
               )}
@@ -388,21 +543,52 @@ const HulkGymLogin = () => {
                   </InputGroup>
                 </Form.Group>
 
-                <Button variant="success" type="submit" className="w-100 py-2 mb-3">
+                <Button
+                  type="submit"
+                  className="w-100 py-2 mb-3 fw-bold border-0"
+                  style={{
+                    backgroundColor: "#198754", 
+                    borderRadius: "10px",
+                    boxShadow: "0 4px 12px rgba(25, 135, 84, 0.35)",
+                    transition: "all 0.3s ease",
+                  }}
+                  onMouseOver={(e) => {
+                    e.target.style.transform = "translateY(-2px)";
+                    e.target.style.boxShadow =
+                      "0 6px 18px rgba(25, 135, 84, 0.5)";
+                  }}
+                  onMouseOut={(e) => {
+                    e.target.style.transform = "translateY(0)";
+                    e.target.style.boxShadow =
+                      "0 4px 12px rgba(25, 135, 84, 0.35)";
+                  }}
+                >
                   INICIAR SESIÓN
                 </Button>
               </Form>
 
-              <Button 
+              <Button
                 variant="outline-secondary"
-                type="button" 
+                type="button"
                 className="w-100 mb-3 d-flex align-items-center justify-content-center"
                 onClick={handleGoogleSignIn}
                 disabled={isGoogleLoading}
               >
-                <FaGoogle className="me-2" style={{ color: '#42f442ff' }} /> 
-                {isGoogleLoading ? "Conectando..." : "Iniciar sesión con Google"}
+                <FaGoogle className="me-2" style={{ color: "#42f442ff" }} />
+                {isGoogleLoading
+                  ? "Conectando..."
+                  : "Iniciar sesión con Google"}
               </Button>
+
+              <div className="text-center mb-3">
+                <small
+                  className="text-primary fs-6"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => setMostrarRecuperacion(true)}
+                >
+                  ¿Olvidaste tu contraseña?
+                </small>
+              </div>
 
               <div className="text-center">
                 <small className="text-muted">

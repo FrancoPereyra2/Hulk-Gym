@@ -1,8 +1,7 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:3000/api/usuarios"; // ajustá según tu backend
+const API_URL = "http://localhost:3000/api/usuarios";
 
-// Verificar si un usuario es administrador
 export const isUserAdmin = async (token) => {
   try {
     const res = await axios.get(`${API_URL}/perfil`, {
@@ -14,7 +13,6 @@ export const isUserAdmin = async (token) => {
   }
 };
 
-// Conceder permisos de administrador a un usuario
 export const grantAdminRights = async (email, token) => {
   try {
     const res = await axios.put(
@@ -28,7 +26,6 @@ export const grantAdminRights = async (email, token) => {
   }
 };
 
-// Obtener lista de usuarios (solo para admins)
 export const getUsers = async (token) => {
   try {
     const res = await axios.get(`${API_URL}`, {

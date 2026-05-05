@@ -21,12 +21,10 @@ const Registro = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
-  // Estados para determinar el tipo de registro
   const [esPrimerUsuario, setEsPrimerUsuario] = useState(false);
   const [isCreatingAdmin, setIsCreatingAdmin] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [creandoAdminFlag, setCreandoAdminFlag] = useState(() => {
-    // Solo lo leemos UNA VEZ al montar el componente
     const flag = localStorage.getItem('creandoAdmin') === 'true';
     if (flag) localStorage.removeItem('creandoAdmin');
     return flag;
@@ -34,7 +32,6 @@ const Registro = () => {
   
   const navigate = useNavigate();
 
-  // Verificar tipo de registro al cargar
   useEffect(() => {
     const verificarTipoRegistro = async () => {
       try {
@@ -64,10 +61,8 @@ const Registro = () => {
     };
 
     verificarTipoRegistro();
-    // Solo depende de navigate y creandoAdminFlag
   }, [navigate, creandoAdminFlag]);
 
-  // Limpiar alertas automáticamente
   useEffect(() => {
     if (showAlert) {
       const timer = setTimeout(() => setShowAlert(false), 5000);
@@ -78,7 +73,6 @@ const Registro = () => {
   const handleRegister = async (e) => {
     e.preventDefault();
 
-    // Validaciones
     if (!nombre.trim() || !apellido.trim() || !dni.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
       setAlertVariant('danger');
       setAlertMessage('Por favor, completa todos los campos');
@@ -113,10 +107,8 @@ const Registro = () => {
       let headers = {};
 
       if (esPrimerUsuario) {
-        // Registrar primer admin (no requiere token)
         endpoint = "http://localhost:3000/api/auth/primer-admin";
       } else if (isCreatingAdmin) {
-        // Registrar nuevo admin (requiere token de admin)
         endpoint = "http://localhost:3000/api/auth/registrar-admin";
         const token = localStorage.getItem("token");
         headers = { Authorization: `Bearer ${token}` };
@@ -137,7 +129,6 @@ const Registro = () => {
       setShowAlert(true);
 
       setTimeout(() => {
-        // Limpiar formulario
         setNombre('');
         setApellido('');
         setDni('');
@@ -145,7 +136,6 @@ const Registro = () => {
         setPassword('');
         setConfirmPassword('');
         
-        // Redirigir
         navigate(esPrimerUsuario ? '/login' : '/admin');
       }, 2000);
 
@@ -160,7 +150,6 @@ const Registro = () => {
     }
   };
 
-  // NUEVO: Google Sign-In para crear admin
   const handleGoogleAdminRegister = async (e) => {
     e.preventDefault();
     try {
@@ -168,7 +157,6 @@ const Registro = () => {
       const user = result.user;
       const idToken = await user.getIdToken();
 
-      // Enviar el idToken al backend para crear el admin
       const token = localStorage.getItem("token");
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const res = await axios.post(
@@ -358,7 +346,6 @@ const Registro = () => {
                 <Button variant="success" type="submit" className="w-100 mb-3">
                   {esPrimerUsuario ? 'CREAR ADMINISTRADOR PRINCIPAL' : 'REGISTRAR ADMINISTRADOR'}
                 </Button>
-                {/* NUEVO: Botón Google solo para admins */}
                 {isCreatingAdmin && (
                   <Button
                     variant="outline-danger"
