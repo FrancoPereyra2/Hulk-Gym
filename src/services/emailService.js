@@ -1,4 +1,6 @@
 import emailjs from '@emailjs/browser';
+const API = import.meta.env.VITE_API_URL;
+
 
 const EMAILJS_CONFIG = {
   SERVICE_ID: 'service_penoe9y',
@@ -432,7 +434,7 @@ export const verificarVencimientosAutomaticos = async () => {
 
 export const registrarEmailHistorial = async (emailData, token) => {
   try {
-    const res = await fetch("hulk-gym-backend.vercel.app/api/emails", {
+    const res = await fetch(`${API}/api/emails`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
