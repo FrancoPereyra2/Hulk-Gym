@@ -7,6 +7,7 @@ import LogoLoginImg from '../../assets/logo-login.png';
 import axios from 'axios';
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "../../firebase/config";
+const API = import.meta.env.VITE_API_URL;
 
 const Registro = () => {
   const [nombre, setNombre] = useState('');
@@ -35,7 +36,7 @@ const Registro = () => {
   useEffect(() => {
     const verificarTipoRegistro = async () => {
       try {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/auth/verificar-primer-usuario`);
+        const res = await axios.get(`${API}/api/auth/verificar-primer-usuario`);
         setEsPrimerUsuario(res.data.esPrimerUsuario);
 
         if (creandoAdminFlag) {
@@ -107,9 +108,9 @@ const Registro = () => {
       let headers = {};
 
       if (esPrimerUsuario) {
-        endpoint = `${import.meta.env.VITE_API_URL}/api/auth/primer-admin`;
+        endpoint = `${API}/api/auth/primer-admin`;
       } else if (isCreatingAdmin) {
-        endpoint = `${import.meta.env.VITE_API_URL}/api/auth/registrar-admin`;
+        endpoint = `${API}/api/auth/registrar-admin`;
         const token = localStorage.getItem("token");
         headers = { Authorization: `Bearer ${token}` };
       }
@@ -160,7 +161,7 @@ const Registro = () => {
       const token = localStorage.getItem("token");
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const res = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/google/auth`,
+        `${API}/api/google/auth`,
         { idToken },
         { headers }
       );

@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
+const API = import.meta.env.VITE_API_URL;
 
-axios.defaults.baseURL = "https://hulk-gym-backend.vercel.app";
+axios.defaults.baseURL = API;
 
 const AuthContext = createContext(null);
 

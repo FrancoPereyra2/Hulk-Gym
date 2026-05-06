@@ -54,6 +54,7 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import Swal from "sweetalert2";
 import axios from "axios";
+const API = import.meta.env.VITE_API_URL;
 
 dayjs.locale("es");
 
@@ -542,7 +543,7 @@ const AdminClientes = () => {
     const fetchClientes = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/clientes`, {
+        const res = await axios.get(`${API}/api/clientes`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (Array.isArray(res.data)) setClientes(res.data);
@@ -860,7 +861,7 @@ const AdminClientes = () => {
       const unMesDespues = new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0];
 
       const res = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/auth/registrar-cliente`,
+        `${API}/api/auth/registrar-cliente`,
         {
           nombre: partes[0] || formData.nombre.trim(),
           apellido: partes.slice(1).join(" ") || "",
@@ -897,7 +898,7 @@ const AdminClientes = () => {
       const token = localStorage.getItem("token");
       const clienteId = clienteSeleccionado?._id;
       const res = await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/clientes/${clienteId}`,
+        `${API}/api/clientes/${clienteId}`,
         { nombre: formData.nombre, dni: formData.dni, email: formData.email, fechaInicio: formData.fechaInicio, vencimiento: formData.vencimiento, precio: formData.precio, estadoCuenta: formData.estadoCuenta },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -913,7 +914,7 @@ const AdminClientes = () => {
   const confirmarEliminarCliente = async () => {
     try {
       const token = localStorage.getItem("token");
-      await axios.delete(`${import.meta.env.VITE_API_URL}/api/clientes/${clienteAEliminar._id || clienteAEliminar.id}`, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.delete(`${API}/api/clientes/${clienteAEliminar._id || clienteAEliminar.id}`, { headers: { Authorization: `Bearer ${token}` } });
       setClientes((prev) => prev.filter((c) => c._id !== clienteAEliminar._id && c.id !== clienteAEliminar.id));
       setShowModalEliminar(false);
       Swal.fire({ icon: "success", title: "Cliente eliminado", text: `${clienteAEliminar.nombre} fue eliminado correctamente` });
@@ -925,7 +926,7 @@ const AdminClientes = () => {
   const renovarMembresia = async (cliente) => {
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.put(`${import.meta.env.VITE_API_URL}/api/membresias/${cliente.id}/renovar`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.put(`${API}/api/membresias/${cliente.id}/renovar`, {}, { headers: { Authorization: `Bearer ${token}` } });
       setClientes((prev) => prev.map((c) => c.id === cliente.id ? { ...c, ...res.data.cliente } : c));
       setShowModalRenovar(false);
       Swal.fire({ icon: "success", title: "Membresía renovada", text: `La membresía de ${cliente.nombre} fue renovada correctamente` });
@@ -949,7 +950,7 @@ const AdminClientes = () => {
     if (!confirmacion.isConfirmed) return;
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.put(`${import.meta.env.VITE_API_URL}/api/membresias/${cliente._id}/pago`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      const response = await axios.put(`${API}/api/membresias/${cliente._id}/pago`, {}, { headers: { Authorization: `Bearer ${token}` } });
       const clienteActualizado = response.data.cliente;
       setClientes((prev) => prev.map((c) => c._id === cliente._id ? clienteActualizado : c));
       if (clienteSeleccionado?._id === cliente._id) setClienteSeleccionado(clienteActualizado);
@@ -967,7 +968,7 @@ const AdminClientes = () => {
         setEmailHistory([]);
         return Swal.fire({ icon: "error", title: "No autenticado", text: "Debes iniciar sesión para ver el historial de emails." });
       }
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/emails/`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.get(`${API}/api/emails/`, { headers: { Authorization: `Bearer ${token}` } });
       let history = [];
       if (Array.isArray(res.data)) history = res.data;
       else if (Array.isArray(res.data.historial)) history = res.data.historial;
@@ -996,7 +997,7 @@ const AdminClientes = () => {
     if (result.isConfirmed) {
       try {
         const token = localStorage.getItem("token");
-        await axios.delete(`${import.meta.env.VITE_API_URL}/api/emails/${emailId}`, { headers: { Authorization: `Bearer ${token}` } });
+        await axios.delete(`${API}/api/emails/${emailId}`, { headers: { Authorization: `Bearer ${token}` } });
         await fetchEmailHistory();
         Swal.fire({ icon: "success", title: "Eliminado", text: "El registro ha sido eliminado del historial", timer: 2000, showConfirmButton: false });
       } catch (error) {

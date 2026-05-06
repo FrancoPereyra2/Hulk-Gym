@@ -39,6 +39,7 @@ import {
   FaExclamationTriangle,
 } from "react-icons/fa";
 import { useTheme } from "./admin.jsx";
+const API = import.meta.env.VITE_API_URL;
 
 const PagePrincipal = () => {
   const navigate = useNavigate();
@@ -77,7 +78,7 @@ const PagePrincipal = () => {
       }
 
       const res = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/clientes/email/${usuario.email}`,
+        `${API}/api/clientes/email/${usuario.email}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -110,7 +111,7 @@ const PagePrincipal = () => {
       
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/clientes`, {
+        const res = await axios.get(`${API}/api/clientes`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setClientes(res.data);

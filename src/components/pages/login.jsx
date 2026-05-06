@@ -16,6 +16,7 @@ import LogoLoginImg from "../../assets/logo-login.png";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "../../firebase/config";
 import axios from "axios";
+const API = import.meta.env.VITE_API_URL;
 
 const googleProvider = new GoogleAuthProvider();
 
@@ -47,7 +48,7 @@ const HulkGymLogin = () => {
     const verificarPrimerUsuario = async () => {
       try {
         const res = await axios.get(
-          `${import.meta.env.VITE_API_URL}/api/auth/verificar-primer-usuario`,
+          `${API}/api/auth/verificar-primer-usuario`,
         );
 
         setEsPrimerUsuario(res.data.esPrimerUsuario);
@@ -81,7 +82,7 @@ const HulkGymLogin = () => {
   const verificarTokenCambioPassword = async (token, email) => {
     try {
       const res = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/auth/verificar-token?token=${token}&email=${email}`,
+        `${API}/api/auth/verificar-token?token=${token}&email=${email}`,
       );
 
       if (res.data.valido) {
@@ -132,7 +133,7 @@ const HulkGymLogin = () => {
     }
 
     try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
+      const res = await axios.post(`${API}/api/auth/login`, {
         email: emailSinEspacios,
         password: passwordSinEspacios,
       });
@@ -195,7 +196,7 @@ const HulkGymLogin = () => {
     }
 
     try {
-      await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/cambiar-password`, {
+      await axios.post(`${API}/api/auth/cambiar-password`, {
         token: tokenCambio,
         email: emailCambio,
         nuevaPassword: nuevaPassword,
@@ -236,7 +237,7 @@ const HulkGymLogin = () => {
       const idToken = await user.getIdToken();
 
       const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/google/auth`,
+        `${API}/api/google/auth`,
         {
           idToken: idToken,
         },
@@ -285,7 +286,7 @@ const HulkGymLogin = () => {
     }
 
     try {
-      await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/forgot-password`, {
+      await axios.post(`${API}/api/auth/forgot-password`, {
         email: emailRecuperacion.trim(),
       });
 

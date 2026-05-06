@@ -20,6 +20,7 @@ import { useTheme } from './admin.jsx';
 import Swal from 'sweetalert2';
 import axios from "axios";
 import "bootstrap-icons/font/bootstrap-icons.css";
+const API = import.meta.env.VITE_API_URL;
 
 const capitalizarPrimeraLetra = (texto) => {
   if (!texto) return '';
@@ -102,7 +103,7 @@ const Rutinas = () => {
     const fetchRutinas = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/rutinas`, {
+        const res = await axios.get(`${API}/api/rutinas`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setRutinas(res.data);
@@ -187,7 +188,7 @@ const Rutinas = () => {
         repeticiones: Number(ej.repeticiones)
       }));
       const res = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/rutinas`,
+        `${API}/api/rutinas`,
         { nombre: capitalizarPrimeraLetra(formDataRutina.nombre.trim()), ejercicios },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -253,7 +254,7 @@ const Rutinas = () => {
         repeticiones: Number(ej.repeticiones)
       }));
       const res = await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/rutinas/${formDataEdicion.id}`,
+        `${API}/api/rutinas/${formDataEdicion.id}`,
         { nombre: capitalizarPrimeraLetra(formDataEdicion.nombre.trim()), ejercicios },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -292,7 +293,7 @@ const Rutinas = () => {
     try {
       const token = localStorage.getItem("token");
       await axios.delete(
-        `${import.meta.env.VITE_API_URL}/api/rutinas/${rutinaAEliminar._id || rutinaAEliminar.id}`,
+        `${API}/api/rutinas/${rutinaAEliminar._id || rutinaAEliminar.id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setRutinas(prev => prev.filter(r => (r._id || r.id) !== (rutinaAEliminar._id || rutinaAEliminar.id)));
@@ -368,7 +369,7 @@ const Rutinas = () => {
         });
         return;
       }
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/emails/`, {
+      const res = await axios.get(`${API}/api/emails/`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       let history = [];
@@ -410,7 +411,7 @@ const Rutinas = () => {
         if (result.isConfirmed) {
           try {
             const token = localStorage.getItem("token");
-            await axios.delete(`${import.meta.env.VITE_API_URL}/api/emails/${emailId}`, {
+            await axios.delete(`${API}/api/emails/${emailId}`, {
               headers: { Authorization: `Bearer ${token}` }
             });
             await fetchEmailHistory();
