@@ -103,14 +103,10 @@ export const enviarEmailReal = async (cliente, tipo = 'vencimiento') => {
       message: 'Email enviado correctamente'
     };
 
-  } catch (error) {
-    console.error('❌ Error al enviar email:', error);
-    return {
-      success: false,
-      error: error.text || error.message || 'Error desconocido',
-      messageId: null
-    };
-  }
+  }catch (emailError) {
+  console.error("❌ Error enviando email COMPLETO:");
+  console.error(emailError);
+}
 };
 
 
