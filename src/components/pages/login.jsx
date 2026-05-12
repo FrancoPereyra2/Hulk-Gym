@@ -11,11 +11,19 @@ import {
 } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { FaGoogle, FaEye, FaEyeSlash, FaLock } from "react-icons/fa";
+import {
+  FaGoogle,
+  FaEye,
+  FaEyeSlash,
+  FaEnvelope,
+  FaLock,
+  FaArrowLeft,
+} from "react-icons/fa";
 import LogoLoginImg from "../../assets/logo-login.png";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "../../firebase/config";
 import axios from "axios";
+import "../../styles/admin.css";
 const API = import.meta.env.VITE_API_URL;
 
 const googleProvider = new GoogleAuthProvider();
@@ -47,36 +55,20 @@ const HulkGymLogin = () => {
   useEffect(() => {
     const verificarPrimerUsuario = async () => {
       try {
-        const res = await axios.get(
-          `${API}/api/auth/verificar-primer-usuario`,
-        );
-
+        const res = await axios.get(`${API}/api/auth/verificar-primer-usuario`);
         setEsPrimerUsuario(res.data.esPrimerUsuario);
-
-        if (res.data.esPrimerUsuario) {
-          console.info("🚀 Redirigiendo a registro (primer usuario)...");
-          navigate("/registro");
-        } else {
-          console.info(
-            "✅ Ya hay usuarios registrados:",
-            res.data.totalUsuarios,
-          );
-        }
+        if (res.data.esPrimerUsuario) navigate("/registro");
       } catch (error) {
         console.error("Error verificando primer usuario:", error);
       }
     };
-
     verificarPrimerUsuario();
   }, [navigate]);
 
   useEffect(() => {
     const token = searchParams.get("token");
     const emailParam = searchParams.get("email");
-
-    if (token && emailParam) {
-      verificarTokenCambioPassword(token, emailParam);
-    }
+    if (token && emailParam) verificarTokenCambioPassword(token, emailParam);
   }, [searchParams]);
 
   const verificarTokenCambioPassword = async (token, email) => {
@@ -84,7 +76,6 @@ const HulkGymLogin = () => {
       const res = await axios.get(
         `${API}/api/auth/verificar-token?token=${token}&email=${email}`,
       );
-
       if (res.data.valido) {
         setMostrarCambioPassword(true);
         setTokenCambio(token);
@@ -92,16 +83,12 @@ const HulkGymLogin = () => {
         setNombreUsuario(res.data.nombre);
       } else {
         setAlertVariant("danger");
-        setAlertMessage(
-          "El enlace para cambiar contraseña es inválido o ha expirado.",
-        );
+        setAlertMessage("El enlace es inválido o ha expirado.");
         setShowAlert(true);
       }
     } catch (error) {
       setAlertVariant("danger");
-      setAlertMessage(
-        "El enlace para cambiar contraseña es inválido o ha expirado.",
-      );
+      setAlertMessage("El enlace es inválido o ha expirado.");
       setShowAlert(true);
     }
   };
@@ -121,58 +108,39 @@ const HulkGymLogin = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-
     const emailSinEspacios = email.trim();
     const passwordSinEspacios = password.trim();
-
     if (!emailSinEspacios || !passwordSinEspacios) {
       setAlertVariant("danger");
-      setAlertMessage("Por favor, completa todos los campos");
+      setAlertMessage("Completá todos los campos");
       setShowAlert(true);
       return;
     }
-
     try {
       const res = await axios.post(`${API}/api/auth/login`, {
         email: emailSinEspacios,
         password: passwordSinEspacios,
       });
-
       const { accessToken, refreshToken, usuario } = res.data;
-
       localStorage.setItem("token", accessToken);
       localStorage.setItem("refreshToken", refreshToken);
       localStorage.setItem("userType", usuario.rol);
       localStorage.setItem("userName", usuario.nombre);
       localStorage.setItem("userEmail", usuario.email);
       localStorage.setItem("usuario", JSON.stringify(usuario));
-
-      setAlertVariant("success");
-      setAlertMessage(`¡Bienvenido ${usuario.nombre}!`);
-      setShowAlert(true);
-
-      setTimeout(() => {
-        navigate(usuario.rol === "admin" ? "/admin" : "/principal", {
-          replace: true,
-        });
-      }, 800);
+      navigate(usuario.rol === "admin" ? "/admin" : "/principal", {
+        replace: true,
+      });
     } catch (error) {
-      console.error("❌ Error en login:", error);
-
       if (error.response?.data?.requiereCambioPassword) {
         setMostrarCambioPassword(true);
         setTokenCambio(error.response.data.tokenCambio);
         setEmailCambio(error.response.data.email);
-        setAlertVariant("warning");
-        setAlertMessage("Debes cambiar tu contraseña temporal para continuar.");
-        setShowAlert(true);
         return;
       }
-
       setAlertVariant("danger");
       setAlertMessage(
-        error.response?.data?.mensaje ||
-          "Correo electrónico o contraseña incorrectos",
+        error.response?.data?.mensaje || "Credenciales incorrectas",
       );
       setShowAlert(true);
     }
@@ -180,44 +148,35 @@ const HulkGymLogin = () => {
 
   const handleCambiarPassword = async (e) => {
     e.preventDefault();
-
     if (nuevaPassword.length < 6) {
       setAlertVariant("danger");
-      setAlertMessage("La contraseña debe tener al menos 6 caracteres");
+      setAlertMessage("Mínimo 6 caracteres");
       setShowAlert(true);
       return;
     }
-
     if (nuevaPassword !== confirmarNuevaPassword) {
       setAlertVariant("danger");
       setAlertMessage("Las contraseñas no coinciden");
       setShowAlert(true);
       return;
     }
-
     try {
       await axios.post(`${API}/api/auth/cambiar-password`, {
         token: tokenCambio,
         email: emailCambio,
-        nuevaPassword: nuevaPassword,
+        nuevaPassword,
       });
-
       setAlertVariant("success");
-      setAlertMessage("¡Contraseña actualizada! Ya puedes iniciar sesión.");
+      setAlertMessage("¡Contraseña actualizada!");
       setShowAlert(true);
-
       setTimeout(() => {
         setMostrarCambioPassword(false);
-        setTokenCambio("");
-        setEmailCambio("");
-        setNuevaPassword("");
-        setConfirmarNuevaPassword("");
         window.history.replaceState({}, document.title, "/login");
-      }, 2000);
+      }, 1500);
     } catch (error) {
       setAlertVariant("danger");
       setAlertMessage(
-        error.response?.data?.mensaje || "Error al cambiar la contraseña",
+        error.response?.data?.mensaje || "Error al cambiar contraseña",
       );
       setShowAlert(true);
     }
@@ -225,50 +184,23 @@ const HulkGymLogin = () => {
 
   const handleGoogleSignIn = async (e) => {
     if (e) e.preventDefault();
-
     try {
       setIsGoogleLoading(true);
-      setAlertVariant("info");
-      setAlertMessage("Conectando con Google...");
-      setShowAlert(true);
-
       const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
-      const idToken = await user.getIdToken();
-
-      const response = await axios.post(
-        `${API}/api/google/auth`,
-        {
-          idToken: idToken,
-        },
-      );
-
+      const idToken = await result.user.getIdToken();
+      const response = await axios.post(`${API}/api/google/auth`, { idToken });
       const { accessToken, refreshToken, usuario } = response.data;
-
       localStorage.setItem("token", accessToken);
       localStorage.setItem("refreshToken", refreshToken);
       localStorage.setItem("userType", usuario.rol);
       localStorage.setItem("userName", usuario.nombre);
       localStorage.setItem("userEmail", usuario.email);
-      localStorage.setItem("usuario", JSON.stringify(usuario));
-
-      setAlertVariant("success");
-      setAlertMessage(`¡Bienvenido ${usuario.nombre}!`);
-      setShowAlert(true);
-
-      setTimeout(() => {
-        navigate(usuario.rol === "admin" ? "/admin" : "/principal", {
-          replace: true,
-        });
-      }, 1000);
+      navigate(usuario.rol === "admin" ? "/admin" : "/principal", {
+        replace: true,
+      });
     } catch (error) {
-      console.error("❌ Error con Google:", error);
       setAlertVariant("danger");
-      setAlertMessage(
-        error.response?.data?.mensaje ||
-          error.message ||
-          "No se pudo conectar con Google",
-      );
+      setAlertMessage("No se pudo conectar con Google");
       setShowAlert(true);
     } finally {
       setIsGoogleLoading(false);
@@ -277,330 +209,636 @@ const HulkGymLogin = () => {
 
   const handleForgotPassword = async (e) => {
     e.preventDefault();
-
     if (!emailRecuperacion.trim()) {
       setAlertVariant("danger");
-      setAlertMessage("Ingresa tu correo electrónico");
+      setAlertMessage("Ingresá tu correo");
       setShowAlert(true);
       return;
     }
-
     try {
       await axios.post(`${API}/api/auth/forgot-password`, {
         email: emailRecuperacion.trim(),
       });
-
       setAlertVariant("success");
-      setAlertMessage(
-        "Si el correo existe, se enviará un enlace para restablecer la contraseña.",
-      );
+      setAlertMessage("Si el correo existe, recibirás un enlace.");
       setShowAlert(true);
-
       setEmailRecuperacion("");
     } catch (error) {
       setAlertVariant("danger");
-      setAlertMessage("Error al enviar el correo.");
+      setAlertMessage("Error al enviar el correo");
       setShowAlert(true);
     }
   };
 
   if (mostrarRecuperacion) {
     return (
-      <Container fluid>
-        <Row className="justify-content-center align-items-center vh-100">
-          <Col xs={12} sm={10} md={8} lg={6} xl={4}>
-            <Card className="border-0 shadow">
-              <Card.Body className="p-4">
-                <div className="text-center mb-4">
-                  <img
-                    src={LogoLoginImg}
-                    alt="Logo"
-                    className="img-fluid w-50"
-                  />
-                  <h4 className="mt-3">Recuperar contraseña</h4>
-                  <p className="text-muted">
-                    Ingresa tu correo y te enviaremos un enlace para restablecer
-                    tu contraseña.
-                  </p>
-                </div>
+      <div
+        style={{ minHeight: "100vh", display: "flex", background: "#f1f5f9" }}
+      >
+        <div
+          style={{
+            flex: 1,
+            background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%)",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: "48px",
+          }}
+          className="d-none d-lg-flex"
+        >
+          <img
+            src={LogoLoginImg}
+            alt="HULK GYM"
+            style={{
+              width: "220px",
+              marginBottom: "32px",
+              filter: "brightness(1.2)",
+            }}
+          />
+          <h2
+            style={{
+              color: "#f1f5f9",
+              fontWeight: 800,
+              fontSize: "1.75rem",
+              textAlign: "center",
+              marginBottom: "8px",
+            }}
+          >
+            Recuperá tu acceso
+          </h2>
+          <p
+            style={{
+              color: "#94a3b8",
+              textAlign: "center",
+              fontSize: "0.9375rem",
+              maxWidth: "320px",
+            }}
+          >
+            Te enviaremos un enlace para restablecer tu contraseña
+          </p>
+        </div>
 
-                {showAlert && (
-                  <Alert
-                    variant={alertVariant}
-                    onClose={() => setShowAlert(false)}
-                    dismissible
-                  >
-                    {alertMessage}
-                  </Alert>
-                )}
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: "24px",
+          }}
+        >
+          <div style={{ width: "100%", maxWidth: "400px" }}>
+            <div className="d-lg-none text-center mb-4">
+              <img
+                src={LogoLoginImg}
+                alt="HULK GYM"
+                style={{ width: "120px" }}
+              />
+            </div>
 
-                <Form onSubmit={handleForgotPassword}>
-                  <Form.Group className="mb-4">
-                    <Form.Label>Correo Electrónico</Form.Label>
-                    <Form.Control
-                      type="email"
-                      placeholder="Ingresa tu correo"
-                      value={emailRecuperacion}
-                      onChange={(e) => setEmailRecuperacion(e.target.value)}
-                      required
-                    />
-                  </Form.Group>
+            <h4
+              style={{ fontWeight: 700, color: "#0f172a", marginBottom: "4px" }}
+            >
+              Recuperar contraseña
+            </h4>
+            <p
+              style={{
+                color: "#64748b",
+                fontSize: "0.875rem",
+                marginBottom: "24px",
+              }}
+            >
+              Ingresá tu correo electrónico
+            </p>
 
-                  <Button
-                    type="submit"
-                    className="w-100 py-2 mb-3 fw-bold border-0"
+            {showAlert && (
+              <Alert
+                variant={alertVariant}
+                onClose={() => setShowAlert(false)}
+                dismissible
+                style={{ borderRadius: "10px", fontSize: "0.875rem" }}
+              >
+                {alertMessage}
+              </Alert>
+            )}
+
+            <Form onSubmit={handleForgotPassword}>
+              <Form.Group className="mb-4">
+                <div style={{ position: "relative" }}>
+                  <FaEnvelope
                     style={{
-                      background: "linear-gradient(135deg, #0400f7, #3352ff)",
+                      position: "absolute",
+                      left: "14px",
+                      top: "14px",
+                      color: "#94a3b8",
+                    }}
+                  />
+                  <Form.Control
+                    type="email"
+                    placeholder="tu@email.com"
+                    value={emailRecuperacion}
+                    onChange={(e) => setEmailRecuperacion(e.target.value)}
+                    required
+                    className="login-input"
+                    style={{
+                      paddingLeft: "42px",
                       borderRadius: "10px",
-                      boxShadow: "0 4px 12px rgba(0, 16, 247, 0.4)",
-                      transition: "all 0.3s ease",
+                      border: "1px solid #e2e8f0",
+                      padding: "12px 14px 12px 42px",
+                      fontSize: "0.9375rem",
                     }}
-                    onMouseOver={(e) => {
-                      e.target.style.transform = "translateY(-2px)";
-                      e.target.style.boxShadow =
-                        "0 6px 18px rgba(4, 0, 247, 0.6)";
-                    }}
-                    onMouseOut={(e) => {
-                      e.target.style.transform = "translateY(0)";
-                      e.target.style.boxShadow =
-                        "0 4px 12px rgba(4, 0, 247, 0.4)";
-                    }}
-                  >
-                    ENVIAR ENLACE
-                  </Button>
-                </Form>
+                  />
+                </div>
+              </Form.Group>
+              <Button
+                type="submit"
+                className="w-100 py-2 mb-3 fw-bold border-0"
+                style={{
+                  background: "#2563eb",
+                  borderRadius: "10px",
+                  fontSize: "0.875rem",
+                  letterSpacing: "0.03em",
+                }}
+              >
+                ENVIAR ENLACE
+              </Button>
+            </Form>
 
-                <Button
-                  variant="link"
-                  className="w-100 fw-semibold text-decoration-none"
-                  style={{
-                    color: "#0d6efd",
-                    transition: "all 0.2s ease",
-                  }}
-                  onClick={() => setMostrarRecuperacion(false)}
-                  onMouseOver={(e) => {
-                    e.target.style.color = "#084298";
-                  }}
-                  onMouseOut={(e) => {
-                    e.target.style.color = "#0d6efd";
-                  }}
-                >
-                  ← Volver al inicio de sesión
-                </Button>
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
-      </Container>
+            <button
+              onClick={() => setMostrarRecuperacion(false)}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#64748b",
+                cursor: "pointer",
+                fontSize: "0.8125rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: 0,
+              }}
+            >
+              <FaArrowLeft size={12} /> Volver al inicio de sesión
+            </button>
+          </div>
+        </div>
+      </div>
     );
   }
 
   if (mostrarCambioPassword) {
     return (
-      <Container fluid>
-        <Row className="justify-content-center align-items-center vh-100">
-          <Col xs={12} sm={10} md={8} lg={6} xl={4}>
-            <Card className="border-0 shadow">
-              <Card.Body className="p-4">
-                <div className="text-center mb-4">
-                  <img
-                    src={LogoLoginImg}
-                    alt="Logo"
-                    className="img-fluid w-50"
-                  />
-                  <h4 className="mt-3">Cambiar contraseña</h4>
-                  <p className="text-muted">
-                    Hola {nombreUsuario}, ingresa tu nueva contraseña.
-                  </p>
-                </div>
+      <div
+        style={{ minHeight: "100vh", display: "flex", background: "#f1f5f9" }}
+      >
+        <div
+          style={{
+            flex: 1,
+            background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%)",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: "48px",
+          }}
+          className="d-none d-lg-flex"
+        >
+          <img
+            src={LogoLoginImg}
+            alt="HULK GYM"
+            style={{ width: "220px", marginBottom: "32px" }}
+          />
+          <h2
+            style={{
+              color: "#f1f5f9",
+              fontWeight: 800,
+              fontSize: "1.75rem",
+              textAlign: "center",
+              marginBottom: "8px",
+            }}
+          >
+            Nueva contraseña
+          </h2>
+          <p
+            style={{
+              color: "#94a3b8",
+              textAlign: "center",
+              fontSize: "0.9375rem",
+              maxWidth: "320px",
+            }}
+          >
+            Elegí una contraseña segura para tu cuenta
+          </p>
+        </div>
 
-                {showAlert && (
-                  <Alert
-                    variant={alertVariant}
-                    onClose={() => setShowAlert(false)}
-                    dismissible
-                  >
-                    {alertMessage}
-                  </Alert>
-                )}
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: "24px",
+          }}
+        >
+          <div style={{ width: "100%", maxWidth: "400px" }}>
+            <div className="d-lg-none text-center mb-4">
+              <img
+                src={LogoLoginImg}
+                alt="HULK GYM"
+                style={{ width: "120px" }}
+              />
+            </div>
 
-                <Form onSubmit={handleCambiarPassword}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Nueva contraseña</Form.Label>
-                    <InputGroup>
-                      <Form.Control
-                        type={showNuevaPassword ? "text" : "password"}
-                        value={nuevaPassword}
-                        onChange={(e) => setNuevaPassword(e.target.value)}
-                        required
-                      />
-                      <InputGroup.Text
-                        as="button"
-                        type="button"
-                        onClick={toggleNuevaPasswordVisibility}
-                        className="bg-transparent"
-                        style={{ cursor: "pointer" }}
-                      >
-                        {showNuevaPassword ? <FaEyeSlash /> : <FaEye />}
-                      </InputGroup.Text>
-                    </InputGroup>
-                  </Form.Group>
+            <h4
+              style={{ fontWeight: 700, color: "#0f172a", marginBottom: "4px" }}
+            >
+              Cambiar contraseña
+            </h4>
+            <p
+              style={{
+                color: "#64748b",
+                fontSize: "0.875rem",
+                marginBottom: "24px",
+              }}
+            >
+              Hola {nombreUsuario}
+            </p>
 
-                  <Form.Group className="mb-4">
-                    <Form.Label>Confirmar contraseña</Form.Label>
-                    <InputGroup>
-                      <Form.Control
-                        type={showConfirmarPassword ? "text" : "password"}
-                        value={confirmarNuevaPassword}
-                        onChange={(e) =>
-                          setConfirmarNuevaPassword(e.target.value)
-                        }
-                        required
-                      />
-                      <InputGroup.Text
-                        as="button"
-                        type="button"
-                        onClick={toggleConfirmarPasswordVisibility}
-                        className="bg-transparent"
-                        style={{ cursor: "pointer" }}
-                      >
-                        {showConfirmarPassword ? <FaEyeSlash /> : <FaEye />}
-                      </InputGroup.Text>
-                    </InputGroup>
-                  </Form.Group>
+            {showAlert && (
+              <Alert
+                variant={alertVariant}
+                onClose={() => setShowAlert(false)}
+                dismissible
+                style={{ borderRadius: "10px", fontSize: "0.875rem" }}
+              >
+                {alertMessage}
+              </Alert>
+            )}
 
-                  <Button
-                    type="submit"
-                    className="w-100 py-2 fw-bold border-0"
+            <Form onSubmit={handleCambiarPassword}>
+              <Form.Group className="mb-3">
+                <div style={{ position: "relative" }}>
+                  <FaLock
                     style={{
-                      background: "linear-gradient(135deg, #198754, #157347)",
+                      position: "absolute",
+                      left: "14px",
+                      top: "14px",
+                      color: "#94a3b8",
+                    }}
+                  />
+                  <Form.Control
+                    type={showNuevaPassword ? "text" : "password"}
+                    placeholder="Nueva contraseña"
+                    value={nuevaPassword}
+                    onChange={(e) => setNuevaPassword(e.target.value)}
+                    required
+                    className="login-input"
+                    style={{
+                      paddingLeft: "42px",
+                      paddingRight: "42px",
                       borderRadius: "10px",
-                      boxShadow: "0 4px 12px rgba(25, 135, 84, 0.4)",
+                      border: "1px solid #e2e8f0",
+                      padding: "12px 14px",
+                      fontSize: "0.9375rem",
+                    }}
+                  />
+                  <span
+                    onClick={toggleNuevaPasswordVisibility}
+                    style={{
+                      position: "absolute",
+                      right: "14px",
+                      top: "14px",
+                      cursor: "pointer",
+                      color: "#94a3b8",
                     }}
                   >
-                    CAMBIAR CONTRASEÑA
-                  </Button>
-                </Form>
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
-      </Container>
+                    {showNuevaPassword ? <FaEyeSlash /> : <FaEye />}
+                  </span>
+                </div>
+              </Form.Group>
+              <Form.Group className="mb-4">
+                <div style={{ position: "relative" }}>
+                  <FaLock
+                    style={{
+                      position: "absolute",
+                      left: "14px",
+                      top: "14px",
+                      color: "#94a3b8",
+                    }}
+                  />
+                  <Form.Control
+                    type={showConfirmarPassword ? "text" : "password"}
+                    placeholder="Confirmar contraseña"
+                    value={confirmarNuevaPassword}
+                    onChange={(e) => setConfirmarNuevaPassword(e.target.value)}
+                    required
+                    className="login-input"
+                    style={{
+                      paddingLeft: "42px",
+                      paddingRight: "42px",
+                      borderRadius: "10px",
+                      border: "1px solid #e2e8f0",
+                      padding: "12px 14px",
+                      fontSize: "0.9375rem",
+                    }}
+                  />
+                  <span
+                    onClick={toggleConfirmarPasswordVisibility}
+                    style={{
+                      position: "absolute",
+                      right: "14px",
+                      top: "14px",
+                      cursor: "pointer",
+                      color: "#94a3b8",
+                    }}
+                  >
+                    {showConfirmarPassword ? <FaEyeSlash /> : <FaEye />}
+                  </span>
+                </div>
+              </Form.Group>
+              <Button
+                type="submit"
+                className="w-100 py-2 fw-bold border-0"
+                style={{
+                  background: "#059669",
+                  borderRadius: "10px",
+                  fontSize: "0.875rem",
+                  letterSpacing: "0.03em",
+                }}
+              >
+                CAMBIAR CONTRASEÑA
+              </Button>
+            </Form>
+          </div>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Container fluid>
-      <Row className="justify-content-center align-items-center vh-100">
-        <Col xs={12} sm={10} md={8} lg={6} xl={4}>
-          <Card className="border-0 shadow">
-            <Card.Body className="p-4">
-              <div className="text-center mb-4">
-                <img src={LogoLoginImg} alt="Logo" className="img-fluid w-50" />
-                <p className="text-muted h5">Inicia sesión para continuar</p>
-              </div>
+    <div style={{ minHeight: "100vh", display: "flex", background: "#f1f5f9" }}>
+      <div
+        style={{
+          flex: 1,
+          background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%)",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          padding: "48px",
+        }}
+        className="d-none d-lg-flex"
+      >
+        <img
+          src={LogoLoginImg}
+          alt="HULK GYM"
+          style={{
+            width: "220px",
+            marginBottom: "40px",
+            filter: "brightness(1.2)",
+          }}
+        />
+        <h1
+          style={{
+            color: "#f1f5f9",
+            fontWeight: 800,
+            fontSize: "2rem",
+            textAlign: "center",
+            marginBottom: "12px",
+          }}
+        >
+          HULK GYM
+        </h1>
+        <p
+          style={{
+            color: "#94a3b8",
+            textAlign: "center",
+            fontSize: "1rem",
+            maxWidth: "320px",
+            lineHeight: "1.6",
+          }}
+        >
+          Sistema de gestión de gimnasio. Administrá clientes, rutinas y mucho
+          más.
+        </p>
+      </div>
 
-              {showAlert && (
-                <Alert
-                  variant={alertVariant}
-                  onClose={() => setShowAlert(false)}
-                  dismissible
-                >
-                  {alertMessage}
-                </Alert>
-              )}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          padding: "24px",
+        }}
+      >
+        <div style={{ width: "100%", maxWidth: "400px" }}>
+          <div className="d-lg-none text-center mb-4">
+            <img
+              src={LogoLoginImg}
+              alt="HULK GYM"
+              style={{ width: "140px", marginBottom: "8px" }}
+            />
+            <h4 style={{ fontWeight: 800, color: "#0f172a" }}>HULK GYM</h4>
+          </div>
 
-              <Form onSubmit={handleLogin}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Correo Electrónico</Form.Label>
-                  <Form.Control
-                    type="email"
-                    placeholder="Ingresa tu correo electrónico"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </Form.Group>
+          <h3
+            style={{ fontWeight: 700, color: "#0f172a", marginBottom: "4px" }}
+          >
+            Iniciar sesión
+          </h3>
+          <p
+            style={{
+              color: "#64748b",
+              fontSize: "0.875rem",
+              marginBottom: "28px",
+            }}
+          >
+            Ingresá tus credenciales para continuar
+          </p>
 
-                <Form.Group className="mb-4">
-                  <Form.Label>Contraseña</Form.Label>
-                  <InputGroup>
-                    <Form.Control
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Ingresa tu contraseña"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                    />
-                    <InputGroup.Text
-                      as="button"
-                      type="button"
-                      onClick={togglePasswordVisibility}
-                      className="bg-transparent"
-                      style={{ cursor: "pointer" }}
-                    >
-                      {showPassword ? <FaEyeSlash /> : <FaEye />}
-                    </InputGroup.Text>
-                  </InputGroup>
-                </Form.Group>
+          {showAlert && (
+            <Alert
+              variant={alertVariant}
+              onClose={() => setShowAlert(false)}
+              dismissible
+              style={{ borderRadius: "10px", fontSize: "0.875rem" }}
+            >
+              {alertMessage}
+            </Alert>
+          )}
 
-                <Button
-                  type="submit"
-                  className="w-100 py-2 mb-3 fw-bold border-0"
+          <Form onSubmit={handleLogin}>
+            <Form.Group className="mb-3">
+              <div style={{ position: "relative" }}>
+                <FaEnvelope
                   style={{
-                    backgroundColor: "#198754", 
+                    position: "absolute",
+                    left: "14px",
+                    top: "14px",
+                    color: "#94a3b8",
+                  }}
+                />
+                <Form.Control
+                  type="email"
+                  placeholder="tu@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="login-input"
+                  style={{
+                    paddingLeft: "42px",
                     borderRadius: "10px",
-                    boxShadow: "0 4px 12px rgba(25, 135, 84, 0.35)",
-                    transition: "all 0.3s ease",
+                    border: "1px solid #e2e8f0",
+                    padding: "12px 14px 12px 42px",
+                    fontSize: "0.9375rem",
                   }}
-                  onMouseOver={(e) => {
-                    e.target.style.transform = "translateY(-2px)";
-                    e.target.style.boxShadow =
-                      "0 6px 18px rgba(25, 135, 84, 0.5)";
+                />
+              </div>
+            </Form.Group>
+
+            <Form.Group className="mb-4">
+              <div style={{ position: "relative" }}>
+                <FaLock
+                  style={{
+                    position: "absolute",
+                    left: "14px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: "#94a3b8",
+                    zIndex: 1,
+                    fontSize: "0.875rem",
                   }}
-                  onMouseOut={(e) => {
-                    e.target.style.transform = "translateY(0)";
-                    e.target.style.boxShadow =
-                      "0 4px 12px rgba(25, 135, 84, 0.35)";
+                />
+                <Form.Control
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Contraseña"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="login-input"
+                  style={{
+                    padding: "12px 40px 12px 42px",
+                    borderRadius: "10px",
+                    border: "1px solid #e2e8f0",
+                    fontSize: "0.9375rem",
+                    lineHeight: "1.5",
+                  }}
+                />
+                <span
+                  onClick={togglePasswordVisibility}
+                  style={{
+                    position: "absolute",
+                    right: "14px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    cursor: "pointer",
+                    color: "#94a3b8",
+                    zIndex: 1,
+                    display: "flex",
+                    alignItems: "center",
                   }}
                 >
-                  INICIAR SESIÓN
-                </Button>
-              </Form>
-
-              <Button
-                variant="outline-secondary"
-                type="button"
-                className="w-100 mb-3 d-flex align-items-center justify-content-center"
-                onClick={handleGoogleSignIn}
-                disabled={isGoogleLoading}
-              >
-                <FaGoogle className="me-2" style={{ color: "#42f442ff" }} />
-                {isGoogleLoading
-                  ? "Conectando..."
-                  : "Iniciar sesión con Google"}
-              </Button>
-
-              <div className="text-center mb-3">
-                <small
-                  className="text-primary fs-6"
-                  style={{ cursor: "pointer" }}
-                  onClick={() => setMostrarRecuperacion(true)}
-                >
-                  ¿Olvidaste tu contraseña?
-                </small>
+                  {showPassword ? (
+                    <FaEyeSlash size={16} />
+                  ) : (
+                    <FaEye size={16} />
+                  )}
+                </span>
               </div>
+            </Form.Group>
 
-              <div className="text-center">
-                <small className="text-muted">
-                  ¿Necesitas una cuenta? Contacta al administrador del gimnasio.
-                </small>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </Container>
+            <Button
+              type="submit"
+              className="w-100 py-2 mb-3 fw-bold border-0"
+              style={{
+                background: "#2563eb",
+                borderRadius: "10px",
+                fontSize: "0.875rem",
+                letterSpacing: "0.03em",
+                boxShadow: "0 4px 12px rgba(37, 99, 235, 0.3)",
+              }}
+            >
+              INICIAR SESIÓN
+            </Button>
+          </Form>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              marginBottom: "16px",
+            }}
+          >
+            <div style={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
+            <span
+              style={{ fontSize: "0.75rem", color: "#94a3b8", fontWeight: 500 }}
+            >
+              o
+            </span>
+            <div style={{ flex: 1, height: "1px", background: "#e2e8f0" }} />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={isGoogleLoading}
+            style={{
+              width: "100%",
+              padding: "11px",
+              borderRadius: "10px",
+              background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
+              border: "1px solid #cbd5e1",
+              color: "#334155",
+              fontWeight: 600,
+              fontSize: "0.885rem",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "10px",
+              transition: "all 0.2s ease",
+              boxShadow:
+                "0 2px 8px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.02)",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.boxShadow =
+                "0 4px 16px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.04)";
+              e.currentTarget.style.transform = "translateY(-1px)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow =
+                "0 2px 8px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.02)";
+              e.currentTarget.style.transform = "translateY(0)";
+            }}
+          >
+            <FaGoogle size={16} style={{ color: "#4285f4" }} />
+            {isGoogleLoading ? "Conectando..." : "Iniciar sesión con Google"}
+          </button>
+
+          <div className="text-center">
+            <span
+              onClick={() => setMostrarRecuperacion(true)}
+              style={{
+                color: "#2563eb",
+                cursor: "pointer",
+                fontSize: "0.8125rem",
+                fontWeight: 600,
+              }}
+            >
+              ¿Olvidaste tu contraseña?
+            </span>
+            <div style={{ marginTop: "16px" }}>
+              <small style={{ color: "#94a3b8", fontSize: "0.75rem" }}>
+                ¿Necesitás una cuenta? Contactá al administrador.
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 

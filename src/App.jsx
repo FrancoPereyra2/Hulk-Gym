@@ -7,7 +7,7 @@ import PagePrincipal from './components/pages/pagePrincipal.jsx';
 import Administrador from './components/pages/admin.jsx';
 import Rutinas from './components/pages/rutinas.jsx';
 
-// Componente para rutas protegidas
+
 const RutaProtegida = ({ children, requiereAdmin = false }) => {
   const token = localStorage.getItem('token');
   const userType = localStorage.getItem('userType');

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios"; 
+import axios from "axios";
 import {
   Container,
   Row,
@@ -46,7 +46,7 @@ const PagePrincipal = () => {
   const { isDarkMode, alternarTema } = useTheme();
 
   const [userType, setUserType] = useState(() =>
-    localStorage.getItem("userType")
+    localStorage.getItem("userType"),
   );
 
   const [clientes, setClientes] = useState([]);
@@ -66,33 +66,32 @@ const PagePrincipal = () => {
   });
 
   useEffect(() => {
-  const cargarDatosCliente = async () => {
-    if (userType !== "cliente") return;
+    const cargarDatosCliente = async () => {
+      if (userType !== "cliente") return;
 
-    try {
-      const token = localStorage.getItem("token");
+      try {
+        const token = localStorage.getItem("token");
 
-      if (!usuario || !usuario.email) {
-        console.error("No hay usuario guardado en localStorage");
-        return;
-      }
-
-      const res = await axios.get(
-        `${API}/api/clientes/email/${usuario.email}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
+        if (!usuario || !usuario.email) {
+          console.error("No hay usuario guardado en localStorage");
+          return;
         }
-      );
 
-      setClienteLogueado(res.data);
-    } catch (error) {
-      console.error("Error al obtener datos del cliente:", error);
-    }
-  };
+        const res = await axios.get(
+          `${API}/api/clientes/email/${usuario.email}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
 
-  cargarDatosCliente();
-}, [userType]);
+        setClienteLogueado(res.data);
+      } catch (error) {
+        console.error("Error al obtener datos del cliente:", error);
+      }
+    };
 
+    cargarDatosCliente();
+  }, [userType]);
 
   useEffect(() => {
     const storedUserType = localStorage.getItem("userType");
@@ -108,7 +107,7 @@ const PagePrincipal = () => {
   useEffect(() => {
     const fetchClientes = async () => {
       if (userType !== "admin") return;
-      
+
       try {
         const token = localStorage.getItem("token");
         const res = await axios.get(`${API}/api/clientes`, {
@@ -121,7 +120,6 @@ const PagePrincipal = () => {
     };
     fetchClientes();
   }, [userType]);
-
 
   useEffect(() => {
     verificarCuentasVencidas();
@@ -219,7 +217,7 @@ const PagePrincipal = () => {
     }
 
     const confirmar = window.confirm(
-      `📧 ¿Enviar notificaciones a ${vencidas.length} clientes con cuentas vencidas?\n\n⚠️ Esto es una simulación.`
+      `📧 ¿Enviar notificaciones a ${vencidas.length} clientes con cuentas vencidas?\n\n⚠️ Esto es una simulación.`,
     );
 
     if (!confirmar) return;
@@ -238,7 +236,7 @@ const PagePrincipal = () => {
           .filter(
             (email) =>
               email.clienteDNI === cliente.dni &&
-              (email.estado === "Enviado" || email.estado === "Simulado")
+              (email.estado === "Enviado" || email.estado === "Simulado"),
           )
           .sort((a, b) => new Date(b.fechaEnvio) - new Date(a.fechaEnvio))[0];
 
@@ -249,7 +247,7 @@ const PagePrincipal = () => {
 
       if (clientesParaNotificar.length === 0) {
         alert(
-          "Todos los clientes ya fueron notificados en las últimas 24 horas."
+          "Todos los clientes ya fueron notificados en las últimas 24 horas.",
         );
         setShowNotificationAlert(false);
         return;
@@ -304,14 +302,14 @@ const PagePrincipal = () => {
         fechaCreacion: new Date().toISOString(),
         usado: false,
         fechaExpiracion: new Date(
-          Date.now() + 7 * 24 * 60 * 60 * 1000
+          Date.now() + 7 * 24 * 60 * 60 * 1000,
         ).toISOString(),
       };
 
       setTokensActivacion((prev) =>
         prev.map((t) =>
-          t.clienteId === cliente.id ? { ...t, usado: true } : t
-        )
+          t.clienteId === cliente.id ? { ...t, usado: true } : t,
+        ),
       );
 
       await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -534,7 +532,7 @@ const PagePrincipal = () => {
               <ListGroup>
                 {emailHistory
                   .sort(
-                    (a, b) => new Date(b.fechaEnvio) - new Date(a.fechaEnvio)
+                    (a, b) => new Date(b.fechaEnvio) - new Date(a.fechaEnvio),
                   )
                   .map((email) => (
                     <ListGroup.Item
@@ -589,8 +587,8 @@ const PagePrincipal = () => {
                               email.estado === "Enviado"
                                 ? "success"
                                 : email.estado === "Simulado"
-                                ? "warning"
-                                : "danger"
+                                  ? "warning"
+                                  : "danger"
                             }
                           >
                             {email.estado === "Enviado" ? (
@@ -1119,11 +1117,11 @@ const PagePrincipal = () => {
                                     const fechaVenc = new Date(
                                       anio,
                                       mes - 1,
-                                      dia
+                                      dia,
                                     );
                                     const hoy = new Date();
                                     const diff = Math.ceil(
-                                      (fechaVenc - hoy) / (1000 * 60 * 60 * 24)
+                                      (fechaVenc - hoy) / (1000 * 60 * 60 * 24),
                                     );
                                     if (diff > 7) return "bg-success";
                                     if (diff > 0) return "bg-warning";
@@ -1143,12 +1141,12 @@ const PagePrincipal = () => {
                                       const fechaVenc = new Date(
                                         anio,
                                         mes - 1,
-                                        dia
+                                        dia,
                                       );
                                       const hoy = new Date();
                                       const diff = Math.ceil(
                                         (fechaVenc - hoy) /
-                                          (1000 * 60 * 60 * 24)
+                                          (1000 * 60 * 60 * 24),
                                       );
                                       if (diff > 7) return "text-success";
                                       if (diff > 0) return "text-warning";
@@ -1174,12 +1172,12 @@ const PagePrincipal = () => {
                                       const fechaVenc = new Date(
                                         anio,
                                         mes - 1,
-                                        dia
+                                        dia,
                                       );
                                       const hoy = new Date();
                                       const diff = Math.ceil(
                                         (fechaVenc - hoy) /
-                                          (1000 * 60 * 60 * 24)
+                                          (1000 * 60 * 60 * 24),
                                       );
                                       return diff > 0
                                         ? `${diff} días`
@@ -1212,8 +1210,8 @@ const PagePrincipal = () => {
                                 ? "rgba(34, 197, 94, 0.1)"
                                 : "rgba(34, 197, 94, 0.1)"
                               : isDarkMode
-                              ? "rgba(239, 68, 68, 0.1)"
-                              : "rgba(239, 68, 68, 0.1)",
+                                ? "rgba(239, 68, 68, 0.1)"
+                                : "rgba(239, 68, 68, 0.1)",
                         }}
                       >
                         <div className="d-flex align-items-start">
@@ -1248,7 +1246,6 @@ const PagePrincipal = () => {
                     </Card.Body>
                   </Card>
                 </Col>
-             
               )}
             </Row>
           </Container>

@@ -13,6 +13,7 @@ const EMAILJS_CONFIG = {
 const EMAILJS_CONFIG_CREDENCIALES = {
   SERVICE_ID: 'service_1jr3j5c',  
   TEMPLATE_ID_CREDENCIALES: 'template_zu951rc', 
+  TEMPLATE_ID_BIENVENIDA: 'template_ofwuas8',
   PUBLIC_KEY: 'jLrk8oTINcs386RKq'  
 };
 
@@ -173,12 +174,13 @@ export const enviarEmailActivacion = async (cliente, token) => {
 };
 
 
-export const enviarCredencialesAcceso = async (cliente, password) => {
+export const enviarEmailBienvenida = async (cliente, password, token) => {
   if (!isEmailCredencialesConfigured()) {
-    console.warn('⚠️ EmailJS (Credenciales) no está configurado.');
+    console.warn('⚠️ EmailJS (Bienvenida) no está configurado.');
+
     return {
       success: false,
-      error: 'EmailJS para credenciales no configurado',
+      error: 'EmailJS para bienvenida no configurado',
       messageId: null
     };
   }
@@ -187,44 +189,49 @@ export const enviarCredencialesAcceso = async (cliente, password) => {
 
     emailjs.init(EMAILJS_CONFIG_CREDENCIALES.PUBLIC_KEY);
 
+    const loginUrl = `${window.location.origin}/login?token=${token}&email=${cliente.email}`;
+
     const templateParams = {
       to_email: cliente.email,
       to_name: cliente.nombre,
+
       cliente_nombre: cliente.nombre,
-      cliente_dni: cliente.dni,
       usuario_email: cliente.email,
       usuario_password: password,
-      login_url: `${window.location.origin}/login`,
+
+      login_url: loginUrl,
+
       gimnasio_nombre: 'HULK GYM',
       gimnasio_contacto: 'hulkgym670@gmail.com',
+
+      expiracion_dias: 7,
       anio_actual: new Date().getFullYear()
     };
 
-
     const response = await emailjs.send(
       EMAILJS_CONFIG_CREDENCIALES.SERVICE_ID,
-      EMAILJS_CONFIG_CREDENCIALES.TEMPLATE_ID_CREDENCIALES,
+      EMAILJS_CONFIG_CREDENCIALES.TEMPLATE_ID_BIENVENIDA,
       templateParams
     );
-
 
     emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
 
     return {
       success: true,
       messageId: response.text,
-      message: 'Credenciales enviadas correctamente'
+      message: 'Email de bienvenida enviado correctamente'
     };
 
   } catch (error) {
-    console.error('❌ Error al enviar credenciales:', error);
-    
+
+    console.error('❌ Error al enviar email de bienvenida:', error);
+
     try {
       emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
     } catch (initError) {
-      console.error('❌ Error al restaurar cuenta principal:', initError);
+      console.error('❌ Error restaurando EmailJS principal:', initError);
     }
-    
+
     return {
       success: false,
       error: error.text || error.message || 'Error desconocido',
@@ -450,6 +457,11 @@ export const registrarEmailHistorial = async (emailData, token) => {
   }
 };
 
+export const enviarCredencialesAcceso = async () => {
+  console.warn("⚠️ enviarCredencialesAcceso mock (modo local)");
+  return { success: true };
+};
+
 export default {
   isEmailConfigured,
   isEmailCredencialesConfigured,
@@ -458,6 +470,6 @@ export default {
   enviarEmailActivacion,
   verificarYNotificarExpiraciones,
   verificarVencimientosAutomaticos,
-  enviarCredencialesAcceso,
-  registrarEmailHistorial
+    registrarEmailHistorial,
+    enviarEmailBienvenida,
 };
