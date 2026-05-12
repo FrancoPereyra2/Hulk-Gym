@@ -497,9 +497,10 @@ const HulkGymLogin = () => {
                     style={{
                       paddingLeft: "42px",
                       paddingRight: "42px",
+                      paddingTop: "12px",
+                      paddingBottom: "12px",
                       borderRadius: "10px",
                       border: "1px solid #e2e8f0",
-                      padding: "12px 14px",
                       fontSize: "0.9375rem",
                     }}
                   />
@@ -537,9 +538,10 @@ const HulkGymLogin = () => {
                     style={{
                       paddingLeft: "42px",
                       paddingRight: "42px",
+                      paddingTop: "12px",
+                      paddingBottom: "12px",
                       borderRadius: "10px",
                       border: "1px solid #e2e8f0",
-                      padding: "12px 14px",
                       fontSize: "0.9375rem",
                     }}
                   />
