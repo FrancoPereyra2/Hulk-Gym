@@ -2069,7 +2069,7 @@ const Rutinas = () => {
                     style={{
                       borderColor: isDarkMode
                         ? "rgba(148, 163, 184, 0.2)"
-                        : "#cbd5e1",
+                        : "#1b7df5",
                       background: isDarkMode ? "#1e293b" : "#ffffff",
                       color: isDarkMode ? "#f1f5f9" : "#0f172a",
                       borderRadius: "8px",
