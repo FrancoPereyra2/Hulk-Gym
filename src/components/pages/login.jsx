@@ -483,7 +483,8 @@ const HulkGymLogin = () => {
                     style={{
                       position: "absolute",
                       left: "14px",
-                      top: "14px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
                       color: "#94a3b8",
                     }}
                   />
@@ -495,10 +496,7 @@ const HulkGymLogin = () => {
                     required
                     className="login-input"
                     style={{
-                      paddingLeft: "42px",
-                      paddingRight: "42px",
-                      paddingTop: "12px",
-                      paddingBottom: "12px",
+                      padding: "12px 42px 12px 42px",
                       borderRadius: "10px",
                       border: "1px solid #e2e8f0",
                       fontSize: "0.9375rem",
@@ -509,7 +507,8 @@ const HulkGymLogin = () => {
                     style={{
                       position: "absolute",
                       right: "14px",
-                      top: "14px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
                       cursor: "pointer",
                       color: "#94a3b8",
                     }}
@@ -518,7 +517,7 @@ const HulkGymLogin = () => {
                   </span>
                 </div>
               </Form.Group>
-              <Form.Group className="mb-3">
+              <Form.Group className="mb-4">
                 <div style={{ position: "relative" }}>
                   <FaLock
                     style={{
