@@ -518,7 +518,7 @@ const HulkGymLogin = () => {
                   </span>
                 </div>
               </Form.Group>
-              <Form.Group className="mb-4">
+              <Form.Group className="mb-3">
                 <div style={{ position: "relative" }}>
                   <FaLock
                     style={{
