@@ -20,6 +20,7 @@ import {
   Form,
   Alert,
   InputGroup,
+  Spinner,
 } from "react-bootstrap";
 import {
   FaUsers,
@@ -37,6 +38,7 @@ import {
   FaCheckCircle,
   FaTimesCircle,
   FaFilter,
+  FaUserShield,
 } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "./admin.jsx";
@@ -100,13 +102,14 @@ const Rutinas = () => {
   });
   const [ejercicioEnEdicion, setEjercicioEnEdicion] = useState(null);
   const [indexEjercicioEdicion, setIndexEjercicioEdicion] = useState(null);
+  const [loadingRutinas, setLoadingRutinas] = useState(true);
 
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailHistory, setEmailHistory] = useState([]);
   const [cuentasVencidas, setCuentasVencidas] = useState([]);
-
   const [filtroDesde, setFiltroDesde] = useState("");
   const [filtroHasta, setFiltroHasta] = useState("");
+  const [loadingEmails, setLoadingEmails] = useState(false);
 
   const formatearFechaCorta = useCallback((fecha) => {
     if (!fecha) return "";
@@ -166,6 +169,8 @@ const Rutinas = () => {
             error.response?.data?.mensaje ||
             "No se pudieron cargar las rutinas",
         });
+      } finally {
+        setLoadingRutinas(false);
       }
     };
     fetchRutinas();
@@ -499,6 +504,7 @@ const Rutinas = () => {
   };
 
   const fetchEmailHistory = useCallback(async () => {
+    setLoadingEmails(true);
     try {
       const token = localStorage.getItem("token");
       if (!token) {
@@ -534,6 +540,8 @@ const Rutinas = () => {
         title: "Error al cargar historial",
         text: error.response?.data?.mensaje || mensaje,
       });
+    } finally {
+      setLoadingEmails(false);
     }
   }, []);
 
@@ -650,6 +658,35 @@ const Rutinas = () => {
                 {isReadOnly ? "Mi Información" : "Gestión de Clientes"}
               </span>
             </Nav.Link>
+
+            {userType === "admin" && (
+              <Nav.Link
+                className="d-flex align-items-center mb-2"
+                onClick={() =>
+                  navigate(userType === "admin" ? "/admins" : "/admin")
+                }
+                style={{
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  borderRadius: "8px",
+                  padding: "12px 16px",
+                  color: "rgba(255, 255, 255, 0.55)",
+                  fontWeight: 500,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor =
+                    "rgba(255, 255, 255, 0.06)";
+                  e.currentTarget.style.color = "#ffffff";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "rgba(255, 255, 255, 0.55)";
+                }}
+              >
+                <FaUserShield className="me-2" />
+                <span>Gestión de Admins</span>
+              </Nav.Link>
+            )}
 
             <Nav.Link
               className="d-flex align-items-center mb-2"
@@ -896,7 +933,22 @@ const Rutinas = () => {
             )}
 
             <Row xs={1} md={2} lg={3} className="g-4">
-              {rutinas.length > 0 ? (
+              {loadingRutinas ? (
+                <Col xs={12}>
+                  <div
+                    className="d-flex flex-column align-items-center justify-content-center py-5"
+                    style={{ color: isDarkMode ? "#64748b" : "#94a3b8" }}
+                  >
+                    <div
+                      className="spinner-border mb-3"
+                      style={{ color: "#2563eb", opacity: 0.6 }}
+                    />
+                    <p className="mb-0" style={{ fontSize: "0.9375rem" }}>
+                      Cargando rutinas...
+                    </p>
+                  </div>
+                </Col>
+              ) : rutinas.length > 0 ? (
                 rutinas.map((rutina, index) => (
                   <Col key={rutina._id || rutina.id || `rutina-${index}`}>
                     <Card
@@ -2718,12 +2770,24 @@ const Rutinas = () => {
             </Card.Body>
           </Card>
 
-          {emailHistory.length === 0 ? (
+          {loadingEmails ? (
             <div
               className="text-center py-5"
-              style={{
-                color: isDarkMode ? "#64748b" : "#94a3b8",
-              }}
+              style={{ color: isDarkMode ? "#64748b" : "#94a3b8" }}
+            >
+              <Spinner
+                animation="border"
+                className="mb-3"
+                style={{ color: "#2563eb", opacity: 0.6 }}
+              />
+              <p className="mb-0" style={{ fontSize: "0.9375rem" }}>
+                Cargando historial...
+              </p>
+            </div>
+          ) : emailHistory.length === 0 ? (
+            <div
+              className="text-center py-5"
+              style={{ color: isDarkMode ? "#64748b" : "#94a3b8" }}
             >
               <FaEnvelope size={48} className="mb-3" style={{ opacity: 0.3 }} />
               <p className="mb-0" style={{ fontSize: "0.9375rem" }}>

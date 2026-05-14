@@ -17,6 +17,7 @@ import {
   Modal,
   Alert,
   ListGroup,
+  Spinner,
 } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
 import {
@@ -67,6 +68,7 @@ const PagePrincipal = () => {
   const [clienteLogueado, setClienteLogueado] = useState(null);
   const [filtroDesde, setFiltroDesde] = useState("");
   const [filtroHasta, setFiltroHasta] = useState("");
+  const [loadingCliente, setLoadingCliente] = useState(false);
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 992);
@@ -77,6 +79,7 @@ const PagePrincipal = () => {
   useEffect(() => {
     const cargarDatosCliente = async () => {
       if (userType !== "cliente") return;
+      setLoadingCliente(true);
       try {
         const token = localStorage.getItem("token");
         if (!usuario || !usuario.email) return;
@@ -89,6 +92,8 @@ const PagePrincipal = () => {
         setClienteLogueado(res.data);
       } catch (error) {
         console.error("Error al obtener datos del cliente:", error);
+      } finally {
+        setLoadingCliente(false);
       }
     };
     cargarDatosCliente();
@@ -419,6 +424,21 @@ const PagePrincipal = () => {
                 {isDarkMode ? <FaSun size={14} /> : <FaMoon size={14} />}
               </Button>
             </div>
+
+            {userType === "cliente" && loadingCliente && (
+              <div
+                className="d-flex flex-column align-items-center justify-content-center py-5"
+                style={{ color: isDarkMode ? "#64748b" : "#94a3b8" }}
+              >
+                <div
+                  className="spinner-border mb-3"
+                  style={{ color: "#2563eb", opacity: 0.6 }}
+                />
+                <p className="mb-0" style={{ fontSize: "0.9375rem" }}>
+                  Cargando tu información...
+                </p>
+              </div>
+            )}
 
             {userType === "cliente" && clienteLogueado && (
               <Row className="justify-content-center">

@@ -6,7 +6,7 @@ import Registro from './components/pages/registro.jsx';
 import PagePrincipal from './components/pages/pagePrincipal.jsx';
 import Administrador from './components/pages/admin.jsx';
 import Rutinas from './components/pages/rutinas.jsx';
-
+import GestionAdmins from './components/pages/gestionAdmins.jsx';
 
 const RutaProtegida = ({ children, requiereAdmin = false }) => {
   const token = localStorage.getItem('token');
@@ -55,6 +55,14 @@ function App() {
               </RutaProtegida>
             }
           />
+          <Route
+  path="/admins"
+  element={
+    <RutaProtegida requiereAdmin>
+      <GestionAdmins />
+    </RutaProtegida>
+  }
+/>
         </Routes>
       </BrowserRouter>
     </AuthProvider>

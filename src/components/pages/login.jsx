@@ -195,6 +195,7 @@ const HulkGymLogin = () => {
       localStorage.setItem("userType", usuario.rol);
       localStorage.setItem("userName", usuario.nombre);
       localStorage.setItem("userEmail", usuario.email);
+      localStorage.setItem("usuario", JSON.stringify(usuario));
       navigate(usuario.rol === "admin" ? "/admin" : "/principal", {
         replace: true,
       });
