@@ -10,6 +10,14 @@ Gestión de clientes • Control de pagos • Rutinas • Notificaciones automá
 
 ---
 
+> **🇬🇧 English summary** — Web platform to manage a gym end to end: admin dashboard with monthly income and client stats, client management with membership-expiry tracking, workout routines, automatic payment-reminder emails and Excel export. Two roles (admin / client) with email and Google sign-in.
+>
+> **Stack:** React 19 · Vite · React Router · React Bootstrap · Chart.js · React Hook Form · Firebase Auth · Axios
+>
+> 🔗 **Live demo:** [hulkgym-fitness.netlify.app](https://hulkgym-fitness.netlify.app) · ⚙️ **API:** [Hulk-Gym-Backend](https://github.com/FrancoPereyra2/Hulk-Gym-Backend)
+
+---
+
 # 📖 Descripción
 
 Este proyecto es una aplicación web desarrollada para facilitar la administración de un gimnasio, permitiendo llevar un control organizado de los clientes, pagos mensuales, rutinas y administración general del sistema.
